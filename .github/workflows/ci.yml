@@ -50,6 +50,24 @@ jobs:
       - run: make check-layering
 
   # ---------------------------------------------------------------------------
+  # The learning material has to keep working too. A lesson that references a
+  # moved file, or a teaching program that crashes, is a broken lesson -- and
+  # the reader it fails is the one least equipped to work around it.
+  # ---------------------------------------------------------------------------
+  learning-material:
+    name: lessons and toolbox
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: every relative link resolves
+        run: make check-links
+      - name: every teaching program runs
+        run: make check-toolbox
+
+  # ---------------------------------------------------------------------------
   # Build and test across compilers and platforms.
   # ---------------------------------------------------------------------------
   build-and-test:

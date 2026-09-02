@@ -1,5 +1,8 @@
 # `tests/` — the test suites
 
+> 📚 **Learning this?** See [Lesson 18 — When things break](../learn/18-when-things-break/) in the lesson track.
+
+
 Two suites with genuinely different jobs.
 
 ```

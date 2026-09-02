@@ -1,5 +1,8 @@
 # `fsw/hal/` — the ports
 
+> 📚 **Learning this?** See [Lesson 11 — Portability](../../learn/11-portability/) in the lesson track.
+
+
 Four interfaces. They are the seam that makes this flight software portable,
 and they are deliberately as small as they can possibly be.
 

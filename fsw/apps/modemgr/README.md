@@ -1,5 +1,8 @@
 # `fsw/apps/modemgr/` — spacecraft mode management
 
+> 📚 **Learning this?** See [Lesson 17 — Power and modes](../../../learn/17-power-and-modes/) in the lesson track.
+
+
 **Not yet implemented. Phase 5.** This directory is a placeholder with a
 documented design, so that the interfaces it will need are visible now rather
 than being retrofitted later.

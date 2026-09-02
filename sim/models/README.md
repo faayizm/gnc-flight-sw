@@ -1,5 +1,8 @@
 # `sim/models/` — physics and hardware models
 
+> 📚 **Learning this?** See [Lesson 14 — Sensors and noise](../../learn/14-sensors-and-noise/) in the lesson track.
+
+
 **Not yet implemented. Phase 2.**
 
 Truth models. Nothing here is flight code, nothing here is under the flight

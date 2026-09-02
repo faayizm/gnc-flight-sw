@@ -1,5 +1,8 @@
 # `fsw/apps/ttc/` — telemetry, tracking and command
 
+> 📚 **Learning this?** See [Lessons 5–8 — packets, services, verification, housekeeping](../../../learn/) in the lesson track.
+
+
 The spacecraft's mouth and ears, and the only application that currently works
 end to end.
 

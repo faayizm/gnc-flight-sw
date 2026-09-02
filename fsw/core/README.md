@@ -1,5 +1,8 @@
 # `fsw/core/` — the portable flight core
 
+> 📚 **Learning this?** See [Lesson 10 — The heartbeat](../../learn/10-the-heartbeat/) in the lesson track.
+
+
 The machinery every application needs, written to run anywhere. No operating
 system, no allocation after initialisation, no exceptions, no RTTI. This is the
 code that would be cross-compiled for a flight processor unchanged.

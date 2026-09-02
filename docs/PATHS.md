@@ -17,7 +17,8 @@ gnc_flight_sw/
 │
 ├── tools/
 │   ├── README.md
-│   └── gen.py                   Projects the dictionary into code, config and the ICD
+│   ├── gen.py                   Projects the dictionary into code, config and the ICD
+│   └── check_links.py           Verifies every relative link in the documentation
 │
 ├── fsw/                         ── FLIGHT SOFTWARE ──
 │   ├── README.md                The dependency rule and the enforced constraints
@@ -98,6 +99,34 @@ gnc_flight_sw/
 │   └── sil/                     35 checks against the real binary
 │       ├── README.md
 │       └── test_endtoend.py
+│
+├── learn/                       ── THE 18-LESSON COURSE ──
+│   ├── README.md                Curriculum map and the three difficulty tracks
+│   ├── GLOSSARY.md              Every acronym in the repository, plain language
+│   ├── toolbox/                 Standalone teaching programs, Python only
+│   │   ├── byte_order.py        Big vs little endian, and the disaster between
+│   │   ├── crc_playground.py    Damage a message, watch the checksum catch it
+│   │   ├── packet_explorer.py   A real packet, byte by byte (--live for a fresh one)
+│   │   ├── orbit_sandbox.py     Orbital speeds, and an orbit from Newton's law alone
+│   │   └── spin_sandbox.py      Euler's equation and B-dot detumble
+│   ├── 01-what-is-a-satellite/  ─┐
+│   ├── 02-first-contact/         │
+│   ├── 03-bytes-and-numbers/     │
+│   ├── 04-checksums/             ├─ Part 1: talking to a spacecraft
+│   ├── 05-ccsds-packets/         │  (no programming needed)
+│   ├── 06-pus-services/          │
+│   ├── 07-did-it-work/           │
+│   ├── 08-housekeeping-and-events/
+│   ├── 09-parameters/           ─┘
+│   ├── 10-the-heartbeat/        ─┬─ Part 2: inside the flight software
+│   ├── 11-portability/          ─┘
+│   ├── 12-orbits/               ─┐
+│   ├── 13-attitude/              │
+│   ├── 14-sensors-and-noise/     ├─ Part 3: physics and control
+│   ├── 15-estimation/            │
+│   ├── 16-control/               │
+│   ├── 17-power-and-modes/       │
+│   └── 18-when-things-break/    ─┘
 │
 ├── docs/
 │   ├── README.md

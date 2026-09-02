@@ -1,5 +1,8 @@
 # `gnd/` — the ground segment
 
+> 📚 **Learning this?** See [Lesson 2 — First contact](../learn/02-first-contact/) in the lesson track.
+
+
 Two ground systems, deliberately. They have different jobs and neither replaces
 the other.
 

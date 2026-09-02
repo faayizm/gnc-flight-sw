@@ -38,6 +38,33 @@ handling are scheduled and scaffolded, not yet implemented. The roadmap in
                  └──────────────────────────────────────┘
 ```
 
+## New to any of this? Start with the lessons
+
+**[`learn/`](learn/) is an eighteen-lesson course** built around this
+spacecraft — from "what even is a satellite" to estimating attitude from noisy
+sensors and recovering from a failed reaction wheel.
+
+It is graduated. Lessons 1–9 need no programming at all: you launch the
+spacecraft, send it real CCSDS commands, read its replies and break things on
+purpose. Lessons 10–11 open up the flight software. Lessons 12–18 are the
+physics and control theory, with runnable experiments.
+
+| | | |
+|---|---|---|
+| 🚀 **Explorer** | around 10 and up | Run it, watch it, break it |
+| 🔧 **Builder** | some code | Read the real files, change them |
+| 🎓 **Engineer** | studying or working here | The standards, the maths, the trade-offs |
+
+```bash
+python3 learn/toolbox/crc_playground.py    # watch a checksum catch a cosmic ray
+python3 learn/toolbox/orbit_sandbox.py     # why a satellite doesn't fall down
+python3 learn/toolbox/spin_sandbox.py      # stop a tumbling satellite with a magnet
+```
+
+Everything is real: the packets in Lesson 5 are byte-for-byte what a mission
+sends, and every number printed by the toolbox was checked against the analytic
+answer. [`learn/GLOSSARY.md`](learn/GLOSSARY.md) translates every acronym.
+
 ## Try it in two minutes
 
 ```bash
@@ -124,6 +151,7 @@ Every directory has a `README.md` explaining what belongs in it and why.
 | [`tests/unit/`](tests/unit/) | Fast, hermetic tests of the flight core |
 | [`tests/sil/`](tests/sil/) | Software-in-the-loop: the real binary over the real protocol |
 | [`docs/`](docs/) | Architecture, roadmap, and the generated interface control document |
+| [`learn/`](learn/) | The eighteen-lesson course, and the runnable toolbox |
 
 ## Design rules
 
@@ -145,6 +173,7 @@ violation fails the build rather than being caught in review.
 
 ## Reading order
 
+0. [`learn/`](learn/) — if any of this is new, start here instead
 1. [`dictionary/mission.yaml`](dictionary/mission.yaml) — what this spacecraft says and accepts
 2. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — why it is shaped this way
 3. [`fsw/core/scheduler.hpp`](fsw/core/scheduler.hpp) — the heartbeat, and why it is not threaded

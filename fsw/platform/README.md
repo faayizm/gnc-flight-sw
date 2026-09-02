@@ -1,5 +1,8 @@
 # `fsw/platform/` — the adapters
 
+> 📚 **Learning this?** See [Lesson 11 — Portability](../../learn/11-portability/) in the lesson track.
+
+
 The only code in the flight software tree permitted to include a system header.
 Everything here implements a port from `fsw/hal/`.
 

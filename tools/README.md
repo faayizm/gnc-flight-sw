@@ -43,6 +43,20 @@ That is a deliberate trade:
 - the CI job regenerates and fails if the result differs from what is
   committed, so the two cannot silently diverge.
 
+## `check_links.py`
+
+Verifies that every relative Markdown link in the repository resolves. Run it
+with `make check-links`; it runs in CI.
+
+This repository has more documentation than code -- a README in every
+directory, eighteen lessons, generated reference material -- and cross-links
+are how a reader navigates it. A broken link is a small betrayal, particularly
+in a lesson written for someone who does not yet know their way around.
+
+It skips fenced code blocks and inline code, because a C++ lambda written
+`[](void*)` inside an example otherwise reads as a link to a file called
+`void*`. That was the false positive that made the first version useless.
+
 ## Requirements
 
 Python 3.10+ and PyYAML. `make venv` creates a local virtual environment with

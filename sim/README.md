@@ -1,5 +1,8 @@
 # `sim/` — the spacecraft simulator
 
+> 📚 **Learning this?** See [Lessons 12–16 — orbits, attitude, sensors, estimation, control](../learn/) in the lesson track.
+
+
 **Not yet implemented. Phase 2.** This directory holds the design and the
 scaffolding; the code arrives with the ADCS work.
 

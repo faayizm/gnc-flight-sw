@@ -11,6 +11,16 @@
 hand. It is the document you would send to whoever is building the ground
 segment or the next subsystem.
 
+## Learning material
+
+[`../learn/`](../learn/) is a separate thing from this directory and serves a
+different reader. `docs/` is reference material for someone working on the
+system; `learn/` is an eighteen-lesson course for someone meeting these ideas
+for the first time, graduated so that a ten-year-old can do the first nine
+lessons and an engineer still finds something in the last nine.
+
+If a concept here needs explaining rather than specifying, it belongs there.
+
 ## Where the rest of the documentation is
 
 Most of it is not here. It is in the code, next to the decision it explains:

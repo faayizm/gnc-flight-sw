@@ -101,8 +101,39 @@ check-layering:  ## Enforce the architecture: no OS headers outside platform/
 	@echo "  core/hal/apps do not depend on platform/"
 	@echo "  no dynamic allocation in core/ or apps/"
 
+.PHONY: check-links
+check-links:  ## Verify every relative link in the documentation resolves
+	@$(SYS_PYTHON) tools/check_links.py .
+
+.PHONY: check-toolbox
+check-toolbox:  ## Run every teaching program, to prove the lessons still work
+	@for f in learn/toolbox/*.py; do \
+		case "$$f" in */__*) continue;; esac; \
+		printf "  %-40s" "$$f"; \
+		if $(SYS_PYTHON) "$$f" > /dev/null 2>&1; then echo "ok"; \
+		else echo "FAILED"; $(SYS_PYTHON) "$$f"; exit 1; fi; \
+	done
+
+.PHONY: learn
+learn:  ## Where to start learning
+	@echo ""
+	@echo "  An 18-lesson course built around this spacecraft."
+	@echo ""
+	@echo "    open learn/README.md            the curriculum and the three tracks"
+	@echo "    open learn/GLOSSARY.md          every acronym, in plain language"
+	@echo ""
+	@echo "  Nothing to install -- try one now:"
+	@echo ""
+	@echo "    python3 learn/toolbox/crc_playground.py    catch a cosmic ray"
+	@echo "    python3 learn/toolbox/orbit_sandbox.py     why it doesn't fall down"
+	@echo "    python3 learn/toolbox/spin_sandbox.py      stop a tumbling satellite"
+	@echo ""
+	@echo "  Then: make run   (terminal 1)"
+	@echo "        make demo  (terminal 2)"
+	@echo ""
+
 .PHONY: check
-check: check-gen build test sil check-layering  ## Everything CI runs
+check: check-gen build test sil check-layering check-links check-toolbox  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 

@@ -1,5 +1,8 @@
 # `dictionary/` — the single source of truth
 
+> 📚 **Learning this?** See [Lesson 9 — Parameters](../learn/09-parameters/) in the lesson track.
+
+
 One file lives here, and it is the most important file in the repository.
 
 ## `mission.yaml`
