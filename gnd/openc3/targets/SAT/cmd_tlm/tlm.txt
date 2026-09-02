@@ -1,0 +1,416 @@
+# ============================================================================
+#  GENERATED FILE -- DO NOT EDIT.
+#  Source:    dictionary/mission.yaml
+#  Generator: tools/gen.py
+#  Edit the dictionary and run `make gen` instead.
+# ============================================================================
+
+TELEMETRY SAT SYS_HK BIG_ENDIAN "Core system health, scheduler timing and link statistics."
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 3 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 25 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ID_ITEM SID             8 UINT 1 "Housekeeping structure identifier"
+  APPEND_ITEM    UPTIME_S       32 UINT  "Seconds since boot"
+    UNITS s s
+  APPEND_ITEM    TICK_COUNT     32 UINT  "Scheduler base ticks executed"
+  APPEND_ITEM    MODE            8 UINT  "Current spacecraft mode"
+    STATE BOOT 0
+    STATE SAFE 1
+    STATE DETUMBLE 2
+    STATE STANDBY 3
+    STATE POINTING 4
+  APPEND_ITEM    BOOT_COUNT     16 UINT  "Power-on / reset counter"
+  APPEND_ITEM    CPU_LOAD_PCT    8 UINT  "Measured scheduler occupancy"
+    UNITS % %
+  APPEND_ITEM    SCHED_OVERRUNS 16 UINT  "Rate-group deadline misses"
+  APPEND_ITEM    TC_RECEIVED    32 UINT  "Telecommands accepted"
+  APPEND_ITEM    TC_REJECTED    32 UINT  "Telecommands rejected"
+  APPEND_ITEM    TM_SENT        32 UINT  "Telemetry packets downlinked"
+  APPEND_ITEM    LINK_UP         8 UINT  "Ground link connected"
+    STATE FALSE 0
+    STATE TRUE 1
+  APPEND_ITEM    EVENTS_LOGGED  32 UINT  "Events raised since boot"
+  APPEND_ITEM    LAST_EVENT_ID  16 UINT  "Identifier of most recent event"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state. Populated from Phase 2 onward."
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 2 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 3 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 25 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ID_ITEM SID             8 UINT 2 "Housekeeping structure identifier"
+  APPEND_ITEM    EST_STATE       8 UINT  "Estimator convergence state"
+    STATE INVALID 0
+    STATE INITIALISING 1
+    STATE CONVERGING 2
+    STATE CONVERGED 3
+  APPEND_ITEM    Q_EST_0        32 FLOAT "Estimated attitude quaternion scalar part"
+  APPEND_ITEM    Q_EST_1        32 FLOAT "Estimated attitude quaternion x"
+  APPEND_ITEM    Q_EST_2        32 FLOAT "Estimated attitude quaternion y"
+  APPEND_ITEM    Q_EST_3        32 FLOAT "Estimated attitude quaternion z"
+  APPEND_ITEM    OMEGA_X        32 FLOAT "Bias-corrected body rate about X"
+    UNITS rad/s rad/s
+  APPEND_ITEM    OMEGA_Y        32 FLOAT "Bias-corrected body rate about Y"
+    UNITS rad/s rad/s
+  APPEND_ITEM    OMEGA_Z        32 FLOAT "Bias-corrected body rate about Z"
+    UNITS rad/s rad/s
+  APPEND_ITEM    GYRO_BIAS_X    32 FLOAT "Estimated gyro bias X"
+    UNITS rad/s rad/s
+  APPEND_ITEM    GYRO_BIAS_Y    32 FLOAT "Estimated gyro bias Y"
+    UNITS rad/s rad/s
+  APPEND_ITEM    GYRO_BIAS_Z    32 FLOAT "Estimated gyro bias Z"
+    UNITS rad/s rad/s
+  APPEND_ITEM    POINTING_ERR_DEG 32 FLOAT "Angle between body and reference pointing axis"
+    UNITS deg deg
+  APPEND_ITEM    RATE_NORM      32 FLOAT "Magnitude of the body rate vector"
+    UNITS deg/s deg/s
+  APPEND_ITEM    SUN_VALID       8 UINT  "Sun sensor reference is usable"
+    STATE FALSE 0
+    STATE TRUE 1
+  APPEND_ITEM    MAG_VALID       8 UINT  "Magnetometer reference is usable"
+    STATE FALSE 0
+    STATE TRUE 1
+  APPEND_ITEM    ECLIPSE         8 UINT  "Spacecraft is in Earth shadow"
+    STATE FALSE 0
+    STATE TRUE 1
+  APPEND_ITEM    TORQUE_CMD_X   32 FLOAT "Commanded control torque X"
+    UNITS N*m N*m
+  APPEND_ITEM    TORQUE_CMD_Y   32 FLOAT "Commanded control torque Y"
+    UNITS N*m N*m
+  APPEND_ITEM    TORQUE_CMD_Z   32 FLOAT "Commanded control torque Z"
+    UNITS N*m N*m
+  APPEND_ITEM    POS_ECI_X      64 FLOAT "On-board estimated position ECI X"
+    UNITS m m
+  APPEND_ITEM    POS_ECI_Y      64 FLOAT "On-board estimated position ECI Y"
+    UNITS m m
+  APPEND_ITEM    POS_ECI_Z      64 FLOAT "On-board estimated position ECI Z"
+    UNITS m m
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT EPS_HK BIG_ENDIAN "Power subsystem state. Populated from Phase 5 onward."
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 3 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 3 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 25 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ID_ITEM SID             8 UINT 3 "Housekeeping structure identifier"
+  APPEND_ITEM    POWER_STATE     8 UINT  "Coarse battery state"
+    STATE UNKNOWN 0
+    STATE NOMINAL 1
+    STATE LOW 2
+    STATE CRITICAL 3
+  APPEND_ITEM    BATT_VOLTAGE   32 FLOAT "Battery bus voltage"
+    UNITS V V
+  APPEND_ITEM    BATT_CURRENT   32 FLOAT "Battery current"
+    UNITS A A
+  APPEND_ITEM    BATT_SOC_PCT   32 FLOAT "State of charge"
+    UNITS % %
+  APPEND_ITEM    BATT_TEMP_C    32 FLOAT "Battery temperature"
+    UNITS degC degC
+  APPEND_ITEM    SOLAR_POWER_W  32 FLOAT "Total array power generation"
+    UNITS W W
+  APPEND_ITEM    LOAD_POWER_W   32 FLOAT "Total bus load"
+    UNITS W W
+  APPEND_ITEM    RAILS_ENABLED  16 UINT  "Bitmask of enabled power rails"
+  APPEND_ITEM    SHED_LEVEL      8 UINT  "Active load-shedding level"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT EVENT_INFO BIG_ENDIAN "PUS ST[5,1] info event report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 5 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 1 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    EVENT_ID       16 UINT  "On-board event identifier"
+    STATE BOOT_COMPLETE 1
+    STATE MODE_CHANGED 2
+    STATE LINK_CONNECTED 3
+    STATE LINK_LOST 4
+    STATE TC_REJECTED 5
+    STATE HK_ENABLED 6
+    STATE HK_DISABLED 7
+    STATE PARAM_SET 8
+    STATE SCHED_OVERRUN 9
+    STATE MODE_REFUSED 10
+    STATE SAFE_MODE_ENTERED 11
+  APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT EVENT_LOW BIG_ENDIAN "PUS ST[5,2] low event report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 5 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 2 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    EVENT_ID       16 UINT  "On-board event identifier"
+    STATE BOOT_COMPLETE 1
+    STATE MODE_CHANGED 2
+    STATE LINK_CONNECTED 3
+    STATE LINK_LOST 4
+    STATE TC_REJECTED 5
+    STATE HK_ENABLED 6
+    STATE HK_DISABLED 7
+    STATE PARAM_SET 8
+    STATE SCHED_OVERRUN 9
+    STATE MODE_REFUSED 10
+    STATE SAFE_MODE_ENTERED 11
+  APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT EVENT_MEDIUM BIG_ENDIAN "PUS ST[5,3] medium event report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 5 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 3 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    EVENT_ID       16 UINT  "On-board event identifier"
+    STATE BOOT_COMPLETE 1
+    STATE MODE_CHANGED 2
+    STATE LINK_CONNECTED 3
+    STATE LINK_LOST 4
+    STATE TC_REJECTED 5
+    STATE HK_ENABLED 6
+    STATE HK_DISABLED 7
+    STATE PARAM_SET 8
+    STATE SCHED_OVERRUN 9
+    STATE MODE_REFUSED 10
+    STATE SAFE_MODE_ENTERED 11
+  APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT EVENT_HIGH BIG_ENDIAN "PUS ST[5,4] high event report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 5 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 4 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    EVENT_ID       16 UINT  "On-board event identifier"
+    STATE BOOT_COMPLETE 1
+    STATE MODE_CHANGED 2
+    STATE LINK_CONNECTED 3
+    STATE LINK_LOST 4
+    STATE TC_REJECTED 5
+    STATE HK_ENABLED 6
+    STATE HK_DISABLED 7
+    STATE PARAM_SET 8
+    STATE SCHED_OVERRUN 9
+    STATE MODE_REFUSED 10
+    STATE SAFE_MODE_ENTERED 11
+  APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT VERIF_ACCEPT_SUCCESS BIG_ENDIAN "PUS ST[1,1] acceptance succeeded"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 1 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 1 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    REQ_APID       16 UINT  "APID of the telecommand being reported on"
+  APPEND_ITEM    REQ_SEQCNT     16 UINT  "Sequence count of that telecommand"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT VERIF_ACCEPT_FAIL BIG_ENDIAN "PUS ST[1,2] acceptance failed"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 1 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 2 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    REQ_APID       16 UINT  "APID of the telecommand being reported on"
+  APPEND_ITEM    REQ_SEQCNT     16 UINT  "Sequence count of that telecommand"
+  APPEND_ITEM    FAILURE_CODE   16 UINT  "Reason the request failed"
+    STATE OK 0
+    STATE BAD_CRC 1
+    STATE BAD_LENGTH 2
+    STATE UNKNOWN_SERVICE 3
+    STATE ILLEGAL_ARG 4
+    STATE UNAVAILABLE 5
+    STATE REFUSED 6
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT VERIF_COMPLETE_SUCCESS BIG_ENDIAN "PUS ST[1,7] execution completed"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 1 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 7 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    REQ_APID       16 UINT  "APID of the telecommand being reported on"
+  APPEND_ITEM    REQ_SEQCNT     16 UINT  "Sequence count of that telecommand"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT VERIF_COMPLETE_FAIL BIG_ENDIAN "PUS ST[1,8] execution failed"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 1 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 8 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    REQ_APID       16 UINT  "APID of the telecommand being reported on"
+  APPEND_ITEM    REQ_SEQCNT     16 UINT  "Sequence count of that telecommand"
+  APPEND_ITEM    FAILURE_CODE   16 UINT  "Reason the request failed"
+    STATE OK 0
+    STATE BAD_CRC 1
+    STATE BAD_LENGTH 2
+    STATE UNKNOWN_SERVICE 3
+    STATE ILLEGAL_ARG 4
+    STATE UNAVAILABLE 5
+    STATE REFUSED 6
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT TEST_REPORT BIG_ENDIAN "PUS ST[17,2] connection test report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 17 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 2 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT PARAM_REPORT BIG_ENDIAN "PUS ST[20,2] parameter value report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 20 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 2 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    PARAM_ID       16 UINT  "Parameter identifier"
+    STATE SYS_HK_PERIOD_MS 1
+    STATE ADCS_HK_PERIOD_MS 2
+    STATE EPS_HK_PERIOD_MS 3
+    STATE DETUMBLE_RATE_DPS 4
+    STATE POINTING_RATE_DPS 5
+    STATE BATT_LOW_SOC_PCT 6
+    STATE BATT_CRIT_SOC_PCT 7
+    STATE LINK_TIMEOUT_S 8
+  APPEND_ITEM    PARAM_VALUE    64 FLOAT "Parameter value, widened to double"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+

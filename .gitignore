@@ -1,0 +1,17 @@
+# Build output
+build/
+compile_commands.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Non-volatile storage written by a running spacecraft
+*_nvm.bin
+
+# Editors and operating systems
+.DS_Store
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,214 @@
+# =============================================================================
+# MISSION DATA DICTIONARY  --  the single source of truth for this spacecraft.
+#
+# Everything downstream is GENERATED from this file by tools/gen.py:
+#   * fsw/generated/*.hpp          C++17 packed structs, serializers, ids
+#   * gnd/openc3/targets/SAT/...   OpenC3 COSMOS command & telemetry definitions
+#   * docs/ICD.md                  the human-readable interface control document
+#
+# RULE: never hand-edit anything under fsw/generated/ or gnd/openc3/.../cmd_tlm/.
+#       Edit this file, run `make gen`, commit the result.
+#
+# Wire format is CCSDS: big-endian ("network order"), no implicit padding.
+# =============================================================================
+
+mission:
+  name: HYPERSAT
+  # CCSDS Space Packet APIDs (11 bits). One per on-board application process.
+  apids:
+    TTC:  0x001      # telecommand & telemetry handler, also emits ST[01]/ST[05]
+    ADCS: 0x002      # attitude determination & control
+    EPS:  0x003      # electrical power
+    GND:  0x00A      # ground segment (source APID of uplinked telecommands)
+  # PUS time is CCSDS Unsegmented Code: 4 B coarse seconds + 2 B fine (1/65536 s)
+  time:
+    epoch: "2000-01-01T00:00:00Z"   # TAI-referenced mission epoch
+    coarse_bytes: 4
+    fine_bytes: 2
+
+# -----------------------------------------------------------------------------
+# Enumerations. Shared by flight code, ground displays and the ICD.
+# -----------------------------------------------------------------------------
+enums:
+  SystemMode:
+    desc: Top-level spacecraft mode owned by the mode manager.
+    values:
+      BOOT:     0
+      SAFE:     1
+      DETUMBLE: 2
+      STANDBY:  3
+      POINTING: 4
+
+  AdcsEstState:
+    desc: Convergence state of the attitude estimator.
+    values:
+      INVALID:     0
+      INITIALISING: 1
+      CONVERGING:  2
+      CONVERGED:   3
+
+  PowerState:
+    desc: Coarse battery / power bus state used by mode arbitration.
+    values:
+      UNKNOWN:  0
+      NOMINAL:  1
+      LOW:      2
+      CRITICAL: 3
+
+  Severity:
+    desc: PUS ST[05] event severity, mapped to subtypes 1..4.
+    values:
+      INFO:     1
+      LOW:      2
+      MEDIUM:   3
+      HIGH:     4
+
+# -----------------------------------------------------------------------------
+# Housekeeping telemetry. Each entry is one PUS ST[03,25] parameter report,
+# identified on the wire by (APID, service=3, subtype=25, structure id).
+# -----------------------------------------------------------------------------
+telemetry:
+  - name: SYS_HK
+    sid: 1
+    apid: TTC
+    rate_hz: 1
+    desc: Core system health, scheduler timing and link statistics.
+    fields:
+      - {name: uptime_s,         type: uint32, units: s,     desc: Seconds since boot}
+      - {name: tick_count,       type: uint32, units: ticks, desc: Scheduler base ticks executed}
+      - {name: mode,             type: uint8,  enum: SystemMode, desc: Current spacecraft mode}
+      - {name: boot_count,       type: uint16, units: count, desc: Power-on / reset counter}
+      - {name: cpu_load_pct,     type: uint8,  units: "%",   desc: Measured scheduler occupancy}
+      - {name: sched_overruns,   type: uint16, units: count, desc: Rate-group deadline misses}
+      - {name: tc_received,      type: uint32, units: count, desc: Telecommands accepted}
+      - {name: tc_rejected,      type: uint32, units: count, desc: Telecommands rejected}
+      - {name: tm_sent,          type: uint32, units: count, desc: Telemetry packets downlinked}
+      - {name: link_up,          type: uint8,  units: bool,  desc: Ground link connected}
+      - {name: events_logged,    type: uint32, units: count, desc: Events raised since boot}
+      - {name: last_event_id,    type: uint16, units: id,    desc: Identifier of most recent event}
+
+  - name: ADCS_HK
+    sid: 2
+    apid: ADCS
+    rate_hz: 1
+    desc: Attitude determination and control state. Populated from Phase 2 onward.
+    fields:
+      - {name: est_state,        type: uint8,   enum: AdcsEstState, desc: Estimator convergence state}
+      - {name: q_est_0,          type: float32, units: "-",     desc: Estimated attitude quaternion scalar part}
+      - {name: q_est_1,          type: float32, units: "-",     desc: Estimated attitude quaternion x}
+      - {name: q_est_2,          type: float32, units: "-",     desc: Estimated attitude quaternion y}
+      - {name: q_est_3,          type: float32, units: "-",     desc: Estimated attitude quaternion z}
+      - {name: omega_x,          type: float32, units: rad/s,   desc: Bias-corrected body rate about X}
+      - {name: omega_y,          type: float32, units: rad/s,   desc: Bias-corrected body rate about Y}
+      - {name: omega_z,          type: float32, units: rad/s,   desc: Bias-corrected body rate about Z}
+      - {name: gyro_bias_x,      type: float32, units: rad/s,   desc: Estimated gyro bias X}
+      - {name: gyro_bias_y,      type: float32, units: rad/s,   desc: Estimated gyro bias Y}
+      - {name: gyro_bias_z,      type: float32, units: rad/s,   desc: Estimated gyro bias Z}
+      - {name: pointing_err_deg, type: float32, units: deg,     desc: Angle between body and reference pointing axis}
+      - {name: rate_norm,        type: float32, units: deg/s,   desc: Magnitude of the body rate vector}
+      - {name: sun_valid,        type: uint8,   units: bool,    desc: Sun sensor reference is usable}
+      - {name: mag_valid,        type: uint8,   units: bool,    desc: Magnetometer reference is usable}
+      - {name: eclipse,          type: uint8,   units: bool,    desc: Spacecraft is in Earth shadow}
+      - {name: torque_cmd_x,     type: float32, units: N*m,     desc: Commanded control torque X}
+      - {name: torque_cmd_y,     type: float32, units: N*m,     desc: Commanded control torque Y}
+      - {name: torque_cmd_z,     type: float32, units: N*m,     desc: Commanded control torque Z}
+      - {name: pos_eci_x,        type: float64, units: m,       desc: On-board estimated position ECI X}
+      - {name: pos_eci_y,        type: float64, units: m,       desc: On-board estimated position ECI Y}
+      - {name: pos_eci_z,        type: float64, units: m,       desc: On-board estimated position ECI Z}
+
+  - name: EPS_HK
+    sid: 3
+    apid: EPS
+    rate_hz: 1
+    desc: Power subsystem state. Populated from Phase 5 onward.
+    fields:
+      - {name: power_state,      type: uint8,   enum: PowerState, desc: Coarse battery state}
+      - {name: batt_voltage,     type: float32, units: V,   desc: Battery bus voltage}
+      - {name: batt_current,     type: float32, units: A,   desc: Battery current, positive on charge}
+      - {name: batt_soc_pct,     type: float32, units: "%", desc: State of charge}
+      - {name: batt_temp_c,      type: float32, units: degC, desc: Battery temperature}
+      - {name: solar_power_w,    type: float32, units: W,   desc: Total array power generation}
+      - {name: load_power_w,     type: float32, units: W,   desc: Total bus load}
+      - {name: rails_enabled,    type: uint16,  units: mask, desc: Bitmask of enabled power rails}
+      - {name: shed_level,       type: uint8,   units: level, desc: Active load-shedding level, 0 = none}
+
+# -----------------------------------------------------------------------------
+# Telecommands. Each is a PUS (service, subtype) with a typed argument list.
+# -----------------------------------------------------------------------------
+commands:
+  - name: TEST_CONNECTION
+    service: 17
+    subtype: 1
+    desc: ST[17,1] connection test. Flight software answers with ST[17,2].
+    args: []
+
+  - name: ENABLE_HK
+    service: 3
+    subtype: 5
+    desc: ST[3,5] enable periodic generation of a housekeeping structure.
+    args:
+      - {name: sid, type: uint8, desc: Housekeeping structure identifier}
+
+  - name: DISABLE_HK
+    service: 3
+    subtype: 6
+    desc: ST[3,6] disable periodic generation of a housekeeping structure.
+    args:
+      - {name: sid, type: uint8, desc: Housekeeping structure identifier}
+
+  - name: REPORT_PARAM
+    service: 20
+    subtype: 1
+    desc: ST[20,1] request the value of one on-board parameter, answered by ST[20,2].
+    args:
+      - {name: param_id, type: uint16, desc: Parameter identifier}
+
+  - name: SET_PARAM
+    service: 20
+    subtype: 3
+    desc: ST[20,3] set one on-board parameter. Value is interpreted per the parameter type.
+    args:
+      - {name: param_id, type: uint16,  desc: Parameter identifier}
+      - {name: value,    type: float64, desc: New value, converted to the parameter type}
+
+  - name: SET_MODE
+    service: 8
+    subtype: 1
+    desc: ST[8,1] request a spacecraft mode transition. The mode manager may refuse.
+    args:
+      - {name: mode, type: uint8, enum: SystemMode, desc: Requested mode}
+
+  - name: RESET_COUNTERS
+    service: 8
+    subtype: 2
+    desc: ST[8,2] clear the housekeeping statistics counters.
+    args: []
+
+# -----------------------------------------------------------------------------
+# On-board events, downlinked as PUS ST[05] reports. Subtype = severity.
+# -----------------------------------------------------------------------------
+events:
+  - {name: BOOT_COMPLETE,     id: 1,  severity: INFO,   desc: Flight software finished initialisation}
+  - {name: MODE_CHANGED,      id: 2,  severity: INFO,   desc: Spacecraft mode transition executed}
+  - {name: LINK_CONNECTED,    id: 3,  severity: INFO,   desc: Ground link established}
+  - {name: LINK_LOST,         id: 4,  severity: LOW,    desc: Ground link dropped}
+  - {name: TC_REJECTED,       id: 5,  severity: LOW,    desc: Telecommand failed acceptance checks}
+  - {name: HK_ENABLED,        id: 6,  severity: INFO,   desc: Housekeeping structure generation enabled}
+  - {name: HK_DISABLED,       id: 7,  severity: INFO,   desc: Housekeeping structure generation disabled}
+  - {name: PARAM_SET,         id: 8,  severity: INFO,   desc: On-board parameter modified from ground}
+  - {name: SCHED_OVERRUN,     id: 9,  severity: MEDIUM, desc: A rate group missed its deadline}
+  - {name: MODE_REFUSED,      id: 10, severity: LOW,    desc: Requested mode transition was refused}
+  - {name: SAFE_MODE_ENTERED, id: 11, severity: HIGH,   desc: Spacecraft autonomously entered safe mode}
+
+# -----------------------------------------------------------------------------
+# On-board parameters, readable and writable via PUS ST[20].
+# -----------------------------------------------------------------------------
+params:
+  - {name: SYS_HK_PERIOD_MS,   id: 1, type: uint32,  default: 1000, min: 100,  max: 60000, units: ms,    desc: Generation period of SYS_HK}
+  - {name: ADCS_HK_PERIOD_MS,  id: 2, type: uint32,  default: 1000, min: 100,  max: 60000, units: ms,    desc: Generation period of ADCS_HK}
+  - {name: EPS_HK_PERIOD_MS,   id: 3, type: uint32,  default: 1000, min: 100,  max: 60000, units: ms,    desc: Generation period of EPS_HK}
+  - {name: DETUMBLE_RATE_DPS,  id: 4, type: float32, default: 2.0,  min: 0.1,  max: 30.0,  units: deg/s, desc: Rate threshold above which detumble is commanded}
+  - {name: POINTING_RATE_DPS,  id: 5, type: float32, default: 0.5,  min: 0.01, max: 10.0,  units: deg/s, desc: Rate threshold below which pointing is permitted}
+  - {name: BATT_LOW_SOC_PCT,   id: 6, type: float32, default: 40.0, min: 5.0,  max: 90.0,  units: "%",   desc: State of charge entering the LOW power state}
+  - {name: BATT_CRIT_SOC_PCT,  id: 7, type: float32, default: 20.0, min: 2.0,  max: 80.0,  units: "%",   desc: State of charge entering the CRITICAL power state}
+  - {name: LINK_TIMEOUT_S,     id: 8, type: uint32,  default: 300,  min: 10,   max: 86400, units: s,     desc: Ground contact loss timeout before autonomy reacts}

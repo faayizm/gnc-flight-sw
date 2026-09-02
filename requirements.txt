@@ -1,0 +1,6 @@
+# Python dependencies.
+#
+# Only tools/gen.py needs anything at all. The ground station in gnd/pyground/
+# and the software-in-the-loop tests use nothing outside the standard library,
+# deliberately -- they must run anywhere, including in a bare CI container.
+PyYAML>=6.0

@@ -1,0 +1,123 @@
+# =============================================================================
+#  Continuous integration.
+#
+#  The build matrix exists to defend the portability claim. Code that only ever
+#  compiles with one compiler on one platform is not portable, it is merely
+#  untested -- and this repository's central claim is that the flight core runs
+#  anywhere.
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # The generated files must match the dictionary they claim to come from.
+  # This is the check that keeps the flight software and the ground segment
+  # from silently drifting apart.
+  # ---------------------------------------------------------------------------
+  generated-is-current:
+    name: generated files are up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python tools/gen.py
+      - name: fail if anything changed
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Generated files are stale. Run 'make gen' and commit."
+            git --no-pager diff
+            exit 1
+          fi
+          echo "generated files match the dictionary"
+
+  # ---------------------------------------------------------------------------
+  # Architecture rules that a README alone cannot enforce.
+  # ---------------------------------------------------------------------------
+  layering:
+    name: architecture rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make check-layering
+
+  # ---------------------------------------------------------------------------
+  # Build and test across compilers and platforms.
+  # ---------------------------------------------------------------------------
+  build-and-test:
+    name: ${{ matrix.os }} / ${{ matrix.compiler }} / ${{ matrix.build_type }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
+        build_type: [Debug, RelWithDebInfo]
+        exclude:
+          # macOS runners ship clang as cc; a separate gcc job there adds
+          # cost without covering anything the Linux gcc job misses.
+          - os: macos-latest
+            compiler: gcc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: select the compiler
+        run: |
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            echo "CC=gcc"  >> $GITHUB_ENV
+            echo "CXX=g++" >> $GITHUB_ENV
+          else
+            echo "CC=clang"   >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          fi
+
+      - name: configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+      - name: build
+        run: cmake --build build -j4
+
+      - name: unit tests
+        run: ./build/tests/fsw_tests
+
+      - name: software-in-the-loop tests
+        run: python3 tests/sil/test_endtoend.py
+
+  # ---------------------------------------------------------------------------
+  # Sanitisers. The flight software is a network service parsing untrusted
+  # input, so undefined behaviour and memory errors on that path are exactly
+  # the class of bug worth spending CI minutes hunting.
+  # ---------------------------------------------------------------------------
+  sanitizers:
+    name: sanitizers (${{ matrix.sanitizer }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined]
+    steps:
+      - uses: actions/checkout@v4
+      - name: configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=${{ matrix.sanitizer }}"
+      - run: cmake --build build -j4
+      - name: unit tests
+        run: ./build/tests/fsw_tests
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      - name: software-in-the-loop tests
+        run: python3 tests/sil/test_endtoend.py
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1

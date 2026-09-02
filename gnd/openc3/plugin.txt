@@ -1,0 +1,31 @@
+# ============================================================================
+#  GENERATED FILE -- DO NOT EDIT.
+#  Source:    dictionary/mission.yaml
+#  Generator: tools/gen.py
+#  Edit the dictionary and run `make gen` instead.
+# ============================================================================
+
+# OpenC3 COSMOS plugin definition for HYPERSAT.
+#
+# Bring it up with:   cd gnd/openc3 && ./install.sh
+# The flight software listens as a TCP server, so COSMOS connects as a client.
+#
+# Framing: raw CCSDS Space Packets, no transfer frames. The LENGTH protocol
+# reads the 16-bit CCSDS packet data length at bit offset 32 and adds 7
+# (6 header bytes, plus 1 because CCSDS stores "length minus one").
+#
+# A real RF link would wrap these in TM/TC transfer frames with an attached
+# sync marker, pseudo-randomisation and Reed-Solomon coding. That belongs to
+# Phase 4 and is deliberately not present yet.
+
+VARIABLE sat_target_name SAT
+VARIABLE sat_host host.docker.internal
+VARIABLE sat_port 50001
+
+TARGET SAT <%= sat_target_name %>
+
+INTERFACE <%= sat_target_name %>_INT tcpip_client_interface.rb <%= sat_host %> <%= sat_port %> <%= sat_port %> 10.0 nil LENGTH 32 16 7 1 BIG_ENDIAN 0 nil nil true
+  MAP_TARGET <%= sat_target_name %>
+  # Fill in the trailing CCSDS CRC-16 (poly 0x1021, seed 0xFFFF, no reflection)
+  # on every uplinked telecommand, and verify it on every downlinked packet.
+  PROTOCOL WRITE CrcProtocol PACKET_CRC FALSE ERROR -16 16 BIG_ENDIAN 0x1021 0xFFFF 0x0 FALSE FALSE

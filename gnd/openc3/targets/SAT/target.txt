@@ -1,0 +1,19 @@
+# ============================================================================
+#  GENERATED FILE -- DO NOT EDIT.
+#  Source:    dictionary/mission.yaml
+#  Generator: tools/gen.py
+#  Edit the dictionary and run `make gen` instead.
+# ============================================================================
+
+LANGUAGE ruby
+IGNORE_PARAMETER CCSDS_VERSION
+IGNORE_PARAMETER CCSDS_TYPE
+IGNORE_PARAMETER CCSDS_SECHDR
+IGNORE_PARAMETER CCSDS_APID
+IGNORE_PARAMETER CCSDS_SEQFLAGS
+IGNORE_PARAMETER CCSDS_SEQCNT
+IGNORE_PARAMETER CCSDS_LENGTH
+IGNORE_PARAMETER PUS_VERSION
+IGNORE_PARAMETER PUS_SERVICE
+IGNORE_PARAMETER PUS_SUBTYPE
+IGNORE_PARAMETER PACKET_CRC
