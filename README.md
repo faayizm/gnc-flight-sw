@@ -5,10 +5,13 @@ principles, together with the simulation and ground tooling needed to actually
 fly it. Written to be read: every design decision that matters is explained in
 the file where it is made, including the ones that were rejected and why.
 
-**Status: Phase 1 of 7.** The telemetry, tracking and command chain works end
-to end — real CCSDS Space Packets, real ECSS PUS services, a real ground
-station. Attitude determination and control, power, mode management and fault
-handling are scheduled and scaffolded, not yet implemented. The roadmap in
+**Status: Phase 2 of 7 (in progress).** The telemetry, tracking and command
+chain works end to end, and the first closed loop flies: a Python simulator
+holds the truth and the flight software detumbles a 10 °/s tumble with B-dot
+control (`make detumble`). Attitude estimation, pointing, power, mode
+management and fault handling are scheduled and scaffolded, not yet
+implemented. Phase 2 is not complete: sun sensors, IGRF and a COSMOS graph are
+still to do. The roadmap in
 [docs/ROADMAP.md](docs/ROADMAP.md) says exactly what exists and what does not.
 
 ```
@@ -68,7 +71,7 @@ answer. [`learn/GLOSSARY.md`](learn/GLOSSARY.md) translates every acronym.
 ## Try it in two minutes
 
 ```bash
-make build          # configure, compile, run 72 unit tests
+make build          # configure, compile, run 79 unit tests
 make run            # the spacecraft boots and waits for a ground station
 ```
 

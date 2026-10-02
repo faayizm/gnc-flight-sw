@@ -18,6 +18,7 @@ set(FSW_TEST_SOURCES
   unit/test_param_store.cpp
   unit/test_bus.cpp
   unit/test_containers.cpp
+  unit/test_adcs.cpp
 )
 
 add_executable(fsw_tests unit/main.cpp ${FSW_TEST_SOURCES})

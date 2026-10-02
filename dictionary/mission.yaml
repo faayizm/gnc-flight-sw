@@ -199,6 +199,10 @@ events:
   - {name: SCHED_OVERRUN,     id: 9,  severity: MEDIUM, desc: A rate group missed its deadline}
   - {name: MODE_REFUSED,      id: 10, severity: LOW,    desc: Requested mode transition was refused}
   - {name: SAFE_MODE_ENTERED, id: 11, severity: HIGH,   desc: Spacecraft autonomously entered safe mode}
+  - {name: DETUMBLE_STARTED,  id: 12, severity: INFO,   desc: B-dot detumble control engaged}
+  - {name: DETUMBLE_COMPLETE, id: 13, severity: INFO,   desc: Body rate fell below the hand-over threshold and detumble control stopped}
+  - {name: SENSOR_TIMEOUT,    id: 14, severity: MEDIUM, desc: No sensor data from the simulator bridge; actuators commanded to zero}
+  - {name: SENSOR_RESTORED,   id: 15, severity: INFO,   desc: Sensor data resumed after a timeout}
 
 # -----------------------------------------------------------------------------
 # On-board parameters, readable and writable via PUS ST[20].
@@ -212,3 +216,6 @@ params:
   - {name: BATT_LOW_SOC_PCT,   id: 6, type: float32, default: 40.0, min: 5.0,  max: 90.0,  units: "%",   desc: State of charge entering the LOW power state}
   - {name: BATT_CRIT_SOC_PCT,  id: 7, type: float32, default: 20.0, min: 2.0,  max: 80.0,  units: "%",   desc: State of charge entering the CRITICAL power state}
   - {name: LINK_TIMEOUT_S,     id: 8, type: uint32,  default: 300,  min: 10,   max: 86400, units: s,     desc: Ground contact loss timeout before autonomy reacts}
+  - {name: BDOT_GAIN,          id: 9,  type: float32, default: 300000.0, min: 0.0, max: 10000000.0, units: "A*m^2/(T/s)", desc: B-dot proportional gain}
+  - {name: MTQ_MAX_DIPOLE,     id: 10, type: float32, default: 0.2,  min: 0.0,  max: 10.0,  units: "A*m^2", desc: Largest magnetic dipole commanded on any axis}
+  - {name: BDOT_FILTER_TAU_S,  id: 11, type: float32, default: 3.0,  min: 0.1,  max: 60.0,  units: s,     desc: Time constant of the filter applied to the field derivative}

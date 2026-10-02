@@ -3,8 +3,17 @@
 > 📚 **Learning this?** See [Lessons 12–16 — orbits, attitude, sensors, estimation, control](../learn/) in the lesson track.
 
 
-**Not yet implemented. Phase 2.** This directory holds the design and the
-scaffolding; the code arrives with the ADCS work.
+**Phase 2, partly built.** Orbit, attitude dynamics, a dipole magnetic field,
+gyro and magnetometer models, magnetorquers, the bridge and the detumble
+scenario work. Sun sensors, IGRF and the other scenarios below do not exist yet.
+
+```bash
+make build
+make detumble     # ~12 s: flies 10 deg/s down to ~0.4 deg/s over 0.8 orbit
+```
+
+Pure Python, standard library only — no NumPy — so it runs anywhere the rest
+of the project does.
 
 ```
 sim/
@@ -17,8 +26,8 @@ sim/
 
 A Python simulator holding the **truth**: where the spacecraft actually is,
 which way it is actually pointing, what its sensors would actually read. It
-connects to the flight software on a second TCP port — separate from the TT&C
-link on 50001 — and exchanges sensor and actuator packets every cycle.
+connects to the flight software on a second TCP port (`--sim-port`, default
+50000) — separate from the TT&C link on 50001 — and exchanges sensor and actuator packets every cycle.
 
 ```
    ┌──────────────────┐   sensor packets    ┌──────────────────┐
@@ -75,3 +84,23 @@ is asserted. They run in CI. Planned for Phase 2 onwards:
 | `gyro_bias.py` | The estimator converges on a real bias and removes it |
 | `wheel_saturation.py` | Momentum is dumped to the magnetorquers before saturation |
 | `sensor_dropout.py` | A failed magnetometer degrades cleanly instead of diverging |
+
+## Things worth knowing about the detumble scenario
+
+- **Lockstep.** The simulator sends one sensor frame and waits for the matching
+  actuator frame before advancing. Results do not depend on host load or on
+  `--time-scale`; `--determinism` checks that by running twice at different
+  scales and comparing the final state.
+- **The residual rate.** B-dot does not reach zero. It settles near twice the
+  rate at which the field direction sweeps around the orbit — about 0.3 °/s
+  here. That is why the hand-over threshold is 0.5 °/s and not lower.
+- **The release margin.** The flight software releases detumble at 80 % of
+  `POINTING_RATE_DPS`, because the gyro it judges by has bias and noise.
+  Releasing at exactly 0.5 °/s left the true rate at 0.53.
+- **Scaled time and timeouts.** The sensor-stream timeout (2 s) is measured on
+  the flight clock, which `--time-scale` speeds up. A simulator that stalls for
+  a few real milliseconds at 100× looks like a dead sensor, so the scenario
+  drains telemetry without blocking. At high scales you will also see
+  `SCHED_OVERRUN` events: the host, not the flight code, is late.
+- **Not modelled.** The torquer's own field corrupting the magnetometer while
+  it is on. Real missions switch the torquers off to measure.

@@ -27,6 +27,7 @@
 #include <cstring>
 #include <csignal>
 
+#include "apps/adcs/adcs_app.hpp"
 #include "apps/ttc/ttc_app.hpp"
 #include "core/bus.hpp"
 #include "core/event_log.hpp"
@@ -49,6 +50,7 @@ void on_signal(int) { g_stop = 1; }
 
 struct Options {
     uint16_t    ttc_port   = 50001;
+    uint16_t    sim_port   = 50000;
     double      time_scale = 1.0;
     const char* nvm_path   = "hypersat_nvm.bin";
     uint32_t    max_ticks  = 0;   // 0 = run until interrupted
@@ -61,6 +63,7 @@ void print_usage(const char* argv0) {
         "\n"
         "usage: %s [options]\n"
         "  --ttc-port N     TCP port the ground connects to      (default 50001)\n"
+        "  --sim-port N     TCP port the simulator connects to   (default 50000)\n"
         "  --time-scale F   simulation speed, 1.0 = real time    (default 1.0)\n"
         "  --nvm PATH       non-volatile storage file            (default hypersat_nvm.bin)\n"
         "  --max-ticks N    stop after N scheduler ticks, for tests\n"
@@ -78,6 +81,8 @@ bool parse_args(int argc, char** argv, Options& opt) {
         else if (std::strcmp(a, "--verbose") == 0) { opt.verbose = true; }
         else if (std::strcmp(a, "--ttc-port") == 0 && has_value) {
             opt.ttc_port = static_cast<uint16_t>(std::atoi(argv[++i]));
+        } else if (std::strcmp(a, "--sim-port") == 0 && has_value) {
+            opt.sim_port = static_cast<uint16_t>(std::atoi(argv[++i]));
         } else if (std::strcmp(a, "--time-scale") == 0 && has_value) {
             opt.time_scale = std::atof(argv[++i]);
         } else if (std::strcmp(a, "--nvm") == 0 && has_value) {
@@ -117,12 +122,18 @@ int main(int argc, char** argv) {
     // ---- 1. platform -------------------------------------------------------
     static fsw::platform::PosixClock       clock(opt.time_scale);
     static fsw::platform::TcpServerLink    link(opt.ttc_port);
+    static fsw::platform::TcpServerLink    sim_link(opt.sim_port);
     static fsw::platform::PosixFileStorage storage(opt.nvm_path);
     static fsw::platform::PosixWatchdog    watchdog(clock);
 
     if (!fsw::core::is_ok(link.open())) {
         std::fprintf(stderr, "fatal: cannot listen on TCP port %u "
                              "(already in use?)\n", opt.ttc_port);
+        return 1;
+    }
+    if (!fsw::core::is_ok(sim_link.open())) {
+        std::fprintf(stderr, "fatal: cannot listen on TCP port %u "
+                             "(already in use?)\n", opt.sim_port);
         return 1;
     }
     if (!fsw::core::is_ok(storage.open())) {
@@ -145,6 +156,8 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "fatal: TT&C application failed to initialise\n");
         return 1;
     }
+
+    static fsw::adcs::AdcsApp adcs(sim_link, clock, bus, events, params);
 
     // ---- 4. parameters -----------------------------------------------------
     // Defaults first, unconditionally. Whatever happens next, the spacecraft is
@@ -170,6 +183,8 @@ int main(int argc, char** argv) {
     scheduler.add_task("ttc_rx",  &fsw::ttc::TtcApp::task_receive,   &ttc, 1);
     scheduler.add_task("ttc_tm",  &fsw::ttc::TtcApp::task_telemetry, &ttc, 5, 1);
 
+    scheduler.add_task("adcs",    &fsw::adcs::AdcsApp::task_run,     &adcs, 1);
+
     // ---- 6. watchdog -------------------------------------------------------
     // Three tick periods. Long enough to tolerate one bad tick, short enough
     // that a genuinely wedged loop is caught in under a tenth of a second.
@@ -178,6 +193,7 @@ int main(int argc, char** argv) {
     // ---- 7. run ------------------------------------------------------------
     std::printf("HYPERSAT flight software up.\n");
     std::printf("  TT&C link   : TCP 127.0.0.1:%u (waiting for the ground)\n", opt.ttc_port);
+    std::printf("  sim bridge  : TCP 127.0.0.1:%u (waiting for the simulator)\n", opt.sim_port);
     std::printf("  base rate   : %u Hz\n", fsw::core::Scheduler::kBaseRateHz);
     std::printf("  time scale  : %.2fx\n", opt.time_scale);
     std::printf("  tasks       : %zu registered\n", scheduler.tasks().size());

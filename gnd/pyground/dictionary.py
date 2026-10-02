@@ -52,6 +52,10 @@ EVENTS = {
     9: ('SCHED_OVERRUN', 'MEDIUM', 'A rate group missed its deadline'),
     10: ('MODE_REFUSED', 'LOW', 'Requested mode transition was refused'),
     11: ('SAFE_MODE_ENTERED', 'HIGH', 'Spacecraft autonomously entered safe mode'),
+    12: ('DETUMBLE_STARTED', 'INFO', 'B-dot detumble control engaged'),
+    13: ('DETUMBLE_COMPLETE', 'INFO', 'Body rate fell below the hand-over threshold and detumble control stopped'),
+    14: ('SENSOR_TIMEOUT', 'MEDIUM', 'No sensor data from the simulator bridge; actuators commanded to zero'),
+    15: ('SENSOR_RESTORED', 'INFO', 'Sensor data resumed after a timeout'),
 }
 
 # id -> (name, type, default, min, max, units, description)
@@ -64,6 +68,9 @@ PARAMS = {
     6: ('BATT_LOW_SOC_PCT', 'float32', 40.0, 5.0, 90.0, '%', 'State of charge entering the LOW power state'),
     7: ('BATT_CRIT_SOC_PCT', 'float32', 20.0, 2.0, 80.0, '%', 'State of charge entering the CRITICAL power state'),
     8: ('LINK_TIMEOUT_S', 'uint32', 300, 10, 86400, 's', 'Ground contact loss timeout before autonomy reacts'),
+    9: ('BDOT_GAIN', 'float32', 300000.0, 0.0, 10000000.0, 'A*m^2/(T/s)', 'B-dot proportional gain'),
+    10: ('MTQ_MAX_DIPOLE', 'float32', 0.2, 0.0, 10.0, 'A*m^2', 'Largest magnetic dipole commanded on any axis'),
+    11: ('BDOT_FILTER_TAU_S', 'float32', 3.0, 0.1, 60.0, 's', 'Time constant of the filter applied to the field derivative'),
 }
 
 STRUCT_CODES = {

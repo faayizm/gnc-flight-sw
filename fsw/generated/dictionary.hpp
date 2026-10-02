@@ -113,6 +113,10 @@ enum class EventId : uint16_t {
     SCHED_OVERRUN = 9,
     MODE_REFUSED = 10,
     SAFE_MODE_ENTERED = 11,
+    DETUMBLE_STARTED = 12,
+    DETUMBLE_COMPLETE = 13,
+    SENSOR_TIMEOUT = 14,
+    SENSOR_RESTORED = 15,
 };
 
 struct EventInfo {
@@ -134,8 +138,12 @@ inline constexpr EventInfo kEvents[] = {
     { EventId::SCHED_OVERRUN, Severity::MEDIUM, "SCHED_OVERRUN", "A rate group missed its deadline" },
     { EventId::MODE_REFUSED, Severity::LOW, "MODE_REFUSED", "Requested mode transition was refused" },
     { EventId::SAFE_MODE_ENTERED, Severity::HIGH, "SAFE_MODE_ENTERED", "Spacecraft autonomously entered safe mode" },
+    { EventId::DETUMBLE_STARTED, Severity::INFO, "DETUMBLE_STARTED", "B-dot detumble control engaged" },
+    { EventId::DETUMBLE_COMPLETE, Severity::INFO, "DETUMBLE_COMPLETE", "Body rate fell below the hand-over threshold and detumble control stopped" },
+    { EventId::SENSOR_TIMEOUT, Severity::MEDIUM, "SENSOR_TIMEOUT", "No sensor data from the simulator bridge; actuators commanded to zero" },
+    { EventId::SENSOR_RESTORED, Severity::INFO, "SENSOR_RESTORED", "Sensor data resumed after a timeout" },
 };
-inline constexpr size_t kEventCount = 11;
+inline constexpr size_t kEventCount = 15;
 
 inline const EventInfo* find_event(EventId id) {
     for (size_t i = 0; i < kEventCount; ++i) {
@@ -154,6 +162,9 @@ enum class ParamId : uint16_t {
     BATT_LOW_SOC_PCT = 6,
     BATT_CRIT_SOC_PCT = 7,
     LINK_TIMEOUT_S = 8,
+    BDOT_GAIN = 9,
+    MTQ_MAX_DIPOLE = 10,
+    BDOT_FILTER_TAU_S = 11,
 };
 
 enum class ParamType : uint8_t { U8, I8, U16, I16, U32, I32, U64, I64, F32, F64 };
@@ -178,8 +189,11 @@ inline constexpr ParamInfo kParams[] = {
     { ParamId::BATT_LOW_SOC_PCT, ParamType::F32, "BATT_LOW_SOC_PCT", 40.0, 5.0, 90.0, "%", "State of charge entering the LOW power state" },
     { ParamId::BATT_CRIT_SOC_PCT, ParamType::F32, "BATT_CRIT_SOC_PCT", 20.0, 2.0, 80.0, "%", "State of charge entering the CRITICAL power state" },
     { ParamId::LINK_TIMEOUT_S, ParamType::U32, "LINK_TIMEOUT_S", 300.0, 10.0, 86400.0, "s", "Ground contact loss timeout before autonomy reacts" },
+    { ParamId::BDOT_GAIN, ParamType::F32, "BDOT_GAIN", 300000.0, 0.0, 10000000.0, "A*m^2/(T/s)", "B-dot proportional gain" },
+    { ParamId::MTQ_MAX_DIPOLE, ParamType::F32, "MTQ_MAX_DIPOLE", 0.2, 0.0, 10.0, "A*m^2", "Largest magnetic dipole commanded on any axis" },
+    { ParamId::BDOT_FILTER_TAU_S, ParamType::F32, "BDOT_FILTER_TAU_S", 3.0, 0.1, 60.0, "s", "Time constant of the filter applied to the field derivative" },
 };
-inline constexpr size_t kParamCount = 8;
+inline constexpr size_t kParamCount = 11;
 
 inline const ParamInfo* find_param(ParamId id) {
     for (size_t i = 0; i < kParamCount; ++i) {

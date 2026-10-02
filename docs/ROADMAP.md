@@ -3,7 +3,7 @@
 Seven phases. Each ends with something you can watch happen, because a phase
 that produces only internal machinery is a phase whose value cannot be checked.
 
-**Currently at the end of Phase 1.**
+**Currently part-way through Phase 2** (detumble flies; see the checklist there).
 
 ---
 
@@ -37,25 +37,36 @@ which is why this came before any GNC.
 
 ---
 
-## Phase 2 — The simulator and detumble
+## Phase 2 — The simulator and detumble — 🚧 in progress
 
 The first closed loop, and the first real GNC.
 
-- Rigid-body attitude dynamics, quaternion state, RK4 integration
-- Two-body orbit with J2
-- Environment: IGRF magnetic field, solar vector, eclipse
-- Sensor models with the imperfections that make estimation necessary:
-  gyroscope bias random walk, magnetometer noise, sun sensors with a field of
-  view and eclipse blindness, quantisation throughout
-- Actuator models: magnetorquers with dipole limits, and the constraint that
-  torque is always perpendicular to the local field
-- The simulator bridge on its own TCP port
-- **B-dot detumble control**
-- ADCS application publishing `ADCS_HK`, which the existing TT&C chain
-  downlinks with no change
+Done:
+
+- ✅ Rigid-body attitude dynamics, quaternion state, RK4 integration
+- ✅ Two-body orbit with J2
+- ✅ Environment: magnetic field as a tilted, rotating dipole (stand-in for IGRF)
+- ✅ Sensors: gyroscope with bias random walk, noise and quantisation;
+  magnetometer with noise, quantisation and range limit
+- ✅ Magnetorquer model with dipole limit and quantisation; torque is
+  `m × B`, so always perpendicular to the field
+- ✅ The simulator bridge on its own TCP port (50000), lockstep, CRC-protected
+  (`fsw/apps/adcs/sim_bridge.hpp` is the specification)
+- ✅ **B-dot detumble control**, magnetometer only, with engage/release
+  hysteresis and a sensor-timeout fail-safe
+- ✅ ADCS application publishing `ADCS_HK`, downlinked by the existing TT&C
+  chain with no change there
+- ✅ Scenario `sim/scenarios/detumble.py`, bit-for-bit deterministic
+
+Still to do:
+
+- ⬜ IGRF in place of the dipole
+- ⬜ Sun sensors with a field of view and eclipse blindness (needed by Phase 3)
+- ⬜ Solar vector and eclipse in the environment
+- ⬜ A COSMOS screen showing the detumble live
 
 **Ends with:** a spacecraft tumbling at 10 °/s, detumbled below 0.5 °/s, watched
-live on a COSMOS graph.
+live on a COSMOS graph. The first part is real today: `make detumble`.
 
 ## Phase 3 — Attitude determination and pointing
 

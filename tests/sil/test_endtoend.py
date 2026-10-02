@@ -66,6 +66,7 @@ class Spacecraft:
         self.process = subprocess.Popen(
             [str(FSW_BINARY),
              "--ttc-port", str(self.port),
+             "--sim-port", str(free_port()),
              "--time-scale", str(self.time_scale),
              "--nvm", str(self.nvm), *self.extra],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,

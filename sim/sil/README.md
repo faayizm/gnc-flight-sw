@@ -1,6 +1,6 @@
 # `sim/sil/` — the simulator bridge
 
-**Not yet implemented. Phase 2.**
+**Phase 2: built.** `bridge.py` is the wire protocol (specified by `fsw/apps/adcs/sim_bridge.hpp`); `simulation.py` is the lockstep world loop.
 
 The transport between the simulator and the flight software: the second TCP
 link, on port 50000, separate from the TT&C link the ground uses.

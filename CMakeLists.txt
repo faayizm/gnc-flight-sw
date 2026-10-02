@@ -70,6 +70,8 @@ add_library(fsw_apps STATIC
   fsw/apps/ttc/space_packet.cpp
   fsw/apps/ttc/pus.cpp
   fsw/apps/ttc/ttc_app.cpp
+  fsw/apps/adcs/sim_bridge.cpp
+  fsw/apps/adcs/adcs_app.cpp
 )
 target_link_libraries(fsw_apps PUBLIC fsw_core)
 target_compile_options(fsw_apps PRIVATE ${FSW_WARNINGS} ${FSW_FLIGHT_FLAGS})

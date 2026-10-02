@@ -132,6 +132,28 @@ class GroundClient:
                 return   # spacecraft closed the link
             self._rx += chunk
 
+    def poll_nowait(self) -> Iterator[Telemetry]:
+        """
+        Yield whatever has already arrived, without ever waiting. For callers
+        that are themselves in a tight loop -- a simulator in lockstep with the
+        spacecraft cannot afford to block on the downlink.
+        """
+        if self._sock is None:
+            raise ConnectionError("not connected")
+        self._sock.setblocking(False)
+        try:
+            while True:
+                try:
+                    chunk = self._sock.recv(65536)
+                except (BlockingIOError, InterruptedError):
+                    break
+                if not chunk:
+                    break
+                self._rx += chunk
+        finally:
+            self._sock.settimeout(None)
+        yield from self._drain()
+
     def wait_for(self, name: str, timeout: float = 3.0) -> Telemetry | None:
         """
         Wait for the next packet with a given decoded name, discarding others.

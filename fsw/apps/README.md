@@ -8,7 +8,7 @@ or radios.
 apps/
 ├── ttc/        telemetry, tracking and command      WORKING
 ├── modemgr/    spacecraft mode arbitration          Phase 5
-├── adcs/       attitude determination and control   Phases 2-3
+├── adcs/       attitude determination and control   B-dot detumble WORKING; estimation Phase 3
 ├── eps/        electrical power                     Phase 5
 └── fdir/       fault detection, isolation, recovery Phase 6
 ```

@@ -83,6 +83,10 @@ test: build  ## Run the unit tests
 sil: build  ## Run the software-in-the-loop tests against the real binary
 	@$(SYS_PYTHON) tests/sil/test_endtoend.py
 
+.PHONY: detumble
+detumble: build  ## Fly the detumble scenario: simulator + flight software, asserted on truth
+	@$(SYS_PYTHON) -m sim.scenarios.detumble --determinism
+
 .PHONY: check-layering
 check-layering:  ## Enforce the architecture: no OS headers outside platform/
 	@echo "checking layering rules..."
@@ -133,7 +137,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test sil check-layering check-links check-toolbox  ## Everything CI runs
+check: check-gen build test sil detumble check-layering check-links check-toolbox  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 
