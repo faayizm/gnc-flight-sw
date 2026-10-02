@@ -3,7 +3,7 @@
 Seven phases. Each ends with something you can watch happen, because a phase
 that produces only internal machinery is a phase whose value cannot be checked.
 
-**Currently at the end of Phase 2.**
+**Currently at the end of Phase 3.**
 
 ---
 
@@ -69,21 +69,37 @@ live on a COSMOS graph. `make detumble` asserts it; `make detumble-live` lets yo
 watch it. The COSMOS screen has been generated and checked against the
 dictionary, but not opened in a running COSMOS installation.
 
-## Phase 3 — Attitude determination and pointing
+## Phase 3 — Attitude determination and pointing ✅ done
 
-- TRIAD from the sun and magnetic field vectors
-- A complementary filter estimating gyroscope bias
-- A multiplicative extended Kalman filter, replacing it, with the derivation
-  written down
-- On-board orbit propagation from a Kepler model, checked against simulator
-  truth
-- Reaction wheel models with momentum limits and friction
-- Quaternion feedback control, nadir pointing
-- Wheel and magnetorquer allocation, momentum dumping
-- Orekit introduced for high-fidelity orbit, eclipse geometry and ground
-  station pass windows
+How it works, the filter derivation and the results: [ATTITUDE.md](ATTITUDE.md).
+
+- ✅ TRIAD from the magnetometer and sun sensor, used to start the filter
+- ✅ A multiplicative extended Kalman filter estimating attitude and gyro
+  bias, with the derivation written down
+- ✅ A star tracker model and filter update. This was added to the plan: the
+  coarse sensors cannot reach 0.2° (see ATTITUDE.md, "Why there is a star
+  tracker")
+- ✅ GPS receiver model and on-board orbit propagation (two-body plus J2, RK4)
+  that carries the last fix through outages
+- ✅ On-board ephemeris: Sun direction, IGRF (generated from the same
+  coefficient table as the simulator), eclipse
+- ✅ Reaction wheel models with torque and momentum limits, Coulomb and viscous
+  friction, and imperfect friction compensation
+- ✅ Gravity-gradient torque in the simulator
+- ✅ Quaternion feedback control with a rate-limited slew, nadir pointing
+- ✅ Wheel and magnetorquer allocation, magnetic momentum dumping
+- ✅ ADCS control modes DETUMBLE → STANDBY → POINTING, with hysteresis
+- ✅ Scenario `nadir_pointing.py`, COSMOS `POINTING` screen
+- ⬜ *Skipped:* the complementary filter that was to precede the MEKF. The
+  MEKF was built directly, and the complementary filter would have taught
+  nothing it does not.
+- ⬜ *Deferred:* Orekit. Its JVM is a large dependency for gains (IERS frames,
+  pass windows) that nothing here needs yet. Ground-station passes arrive with
+  Phase 4, and that is where it will be weighed again.
 
 **Ends with:** nadir pointing error below 0.2°, held through an eclipse.
+`make pointing` asserts it against simulator truth: 0.11° worst once settled,
+0.06° worst in eclipse.
 
 ## Phase 4 — A real communications link
 

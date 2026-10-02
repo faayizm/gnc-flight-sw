@@ -39,7 +39,8 @@ size_t encode_actuator(const ActuatorFrame& f, uint8_t* out, size_t capacity) {
     w.write_uint8(kFrameActuator);
     w.write_uint32(f.seq);
     write_vec(w, f.dipole_a_m2);
-    w.write_uint8(f.commanded ? 1 : 0);
+    write_vec(w, f.wheel_torque_nm);
+    w.write_uint8(static_cast<uint8_t>((f.commanded ? 1 : 0) | (f.wheels_commanded ? 2 : 0)));
     size_t total = 0;
     return finish_frame(w, out, total) ? total : 0;
 }
@@ -53,8 +54,13 @@ size_t encode_sensor(const SensorFrame& f, uint8_t* out, size_t capacity) {
     write_vec(w, f.mag_t);
     write_vec(w, f.gyro_rps);
     write_vec(w, f.sun_b);
+    write_vec(w, f.wheel_h);
+    for (double v : f.gps_pos) { w.write_float64(v); }
+    for (double v : f.gps_vel) { w.write_float64(v); }
+    for (float v : f.star_q) { w.write_float32(v); }
     w.write_uint8(static_cast<uint8_t>((f.mag_valid ? 1 : 0) | (f.gyro_valid ? 2 : 0) |
-                                       (f.sun_valid ? 4 : 0)));
+                                       (f.sun_valid ? 4 : 0) | (f.gps_valid ? 8 : 0) |
+                                       (f.wheels_valid ? 16 : 0) | (f.star_valid ? 32 : 0)));
     size_t total = 0;
     return finish_frame(w, out, total) ? total : 0;
 }
@@ -69,13 +75,22 @@ bool decode_sensor(const uint8_t* body, size_t length, SensorFrame& out) {
     if (!r.read_uint8(type) || type != kFrameSensor) { return false; }
     if (!r.read_uint32(f.seq) || !r.read_float64(f.time_s) ||
         !read_vec(r, f.mag_t) || !read_vec(r, f.gyro_rps) ||
-        !read_vec(r, f.sun_b) || !r.read_uint8(flags)) {
+        !read_vec(r, f.sun_b) || !read_vec(r, f.wheel_h) ||
+        !r.read_float64(f.gps_pos[0]) || !r.read_float64(f.gps_pos[1]) ||
+        !r.read_float64(f.gps_pos[2]) || !r.read_float64(f.gps_vel[0]) ||
+        !r.read_float64(f.gps_vel[1]) || !r.read_float64(f.gps_vel[2]) ||
+        !r.read_float32(f.star_q[0]) || !r.read_float32(f.star_q[1]) ||
+        !r.read_float32(f.star_q[2]) || !r.read_float32(f.star_q[3]) ||
+        !r.read_uint8(flags)) {
         return false;
     }
     if (!r.exhausted()) { return false; }
     f.mag_valid  = (flags & 1) != 0;
     f.gyro_valid = (flags & 2) != 0;
     f.sun_valid  = (flags & 4) != 0;
+    f.gps_valid  = (flags & 8) != 0;
+    f.wheels_valid = (flags & 16) != 0;
+    f.star_valid   = (flags & 32) != 0;
     out = f;
     return true;
 }

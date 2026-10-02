@@ -17,6 +17,7 @@ APIDS = {
 ENUMS = {
     'SystemMode': {'BOOT': 0, 'SAFE': 1, 'DETUMBLE': 2, 'STANDBY': 3, 'POINTING': 4},
     'AdcsEstState': {'INVALID': 0, 'INITIALISING': 1, 'CONVERGING': 2, 'CONVERGED': 3},
+    'AdcsCtrlMode': {'IDLE': 0, 'DETUMBLE': 1, 'STANDBY': 2, 'POINTING': 3},
     'PowerState': {'UNKNOWN': 0, 'NOMINAL': 1, 'LOW': 2, 'CRITICAL': 3},
     'Severity': {'INFO': 1, 'LOW': 2, 'MEDIUM': 3, 'HIGH': 4},
 }
@@ -24,7 +25,7 @@ ENUMS = {
 # name -> (sid, apid, [(field, type, units, enum_or_None), ...])
 TELEMETRY = {
     'SYS_HK': (1, 0x001, [('uptime_s', 'uint32', 's', None), ('tick_count', 'uint32', 'ticks', None), ('mode', 'uint8', '', 'SystemMode'), ('boot_count', 'uint16', 'count', None), ('cpu_load_pct', 'uint8', '%', None), ('sched_overruns', 'uint16', 'count', None), ('tc_received', 'uint32', 'count', None), ('tc_rejected', 'uint32', 'count', None), ('tm_sent', 'uint32', 'count', None), ('link_up', 'uint8', 'bool', None), ('events_logged', 'uint32', 'count', None), ('last_event_id', 'uint16', 'id', None)]),
-    'ADCS_HK': (2, 0x002, [('est_state', 'uint8', '', 'AdcsEstState'), ('q_est_0', 'float32', '-', None), ('q_est_1', 'float32', '-', None), ('q_est_2', 'float32', '-', None), ('q_est_3', 'float32', '-', None), ('omega_x', 'float32', 'rad/s', None), ('omega_y', 'float32', 'rad/s', None), ('omega_z', 'float32', 'rad/s', None), ('gyro_bias_x', 'float32', 'rad/s', None), ('gyro_bias_y', 'float32', 'rad/s', None), ('gyro_bias_z', 'float32', 'rad/s', None), ('pointing_err_deg', 'float32', 'deg', None), ('rate_norm', 'float32', 'deg/s', None), ('sun_valid', 'uint8', 'bool', None), ('mag_valid', 'uint8', 'bool', None), ('eclipse', 'uint8', 'bool', None), ('torque_cmd_x', 'float32', 'N*m', None), ('torque_cmd_y', 'float32', 'N*m', None), ('torque_cmd_z', 'float32', 'N*m', None), ('pos_eci_x', 'float64', 'm', None), ('pos_eci_y', 'float64', 'm', None), ('pos_eci_z', 'float64', 'm', None)]),
+    'ADCS_HK': (2, 0x002, [('est_state', 'uint8', '', 'AdcsEstState'), ('ctrl_mode', 'uint8', '', 'AdcsCtrlMode'), ('q_est_0', 'float32', '-', None), ('q_est_1', 'float32', '-', None), ('q_est_2', 'float32', '-', None), ('q_est_3', 'float32', '-', None), ('omega_x', 'float32', 'rad/s', None), ('omega_y', 'float32', 'rad/s', None), ('omega_z', 'float32', 'rad/s', None), ('gyro_bias_x', 'float32', 'rad/s', None), ('gyro_bias_y', 'float32', 'rad/s', None), ('gyro_bias_z', 'float32', 'rad/s', None), ('pointing_err_deg', 'float32', 'deg', None), ('rate_norm', 'float32', 'deg/s', None), ('sun_valid', 'uint8', 'bool', None), ('mag_valid', 'uint8', 'bool', None), ('eclipse', 'uint8', 'bool', None), ('torque_cmd_x', 'float32', 'N*m', None), ('torque_cmd_y', 'float32', 'N*m', None), ('torque_cmd_z', 'float32', 'N*m', None), ('pos_eci_x', 'float64', 'm', None), ('pos_eci_y', 'float64', 'm', None), ('pos_eci_z', 'float64', 'm', None), ('att_sigma_deg', 'float32', 'deg', None), ('wheel_h_x', 'float32', 'N*m*s', None), ('wheel_h_y', 'float32', 'N*m*s', None), ('wheel_h_z', 'float32', 'N*m*s', None), ('dipole_cmd_x', 'float32', 'A*m^2', None), ('dipole_cmd_y', 'float32', 'A*m^2', None), ('dipole_cmd_z', 'float32', 'A*m^2', None), ('gps_valid', 'uint8', 'bool', None)]),
     'EPS_HK': (3, 0x003, [('power_state', 'uint8', '', 'PowerState'), ('batt_voltage', 'float32', 'V', None), ('batt_current', 'float32', 'A', None), ('batt_soc_pct', 'float32', '%', None), ('batt_temp_c', 'float32', 'degC', None), ('solar_power_w', 'float32', 'W', None), ('load_power_w', 'float32', 'W', None), ('rails_enabled', 'uint16', 'mask', None), ('shed_level', 'uint8', 'level', None)]),
 }
 
@@ -55,6 +56,10 @@ EVENTS = {
     12: ('DETUMBLE_STARTED', 'INFO', 'B-dot detumble control engaged'),
     13: ('DETUMBLE_COMPLETE', 'INFO', 'Body rate fell below the hand-over threshold and detumble control stopped'),
     14: ('SENSOR_TIMEOUT', 'MEDIUM', 'No sensor data from the simulator bridge; actuators commanded to zero'),
+    16: ('ESTIMATOR_INIT', 'INFO', 'Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker'),
+    17: ('ESTIMATOR_CONVERGED', 'INFO', 'Attitude estimator uncertainty fell below the pointing threshold'),
+    18: ('POINTING_STARTED', 'INFO', 'Nadir pointing control engaged'),
+    19: ('ESTIMATOR_RESET', 'MEDIUM', 'Attitude estimator discarded after persistent large innovations'),
     15: ('SENSOR_RESTORED', 'INFO', 'Sensor data resumed after a timeout'),
 }
 
@@ -71,6 +76,9 @@ PARAMS = {
     9: ('BDOT_GAIN', 'float32', 300000.0, 0.0, 10000000.0, 'A*m^2/(T/s)', 'B-dot proportional gain'),
     10: ('MTQ_MAX_DIPOLE', 'float32', 0.2, 0.0, 10.0, 'A*m^2', 'Largest magnetic dipole commanded on any axis'),
     11: ('BDOT_FILTER_TAU_S', 'float32', 3.0, 0.1, 60.0, 's', 'Time constant of the filter applied to the field derivative'),
+    12: ('POINT_BANDWIDTH_RADPS', 'float32', 0.1, 0.005, 1.0, 'rad/s', 'Natural frequency of the pointing control loop'),
+    13: ('POINT_MAX_SLEW_DPS', 'float32', 1.0, 0.05, 5.0, 'deg/s', 'Largest body rate the pointing controller will command while acquiring'),
+    14: ('MOMENTUM_DUMP_GAIN', 'float32', 0.0005, 0.0, 0.1, '1/s', 'Magnetic momentum-unloading gain'),
 }
 
 STRUCT_CODES = {

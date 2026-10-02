@@ -45,7 +45,7 @@ TELEMETRY SAT SYS_HK BIG_ENDIAN "Core system health, scheduler timing and link s
   APPEND_ITEM    LAST_EVENT_ID  16 UINT  "Identifier of most recent event"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
-TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state. Populated from Phase 2 onward."
+TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state."
   APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
   APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
   APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
@@ -67,6 +67,11 @@ TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state. Popu
     STATE INITIALISING 1
     STATE CONVERGING 2
     STATE CONVERGED 3
+  APPEND_ITEM    CTRL_MODE       8 UINT  "Attitude controller mode"
+    STATE IDLE 0
+    STATE DETUMBLE 1
+    STATE STANDBY 2
+    STATE POINTING 3
   APPEND_ITEM    Q_EST_0        32 FLOAT "Estimated attitude quaternion scalar part"
   APPEND_ITEM    Q_EST_1        32 FLOAT "Estimated attitude quaternion x"
   APPEND_ITEM    Q_EST_2        32 FLOAT "Estimated attitude quaternion y"
@@ -108,6 +113,23 @@ TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state. Popu
     UNITS m m
   APPEND_ITEM    POS_ECI_Z      64 FLOAT "On-board estimated position ECI Z"
     UNITS m m
+  APPEND_ITEM    ATT_SIGMA_DEG  32 FLOAT "Estimator one-sigma attitude uncertainty"
+    UNITS deg deg
+  APPEND_ITEM    WHEEL_H_X      32 FLOAT "Reaction wheel momentum X"
+    UNITS N*m*s N*m*s
+  APPEND_ITEM    WHEEL_H_Y      32 FLOAT "Reaction wheel momentum Y"
+    UNITS N*m*s N*m*s
+  APPEND_ITEM    WHEEL_H_Z      32 FLOAT "Reaction wheel momentum Z"
+    UNITS N*m*s N*m*s
+  APPEND_ITEM    DIPOLE_CMD_X   32 FLOAT "Commanded magnetorquer dipole X"
+    UNITS A*m^2 A*m^2
+  APPEND_ITEM    DIPOLE_CMD_Y   32 FLOAT "Commanded magnetorquer dipole Y"
+    UNITS A*m^2 A*m^2
+  APPEND_ITEM    DIPOLE_CMD_Z   32 FLOAT "Commanded magnetorquer dipole Z"
+    UNITS A*m^2 A*m^2
+  APPEND_ITEM    GPS_VALID       8 UINT  "GPS fix used in the last second"
+    STATE FALSE 0
+    STATE TRUE 1
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
 TELEMETRY SAT EPS_HK BIG_ENDIAN "Power subsystem state. Populated from Phase 5 onward."
@@ -179,6 +201,10 @@ TELEMETRY SAT EVENT_INFO BIG_ENDIAN "PUS ST[5,1] info event report"
     STATE DETUMBLE_STARTED 12
     STATE DETUMBLE_COMPLETE 13
     STATE SENSOR_TIMEOUT 14
+    STATE ESTIMATOR_INIT 16
+    STATE ESTIMATOR_CONVERGED 17
+    STATE POINTING_STARTED 18
+    STATE ESTIMATOR_RESET 19
     STATE SENSOR_RESTORED 15
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -214,6 +240,10 @@ TELEMETRY SAT EVENT_LOW BIG_ENDIAN "PUS ST[5,2] low event report"
     STATE DETUMBLE_STARTED 12
     STATE DETUMBLE_COMPLETE 13
     STATE SENSOR_TIMEOUT 14
+    STATE ESTIMATOR_INIT 16
+    STATE ESTIMATOR_CONVERGED 17
+    STATE POINTING_STARTED 18
+    STATE ESTIMATOR_RESET 19
     STATE SENSOR_RESTORED 15
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -249,6 +279,10 @@ TELEMETRY SAT EVENT_MEDIUM BIG_ENDIAN "PUS ST[5,3] medium event report"
     STATE DETUMBLE_STARTED 12
     STATE DETUMBLE_COMPLETE 13
     STATE SENSOR_TIMEOUT 14
+    STATE ESTIMATOR_INIT 16
+    STATE ESTIMATOR_CONVERGED 17
+    STATE POINTING_STARTED 18
+    STATE ESTIMATOR_RESET 19
     STATE SENSOR_RESTORED 15
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -284,6 +318,10 @@ TELEMETRY SAT EVENT_HIGH BIG_ENDIAN "PUS ST[5,4] high event report"
     STATE DETUMBLE_STARTED 12
     STATE DETUMBLE_COMPLETE 13
     STATE SENSOR_TIMEOUT 14
+    STATE ESTIMATOR_INIT 16
+    STATE ESTIMATOR_CONVERGED 17
+    STATE POINTING_STARTED 18
+    STATE ESTIMATOR_RESET 19
     STATE SENSOR_RESTORED 15
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -430,6 +468,9 @@ TELEMETRY SAT PARAM_REPORT BIG_ENDIAN "PUS ST[20,2] parameter value report"
     STATE BDOT_GAIN 9
     STATE MTQ_MAX_DIPOLE 10
     STATE BDOT_FILTER_TAU_S 11
+    STATE POINT_BANDWIDTH_RADPS 12
+    STATE POINT_MAX_SLEW_DPS 13
+    STATE MOMENTUM_DUMP_GAIN 14
   APPEND_ITEM    PARAM_VALUE    64 FLOAT "Parameter value, widened to double"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 

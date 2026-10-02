@@ -51,7 +51,7 @@ TEST(bridge, sensor_frame_round_trips_through_the_codec) {
     in.sun_b = Vec3f{0.0f, 0.6f, 0.8f};
     in.mag_valid = true; in.gyro_valid = false; in.sun_valid = true;
 
-    uint8_t buf[64];
+    uint8_t buf[256];
     const size_t n = encode_sensor(in, buf, sizeof buf);
     CHECK_EQ(n, kSensorFrameBytes);
 
@@ -68,7 +68,7 @@ TEST(bridge, sensor_frame_round_trips_through_the_codec) {
 
 TEST(bridge, a_corrupted_sensor_frame_is_rejected) {
     SensorFrame in;
-    uint8_t buf[64];
+    uint8_t buf[256];
     const size_t n = encode_sensor(in, buf, sizeof buf);
     buf[10] ^= 0x01;
     SensorFrame out;
@@ -78,7 +78,7 @@ TEST(bridge, a_corrupted_sensor_frame_is_rejected) {
 TEST(bridge, actuator_frame_has_the_documented_size_and_a_valid_crc) {
     ActuatorFrame a;
     a.seq = 7; a.dipole_a_m2 = Vec3f{0.1f, 0.0f, -0.1f}; a.commanded = true;
-    uint8_t buf[64];
+    uint8_t buf[256];
     const size_t n = encode_actuator(a, buf, sizeof buf);
     CHECK_EQ(n, kActuatorFrameBytes);
     CHECK_EQ(static_cast<size_t>((buf[0] << 8) | buf[1]), n - 2);

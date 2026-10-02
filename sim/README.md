@@ -3,14 +3,16 @@
 > 📚 **Learning this?** See [Lessons 12–16 — orbits, attitude, sensors, estimation, control](../learn/) in the lesson track.
 
 
-**Phase 2, built.** Orbit, attitude dynamics, the IGRF magnetic field,
-gyro and magnetometer models, magnetorquers, the bridge and the detumble
-scenario work. The sun sensor and eclipse work. Only the detumble scenario exists; the others below arrive with their phases.
+**Built through Phase 3.** Orbit with J2, attitude dynamics with reaction
+wheels, the IGRF field, Sun and eclipse, gravity-gradient torque. Sensors: gyro,
+magnetometer, coarse sun sensor, star tracker and GPS. Actuators: magnetorquers
+and reaction wheels. Two scenarios fly against the real flight binary.
 
 ```bash
 make build
 make test-sim     # physics checks: conservation laws, IGRF vs a reference
-make detumble     # ~12 s: flies 10 deg/s down to ~0.4 deg/s over 0.8 orbit
+make detumble     # ~15 s: flies 10 deg/s down to ~0.4 deg/s within an orbit
+make pointing     # ~55 s: tumble to 0.2 deg nadir pointing, two orbits
 ```
 
 Pure Python, standard library only — no NumPy — so it runs anywhere the rest
@@ -60,10 +62,10 @@ deriving them is most of the learning. Planned:
   with dipole limits and the constraint that torque is always perpendicular to
   the local magnetic field
 
-**Orekit** enters later, at Phase 3, for high-fidelity orbit propagation,
-proper IERS reference frames, eclipse geometry and ground station pass windows —
-the places where its accuracy is genuinely worth adding a JVM to the loop.
-Starting with it would have meant learning its API before seeing anything move.
+**Orekit** was planned for Phase 3, for high-fidelity orbit propagation,
+proper IERS reference frames, eclipse geometry and ground station pass windows.
+It has been deferred: nothing yet needs accuracy that justifies a JVM in the
+loop. It will be weighed again when ground-station passes arrive in Phase 4.
 
 ## Determinism is a requirement
 
@@ -75,16 +77,18 @@ the property that makes a simulator worth building at all.
 ## Scenarios
 
 Each scenario is one file: initial state, duration, what is injected, and what
-is asserted. They run in CI. Planned for Phase 2 onwards:
+is asserted. They run in `make check`.
 
-| Scenario | Proves |
-|---|---|
-| `detumble.py` | B-dot brings 10 °/s of tumble below 0.5 °/s |
-| `nadir_pointing.py` | Pointing error settles below 0.2° and stays there |
-| `eclipse_cycle.py` | Attitude is held through loss of the sun reference |
-| `gyro_bias.py` | The estimator converges on a real bias and removes it |
-| `wheel_saturation.py` | Momentum is dumped to the magnetorquers before saturation |
-| `sensor_dropout.py` | A failed magnetometer degrades cleanly instead of diverging |
+| Scenario | Proves | Status |
+|---|---|---|
+| `detumble.py` | B-dot brings 10 °/s of tumble below 0.5 °/s, deterministically | ✅ |
+| `nadir_pointing.py` | Pointing settles below 0.2° and holds through eclipse and a GPS outage; the gyro bias is learned; momentum is dumped before the wheels fill | ✅ |
+| `sensor_dropout.py` | A failed magnetometer degrades cleanly instead of diverging | Phase 6 |
+| `wheel_failure.py` | A wheel failure mid-pointing is detected, isolated and recovered | Phase 6 |
+
+The eclipse, gyro-bias and wheel-saturation cases once planned as separate
+scenarios are assertions inside `nadir_pointing.py`, since one flight
+exercises all of them.
 
 ## Things worth knowing about the detumble scenario
 
@@ -107,3 +111,16 @@ is asserted. They run in CI. Planned for Phase 2 onwards:
   `SCHED_OVERRUN` events: the host, not the flight code, is late.
 - **Not modelled.** The torquer's own field corrupting the magnetometer while
   it is on. Real missions switch the torquers off to measure.
+
+## Things worth knowing about the pointing scenario
+
+- **Sensor availability is part of the test.** The star tracker cannot see
+  stars while the body turns faster than 1 °/s, so the filter starts from
+  TRIAD. Near orbit noon the Sun comes within 30° of the tracker's boresight
+  and blinds it, and the filter coasts on the gyro and magnetometer.
+- **A GPS outage** from 7000 s to 7900 s makes the flight software propagate
+  its own orbit. Pointing holds to the same accuracy.
+- **Noise draws never depend on availability.** Every sensor draws its random
+  numbers whether or not it reports. An outage therefore changes nothing else
+  in the run, and two scenarios that differ only in one outage can be
+  compared sample by sample.

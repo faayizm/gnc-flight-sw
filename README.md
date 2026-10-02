@@ -5,12 +5,14 @@ principles, together with the simulation and ground tooling needed to actually
 fly it. Written to be read: every design decision that matters is explained in
 the file where it is made, including the ones that were rejected and why.
 
-**Status: Phase 2 of 7 complete.** The telemetry, tracking and command
-chain works end to end, and the first closed loop flies: a Python simulator
-holds the truth and the flight software detumbles a 10 °/s tumble with B-dot
-control (`make detumble`). Attitude estimation, pointing, power, mode
-management and fault handling are scheduled and scaffolded, not yet
-implemented. Attitude estimation and pointing come next, in Phase 3. The roadmap in
+**Status: Phase 3 of 7 complete.** The telemetry, tracking and command
+chain works end to end. A Python simulator holds the truth, and the flight
+software flies against it. It detumbles with B-dot (`make detumble`), then
+estimates its attitude with a multiplicative Kalman filter. From there it
+holds the Earth's centre within 0.2° on its reaction wheels, through eclipse
+and a GPS outage (`make pointing`; see [docs/ATTITUDE.md](docs/ATTITUDE.md)).
+Power, mode management and fault handling are scheduled and scaffolded, not
+yet implemented. The roadmap in
 [docs/ROADMAP.md](docs/ROADMAP.md) says exactly what exists and what does not.
 
 ```
@@ -70,7 +72,7 @@ answer. [`learn/GLOSSARY.md`](learn/GLOSSARY.md) translates every acronym.
 ## Try it in two minutes
 
 ```bash
-make build          # configure, compile, run 79 unit tests
+make build          # configure, compile, run 91 unit tests
 make run            # the spacecraft boots and waits for a ground station
 ```
 
@@ -129,8 +131,9 @@ is built around, and it is the one most worth copying into your own work.
 | Software bus | Working — synchronous pub/sub, statically bounded |
 | Parameter store | Working — range checks, CRC on non-volatile storage, safe fallback |
 | Ground segment | Working — Python client and CLI; OpenC3 COSMOS config generated |
-| ADCS, EPS, mode manager, FDIR | **Not yet.** Phases 2–6. Scaffolded and documented |
-| Orbit and attitude simulator | **Yes, Phase 2** (`sim/`, `make detumble`) |
+| ADCS | **Working.** Detumble, MEKF estimation, nadir pointing, momentum dumping |
+| EPS, mode manager, FDIR | **Not yet.** Phases 5–6. Scaffolded and documented |
+| Orbit and attitude simulator | **Working** (`sim/`, `make detumble`, `make pointing`) |
 | TM/TC transfer frames, Reed-Solomon | **Not yet.** Phase 4 |
 
 ## Repository map
@@ -149,7 +152,7 @@ Every directory has a `README.md` explaining what belongs in it and why.
 | [`fsw/generated/`](fsw/generated/) | Generated C++. Never edit by hand |
 | [`gnd/pyground/`](gnd/pyground/) | Dependency-free Python ground station and test driver |
 | [`gnd/openc3/`](gnd/openc3/) | OpenC3 COSMOS plugin: screens, limits, command definitions |
-| [`sim/`](sim/) | The orbit and attitude simulator. Phase 2, working |
+| [`sim/`](sim/) | The orbit and attitude simulator. Working |
 | [`tests/unit/`](tests/unit/) | Fast, hermetic tests of the flight core |
 | [`tests/sil/`](tests/sil/) | Software-in-the-loop: the real binary over the real protocol |
 | [`docs/`](docs/) | Architecture, roadmap, and the generated interface control document |

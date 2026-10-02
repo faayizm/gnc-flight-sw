@@ -80,3 +80,18 @@ def magnetic_field_eci(r: Vec, t: float) -> Vec:
     c, s = math.cos(th), math.sin(th)
     bx, by, bz = field_ecef(c * r[0] + s * r[1], -s * r[0] + c * r[1], r[2])
     return (c * bx - s * by, s * bx + c * by, bz)
+
+
+def gravity_gradient_torque(r_body: Vec, inertia: Vec) -> Vec:
+    """Torque (N*m, body frame) from the Earth's gravity varying across the
+    body:  tau = 3 mu / |r|^3  (n x I n),  n the unit vector to the spacecraft
+    from the Earth's centre, in body axes. Zero when a principal axis points
+    along n -- which is why a nadir-pointed body with its principal axes
+    aligned to the orbit frame feels almost none of it."""
+    from .orbit import MU
+    rn = norm(r_body)
+    n = scale(r_body, 1.0 / rn)
+    i_n = (inertia[0] * n[0], inertia[1] * n[1], inertia[2] * n[2])
+    k = 3.0 * MU / rn**3
+    c = (n[1] * i_n[2] - n[2] * i_n[1], n[2] * i_n[0] - n[0] * i_n[2], n[0] * i_n[1] - n[1] * i_n[0])
+    return scale(c, k)

@@ -18,10 +18,17 @@ def crc16(data: bytes, crc: int = 0xFFFF) -> int:
     return crc
 
 
-def encode_sensor(seq: int, t: float, mag, gyro, sun=(0.0, 0.0, 0.0), mag_valid=True,
-                  gyro_valid=True, sun_valid=False) -> bytes:
-    flags = (1 if mag_valid else 0) | (2 if gyro_valid else 0) | (4 if sun_valid else 0)
-    body = struct.pack(">BId3f3f3fB", SENSOR, seq, t, *mag, *gyro, *sun, flags)
+ZERO3 = (0.0, 0.0, 0.0)
+
+
+def encode_sensor(seq: int, t: float, mag, gyro, sun=ZERO3, wheel_h=ZERO3, gps_pos=ZERO3,
+                  gps_vel=ZERO3, mag_valid=True, gyro_valid=True, sun_valid=False,
+                  gps_valid=False, wheels_valid=False, star_q=(1.0, 0.0, 0.0, 0.0),
+                  star_valid=False) -> bytes:
+    flags = ((1 if mag_valid else 0) | (2 if gyro_valid else 0) | (4 if sun_valid else 0)
+             | (8 if gps_valid else 0) | (16 if wheels_valid else 0) | (32 if star_valid else 0))
+    body = struct.pack(">BId3f3f3f3f3d3d4fB", SENSOR, seq, t, *mag, *gyro, *sun, *wheel_h,
+                       *gps_pos, *gps_vel, *star_q, flags)
     body += struct.pack(">H", crc16(body))
     return struct.pack(">H", len(body)) + body
 
@@ -29,10 +36,10 @@ def encode_sensor(seq: int, t: float, mag, gyro, sun=(0.0, 0.0, 0.0), mag_valid=
 def decode_actuator(body: bytes):
     if len(body) < 3 or crc16(body) != 0:
         raise ValueError("bad CRC on actuator frame")
-    kind, seq, mx, my, mz, flags = struct.unpack(">BI3fB", body[:-2])
+    kind, seq, mx, my, mz, tx, ty, tz, flags = struct.unpack(">BI3f3fB", body[:-2])
     if kind != ACTUATOR:
         raise ValueError(f"unexpected frame type {kind}")
-    return seq, (mx, my, mz), bool(flags & 1)
+    return seq, (mx, my, mz), (tx, ty, tz), flags
 
 
 class Bridge:
@@ -55,20 +62,20 @@ class Bridge:
         if self.sock:
             self.sock.close()
 
-    def exchange(self, seq: int, t: float, mag, gyro, sun=(0.0, 0.0, 0.0), mag_valid=True,
-                 gyro_valid=True, sun_valid=False):
-        """Send one sensor frame and block for the matching actuator frame."""
+    def exchange(self, seq: int, t: float, mag, gyro, **kw):
+        """Send one sensor frame and block for the matching actuator frame.
+        Returns (dipole, wheel_torque, flags)."""
         assert self.sock is not None
-        self.sock.sendall(encode_sensor(seq, t, mag, gyro, sun, mag_valid, gyro_valid, sun_valid))
+        self.sock.sendall(encode_sensor(seq, t, mag, gyro, **kw))
         while True:
             if len(self.buf) >= 2:
                 n = struct.unpack(">H", self.buf[:2])[0]
                 if len(self.buf) >= 2 + n:
                     body, self.buf = self.buf[2:2 + n], self.buf[2 + n:]
-                    rseq, dipole, commanded = decode_actuator(body)
+                    rseq, dipole, wheel_torque, flags = decode_actuator(body)
                     if rseq != seq:
                         raise RuntimeError(f"lockstep broken: sent {seq}, got {rseq}")
-                    return dipole, commanded
+                    return dipole, wheel_torque, flags
             chunk = self.sock.recv(4096)
             if not chunk:
                 raise ConnectionError("flight software closed the bridge")

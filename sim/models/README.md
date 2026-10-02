@@ -3,7 +3,7 @@
 > 📚 **Learning this?** See [Lesson 14 — Sensors and noise](../../learn/14-sensors-and-noise/) in the lesson track.
 
 
-**Phase 2: partly built.** Orbit, dynamics, dipole field, gyro, magnetometer and magnetorquers exist. IGRF, sun sensors and cylindrical eclipse exist too. Reaction wheels and drag do not.
+**Built through Phase 3.** Everything in the table below exists except atmospheric density and drag. `igrf.py` and `igrf_coeffs.py` hold the field model.
 
 Truth models. Nothing here is flight code, nothing here is under the flight
 software's constraints, and nothing here may ever be linked into the flight
@@ -14,10 +14,10 @@ software.
 | Module | Models |
 |---|---|
 | `dynamics.py` | Rigid-body attitude: quaternion kinematics, Euler's equation, RK4 |
-| `orbit.py` | Two-body with J2. Orekit-backed high fidelity from Phase 3 |
-| `environment.py` | IGRF magnetic field, solar vector, eclipse, atmospheric density |
-| `sensors.py` | Gyroscope, magnetometer, coarse sun sensors — with the noise, bias, quantisation and blind spots that make estimation necessary |
-| `actuators.py` | Reaction wheels and magnetorquers, with their real limits |
+| `orbit.py` | Two-body with J2 |
+| `environment.py` | IGRF magnetic field (and a dipole for comparison), solar vector, eclipse, gravity-gradient torque |
+| `sensors.py` | Gyroscope, magnetometer, coarse sun sensors, star tracker, GPS — with the noise, bias, quantisation and blind spots that make estimation necessary |
+| `actuators.py` | Reaction wheels (torque and momentum limits, friction) and magnetorquers, with their real limits |
 
 ## The rule that matters
 

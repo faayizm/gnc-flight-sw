@@ -47,6 +47,14 @@ enums:
       CONVERGING:  2
       CONVERGED:   3
 
+  AdcsCtrlMode:
+    desc: What the attitude controller is doing.
+    values:
+      IDLE:     0   # not OFF: YAML 1.1 reads a bare OFF as the boolean false
+      DETUMBLE: 1
+      STANDBY:  2
+      POINTING: 3
+
   PowerState:
     desc: Coarse battery / power bus state used by mode arbitration.
     values:
@@ -91,9 +99,10 @@ telemetry:
     sid: 2
     apid: ADCS
     rate_hz: 1
-    desc: Attitude determination and control state. Populated from Phase 2 onward.
+    desc: Attitude determination and control state.
     fields:
       - {name: est_state,        type: uint8,   enum: AdcsEstState, desc: Estimator convergence state}
+      - {name: ctrl_mode,        type: uint8,   enum: AdcsCtrlMode, desc: Attitude controller mode}
       - {name: q_est_0,          type: float32, units: "-",     desc: Estimated attitude quaternion scalar part}
       - {name: q_est_1,          type: float32, units: "-",     desc: Estimated attitude quaternion x}
       - {name: q_est_2,          type: float32, units: "-",     desc: Estimated attitude quaternion y}
@@ -115,6 +124,14 @@ telemetry:
       - {name: pos_eci_x,        type: float64, units: m,       desc: On-board estimated position ECI X}
       - {name: pos_eci_y,        type: float64, units: m,       desc: On-board estimated position ECI Y}
       - {name: pos_eci_z,        type: float64, units: m,       desc: On-board estimated position ECI Z}
+      - {name: att_sigma_deg,    type: float32, units: deg,     desc: Estimator one-sigma attitude uncertainty, worst axis}
+      - {name: wheel_h_x,        type: float32, units: N*m*s,   desc: Reaction wheel momentum X}
+      - {name: wheel_h_y,        type: float32, units: N*m*s,   desc: Reaction wheel momentum Y}
+      - {name: wheel_h_z,        type: float32, units: N*m*s,   desc: Reaction wheel momentum Z}
+      - {name: dipole_cmd_x,     type: float32, units: A*m^2,   desc: Commanded magnetorquer dipole X}
+      - {name: dipole_cmd_y,     type: float32, units: A*m^2,   desc: Commanded magnetorquer dipole Y}
+      - {name: dipole_cmd_z,     type: float32, units: A*m^2,   desc: Commanded magnetorquer dipole Z}
+      - {name: gps_valid,        type: uint8,   units: bool,    desc: GPS fix used in the last second}
 
   - name: EPS_HK
     sid: 3
@@ -202,6 +219,10 @@ events:
   - {name: DETUMBLE_STARTED,  id: 12, severity: INFO,   desc: B-dot detumble control engaged}
   - {name: DETUMBLE_COMPLETE, id: 13, severity: INFO,   desc: Body rate fell below the hand-over threshold and detumble control stopped}
   - {name: SENSOR_TIMEOUT,    id: 14, severity: MEDIUM, desc: No sensor data from the simulator bridge; actuators commanded to zero}
+  - {name: ESTIMATOR_INIT,    id: 16, severity: INFO,   desc: "Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker"}
+  - {name: ESTIMATOR_CONVERGED, id: 17, severity: INFO, desc: Attitude estimator uncertainty fell below the pointing threshold}
+  - {name: POINTING_STARTED,  id: 18, severity: INFO,   desc: Nadir pointing control engaged}
+  - {name: ESTIMATOR_RESET,   id: 19, severity: MEDIUM, desc: Attitude estimator discarded after persistent large innovations}
   - {name: SENSOR_RESTORED,   id: 15, severity: INFO,   desc: Sensor data resumed after a timeout}
 
 # -----------------------------------------------------------------------------
@@ -219,3 +240,6 @@ params:
   - {name: BDOT_GAIN,          id: 9,  type: float32, default: 300000.0, min: 0.0, max: 10000000.0, units: "A*m^2/(T/s)", desc: B-dot proportional gain}
   - {name: MTQ_MAX_DIPOLE,     id: 10, type: float32, default: 0.2,  min: 0.0,  max: 10.0,  units: "A*m^2", desc: Largest magnetic dipole commanded on any axis}
   - {name: BDOT_FILTER_TAU_S,  id: 11, type: float32, default: 3.0,  min: 0.1,  max: 60.0,  units: s,     desc: Time constant of the filter applied to the field derivative}
+  - {name: POINT_BANDWIDTH_RADPS, id: 12, type: float32, default: 0.1, min: 0.005, max: 1.0, units: rad/s, desc: Natural frequency of the pointing control loop}
+  - {name: POINT_MAX_SLEW_DPS,  id: 13, type: float32, default: 1.0,  min: 0.05, max: 5.0,   units: deg/s, desc: Largest body rate the pointing controller will command while acquiring}
+  - {name: MOMENTUM_DUMP_GAIN,  id: 14, type: float32, default: 0.0005, min: 0.0, max: 0.1, units: 1/s,  desc: Magnetic momentum-unloading gain}

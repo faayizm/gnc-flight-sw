@@ -9,12 +9,14 @@ import math
 import random
 from dataclasses import dataclass, field
 
-from ..models.actuators import Magnetorquers
+from ..models.actuators import Magnetorquers, ReactionWheels
 from ..models.dynamics import RigidBody
-from ..models.environment import in_eclipse, magnetic_field_eci, sun_direction_eci
-from ..models.linalg import Quat, Vec, norm, q_normalize, rotate_inv
+from ..models.environment import (gravity_gradient_torque, in_eclipse, magnetic_field_eci,
+                                  sun_direction_eci)
+from ..models.linalg import (Quat, Vec, add, cross, dot, norm, q_normalize, rotate,
+                             rotate_inv, scale, unit)
 from ..models.orbit import Orbit
-from ..models.sensors import Gyro, Magnetometer, SunSensor
+from ..models.sensors import Gps, Gyro, Magnetometer, StarTracker, SunSensor
 from .bridge import Bridge
 
 DEG = math.pi / 180.0
@@ -30,7 +32,8 @@ class Scenario:
     inclination_deg: float = 51.6
     inertia: Vec = (0.10, 0.12, 0.04)       # kg*m^2, roughly a 6U CubeSat
     dt: float = 0.1                          # sensor sample period
-    faults: dict = field(default_factory=dict)
+    gps_outages: list = field(default_factory=list)    # [(start, end), ...] seconds
+    wheel_failures: dict = field(default_factory=dict)  # {axis: time}
 
 
 class Simulation:
@@ -47,24 +50,54 @@ class Simulation:
         self.mag = Magnetometer(rng)
         self.gyro = Gyro(rng)
         self.sun = SunSensor(rng)
-        self.eclipsed = False
-        self.samples = self.eclipse_samples = self.sun_valid_samples = self.blind_violations = 0
+        self.gps = Gps(rng, outages=sc.gps_outages)
+        self.star = StarTracker(rng)
+        self.star_valid_samples = 0
         self.mtq = Magnetorquers()
+        self.wheels = ReactionWheels()
         self.t = 0.0
         self.seq = 0
         self.dipole: Vec = (0.0, 0.0, 0.0)
-        self.commanded = False
+        self.wheel_cmd: Vec = (0.0, 0.0, 0.0)
+        self.flags = 0
+        self.eclipsed = False
+        self.samples = self.eclipse_samples = self.sun_valid_samples = self.blind_violations = 0
 
     # -- truth, for assertions only; never sent to the flight software --------
     @property
     def rate_dps(self) -> float:
         return norm(self.body.omega) / DEG
 
+    def nadir_error_deg(self) -> float:
+        """Angle between the body +Z axis and the true nadir direction."""
+        z_eci = rotate(self.body.q, (0.0, 0.0, 1.0))
+        nadir = scale(unit(self.orbit.r), -1.0)
+        return math.degrees(math.acos(max(-1.0, min(1.0, dot(z_eci, nadir)))))
+
+    def attitude_error_deg(self) -> float:
+        """Full three-axis error from the nadir/along-track target frame."""
+        r, v = self.orbit.r, self.orbit.v
+        z = scale(unit(r), -1.0)
+        y = scale(unit(cross(r, v)), -1.0)
+        x = cross(y, z)
+        bx = rotate(self.body.q, (1.0, 0.0, 0.0))
+        bz = rotate(self.body.q, (0.0, 0.0, 1.0))
+        # angle of the rotation taking the target triad to the body triad
+        tr = dot(bx, x) + dot(rotate(self.body.q, (0.0, 1.0, 0.0)), y) + dot(bz, z)
+        return math.degrees(math.acos(max(-1.0, min(1.0, (tr - 1.0) / 2.0))))
+
+    @property
+    def wheel_momentum(self) -> float:
+        return norm(tuple(self.wheels.h))  # type: ignore[arg-type]
+
     def step(self) -> None:
         dt = self.sc.dt
+        for axis, when in self.sc.wheel_failures.items():
+            if self.t >= when:
+                self.wheels.failed[axis] = True
+
         b_eci = magnetic_field_eci(self.orbit.r, self.t)
         b_body = rotate_inv(self.body.q, b_eci)
-
         sun_body = rotate_inv(self.body.q, sun_direction_eci(self.t))
         self.eclipsed = in_eclipse(self.orbit.r, self.t)
         sun, sun_valid = self.sun.read(sun_body, self.eclipsed)
@@ -76,10 +109,20 @@ class Simulation:
         self.seq += 1
         mag = self.mag.read(b_body)
         gyro = self.gyro.read(self.body.omega, dt)
-        self.dipole, self.commanded = self.bridge.exchange(
-            self.seq, self.t, mag, gyro, sun, sun_valid=sun_valid)
+        gps_pos, gps_vel, gps_valid = self.gps.read(self.orbit.r, self.orbit.v, self.t)
+        st_q, st_valid = self.star.read(self.body.q, self.body.omega, sun_body,
+                                        rotate_inv(self.body.q, self.orbit.r), self.eclipsed, self.t)
+        self.star_valid_samples += st_valid
+        self.dipole, self.wheel_cmd, self.flags = self.bridge.exchange(
+            self.seq, self.t, mag, gyro, sun=sun, sun_valid=sun_valid,
+            wheel_h=self.wheels.measured(), wheels_valid=True,
+            gps_pos=gps_pos, gps_vel=gps_vel, gps_valid=gps_valid,
+            star_q=st_q, star_valid=st_valid)
 
-        tau = self.mtq.torque(self.dipole, b_body)
-        self.body.step(tau, dt)
+        tau = add(self.mtq.torque(self.dipole, b_body),
+                  gravity_gradient_torque(rotate_inv(self.body.q, self.orbit.r), self.sc.inertia))
+        hdot = self.wheels.momentum_rate(self.wheel_cmd)
+        self.body.step(tau, dt, tuple(self.wheels.h), hdot)  # type: ignore[arg-type]
+        self.wheels.advance(hdot, dt)
         self.orbit.step(dt)
         self.t += dt

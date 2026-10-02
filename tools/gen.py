@@ -630,6 +630,31 @@ def gen_cosmos_detumble_screen(d: Dictionary) -> str:
     return "\n".join(o) + "\n"
 
 
+def gen_cosmos_pointing_screen(d: Dictionary) -> str:
+    """The screen to watch while the spacecraft acquires and holds nadir."""
+    o = [BANNER_HASH, "SCREEN AUTO AUTO 1.0", "",
+         'VERTICALBOX "Attitude control"',
+         "  LABELVALUE SAT ADCS_HK CTRL_MODE",
+         "  LABELVALUE SAT ADCS_HK EST_STATE",
+         "  LABELVALUE SAT ADCS_HK POINTING_ERR_DEG WITH_UNITS",
+         "  LABELVALUE SAT ADCS_HK ATT_SIGMA_DEG WITH_UNITS",
+         "  LABELVALUE SAT ADCS_HK ECLIPSE",
+         "  LABELVALUE SAT ADCS_HK GPS_VALID",
+         "  LINEGRAPH SAT ADCS_HK POINTING_ERR_DEG",
+         "END", "",
+         'VERTICALBOX "Wheel momentum (N*m*s)"',
+         "  LINEGRAPH SAT ADCS_HK WHEEL_H_X",
+         "  LINEGRAPH SAT ADCS_HK WHEEL_H_Y",
+         "  LINEGRAPH SAT ADCS_HK WHEEL_H_Z",
+         "END", "",
+         'VERTICALBOX "Estimated gyro bias (rad/s)"',
+         "  LINEGRAPH SAT ADCS_HK GYRO_BIAS_X",
+         "  LINEGRAPH SAT ADCS_HK GYRO_BIAS_Y",
+         "  LINEGRAPH SAT ADCS_HK GYRO_BIAS_Z",
+         "END", ""]
+    return "\n".join(o) + "\n"
+
+
 # ---------------------------------------------------------------------------
 # Python ground client dictionary
 # ---------------------------------------------------------------------------
@@ -839,6 +864,46 @@ def gen_icd(d: Dictionary) -> str:
 
 
 # ---------------------------------------------------------------------------
+# On-board geomagnetic model coefficients
+# ---------------------------------------------------------------------------
+
+def gen_igrf_hpp() -> str:
+    """The flight software's copy of the IGRF Gauss coefficients.
+
+    Taken from the same table the simulator uses (sim/models/igrf_coeffs.py),
+    so the two cannot drift apart silently. The table itself was extracted
+    from the published IGRF-14 coefficients by script.
+    """
+    ns: dict = {}
+    exec((ROOT / "sim/models/igrf_coeffs.py").read_text(), ns)
+    gauss = ns["GAUSS"]
+    nmax = max(n for n, _ in gauss)
+    o = ["// ============================================================================",
+         "//  GENERATED FILE -- DO NOT EDIT.",
+         "//  Source:    sim/models/igrf_coeffs.py (IGRF-14, epoch 2025.0)",
+         "//  Generator: tools/gen.py",
+         "// ============================================================================",
+         "",
+         "#pragma once",
+         "",
+         "namespace fsw::igrf {",
+         "",
+         f"constexpr int kMaxDegree = {nmax};",
+         "constexpr double kReferenceRadiusM = 6371.2e3;",
+         "",
+         "// Schmidt quasi-normalised Gauss coefficients in nT, indexed [n][m].",
+         f"constexpr double kG[{nmax + 1}][{nmax + 1}] = {{"]
+    for part, idx in (("kG", 0), ("kH", 1)):
+        if part == "kH":
+            o.append(f"constexpr double kH[{nmax + 1}][{nmax + 1}] = {{")
+        for n in range(nmax + 1):
+            row = [repr(float(gauss[(n, m)][idx])) if (n, m) in gauss else "0.0" for m in range(nmax + 1)]
+            o.append("    {" + ", ".join(row) + "},")
+        o.append("};")
+        o.append("")
+    o.append("}  // namespace fsw::igrf")
+    return "\n".join(o) + "\n"
+
 
 def write(path: pathlib.Path, content: str, written: list) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -858,12 +923,14 @@ def main() -> int:
     write(ROOT / "fsw/generated/dictionary.hpp", gen_dictionary_hpp(d), written)
     write(ROOT / "fsw/generated/telemetry.hpp", gen_telemetry_hpp(d), written)
     write(ROOT / "fsw/generated/commands.hpp", gen_commands_hpp(d), written)
+    write(ROOT / "fsw/generated/igrf_coeffs.hpp", gen_igrf_hpp(), written)
     write(ROOT / "gnd/openc3/plugin.txt", gen_cosmos_plugin(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/target.txt", gen_cosmos_target(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/cmd_tlm/tlm.txt", gen_cosmos_tlm(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/cmd_tlm/cmd.txt", gen_cosmos_cmd(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/screens/overview.txt", gen_cosmos_screen(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/screens/detumble.txt", gen_cosmos_detumble_screen(d), written)
+    write(ROOT / "gnd/openc3/targets/SAT/screens/pointing.txt", gen_cosmos_pointing_screen(d), written)
     write(ROOT / "gnd/pyground/dictionary.py", gen_pyground_dict(d), written)
     write(ROOT / "docs/ICD.md", gen_icd(d), written)
 

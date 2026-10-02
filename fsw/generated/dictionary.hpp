@@ -58,6 +58,23 @@ constexpr const char* to_string(AdcsEstState v) {
     return "UNKNOWN";
 }
 
+// What the attitude controller is doing.
+enum class AdcsCtrlMode : uint8_t {
+    IDLE = 0,
+    DETUMBLE = 1,
+    STANDBY = 2,
+    POINTING = 3,
+};
+constexpr const char* to_string(AdcsCtrlMode v) {
+    switch (v) {
+        case AdcsCtrlMode::IDLE: return "IDLE";
+        case AdcsCtrlMode::DETUMBLE: return "DETUMBLE";
+        case AdcsCtrlMode::STANDBY: return "STANDBY";
+        case AdcsCtrlMode::POINTING: return "POINTING";
+    }
+    return "UNKNOWN";
+}
+
 // Coarse battery / power bus state used by mode arbitration.
 enum class PowerState : uint8_t {
     UNKNOWN = 0,
@@ -95,7 +112,7 @@ constexpr const char* to_string(Severity v) {
 // --- Housekeeping structure identifiers ------------------------------------
 enum class HkSid : uint8_t {
     SYS_HK = 1,   // Core system health, scheduler timing and link statistics.
-    ADCS_HK = 2,   // Attitude determination and control state. Populated from Phase 2 onward.
+    ADCS_HK = 2,   // Attitude determination and control state.
     EPS_HK = 3,   // Power subsystem state. Populated from Phase 5 onward.
 };
 inline constexpr size_t kHkStructureCount = 3;
@@ -116,6 +133,10 @@ enum class EventId : uint16_t {
     DETUMBLE_STARTED = 12,
     DETUMBLE_COMPLETE = 13,
     SENSOR_TIMEOUT = 14,
+    ESTIMATOR_INIT = 16,
+    ESTIMATOR_CONVERGED = 17,
+    POINTING_STARTED = 18,
+    ESTIMATOR_RESET = 19,
     SENSOR_RESTORED = 15,
 };
 
@@ -141,9 +162,13 @@ inline constexpr EventInfo kEvents[] = {
     { EventId::DETUMBLE_STARTED, Severity::INFO, "DETUMBLE_STARTED", "B-dot detumble control engaged" },
     { EventId::DETUMBLE_COMPLETE, Severity::INFO, "DETUMBLE_COMPLETE", "Body rate fell below the hand-over threshold and detumble control stopped" },
     { EventId::SENSOR_TIMEOUT, Severity::MEDIUM, "SENSOR_TIMEOUT", "No sensor data from the simulator bridge; actuators commanded to zero" },
+    { EventId::ESTIMATOR_INIT, Severity::INFO, "ESTIMATOR_INIT", "Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker" },
+    { EventId::ESTIMATOR_CONVERGED, Severity::INFO, "ESTIMATOR_CONVERGED", "Attitude estimator uncertainty fell below the pointing threshold" },
+    { EventId::POINTING_STARTED, Severity::INFO, "POINTING_STARTED", "Nadir pointing control engaged" },
+    { EventId::ESTIMATOR_RESET, Severity::MEDIUM, "ESTIMATOR_RESET", "Attitude estimator discarded after persistent large innovations" },
     { EventId::SENSOR_RESTORED, Severity::INFO, "SENSOR_RESTORED", "Sensor data resumed after a timeout" },
 };
-inline constexpr size_t kEventCount = 15;
+inline constexpr size_t kEventCount = 19;
 
 inline const EventInfo* find_event(EventId id) {
     for (size_t i = 0; i < kEventCount; ++i) {
@@ -165,6 +190,9 @@ enum class ParamId : uint16_t {
     BDOT_GAIN = 9,
     MTQ_MAX_DIPOLE = 10,
     BDOT_FILTER_TAU_S = 11,
+    POINT_BANDWIDTH_RADPS = 12,
+    POINT_MAX_SLEW_DPS = 13,
+    MOMENTUM_DUMP_GAIN = 14,
 };
 
 enum class ParamType : uint8_t { U8, I8, U16, I16, U32, I32, U64, I64, F32, F64 };
@@ -192,8 +220,11 @@ inline constexpr ParamInfo kParams[] = {
     { ParamId::BDOT_GAIN, ParamType::F32, "BDOT_GAIN", 300000.0, 0.0, 10000000.0, "A*m^2/(T/s)", "B-dot proportional gain" },
     { ParamId::MTQ_MAX_DIPOLE, ParamType::F32, "MTQ_MAX_DIPOLE", 0.2, 0.0, 10.0, "A*m^2", "Largest magnetic dipole commanded on any axis" },
     { ParamId::BDOT_FILTER_TAU_S, ParamType::F32, "BDOT_FILTER_TAU_S", 3.0, 0.1, 60.0, "s", "Time constant of the filter applied to the field derivative" },
+    { ParamId::POINT_BANDWIDTH_RADPS, ParamType::F32, "POINT_BANDWIDTH_RADPS", 0.1, 0.005, 1.0, "rad/s", "Natural frequency of the pointing control loop" },
+    { ParamId::POINT_MAX_SLEW_DPS, ParamType::F32, "POINT_MAX_SLEW_DPS", 1.0, 0.05, 5.0, "deg/s", "Largest body rate the pointing controller will command while acquiring" },
+    { ParamId::MOMENTUM_DUMP_GAIN, ParamType::F32, "MOMENTUM_DUMP_GAIN", 0.0005, 0.0, 0.1, "1/s", "Magnetic momentum-unloading gain" },
 };
-inline constexpr size_t kParamCount = 11;
+inline constexpr size_t kParamCount = 14;
 
 inline const ParamInfo* find_param(ParamId id) {
     for (size_t i = 0; i < kParamCount; ++i) {

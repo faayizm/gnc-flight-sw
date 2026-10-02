@@ -75,32 +75,41 @@ Core system health, scheduler timing and link statistics. Nominal generation rat
 
 ### ADCS_HK — structure id 2, APID `0x002`
 
-Attitude determination and control state. Populated from Phase 2 onward. Nominal generation rate 1 Hz. Total packet size 110 bytes.
+Attitude determination and control state. Nominal generation rate 1 Hz. Total packet size 140 bytes.
 
 | Offset | Field | Type | Units | Description |
 |---:|---|---|---|---|
 | 0 | `est_state` | uint8 |  | Estimator convergence state (INVALID=0, INITIALISING=1, CONVERGING=2, CONVERGED=3) |
-| 1 | `q_est_0` | float32 | - | Estimated attitude quaternion scalar part |
-| 5 | `q_est_1` | float32 | - | Estimated attitude quaternion x |
-| 9 | `q_est_2` | float32 | - | Estimated attitude quaternion y |
-| 13 | `q_est_3` | float32 | - | Estimated attitude quaternion z |
-| 17 | `omega_x` | float32 | rad/s | Bias-corrected body rate about X |
-| 21 | `omega_y` | float32 | rad/s | Bias-corrected body rate about Y |
-| 25 | `omega_z` | float32 | rad/s | Bias-corrected body rate about Z |
-| 29 | `gyro_bias_x` | float32 | rad/s | Estimated gyro bias X |
-| 33 | `gyro_bias_y` | float32 | rad/s | Estimated gyro bias Y |
-| 37 | `gyro_bias_z` | float32 | rad/s | Estimated gyro bias Z |
-| 41 | `pointing_err_deg` | float32 | deg | Angle between body and reference pointing axis |
-| 45 | `rate_norm` | float32 | deg/s | Magnitude of the body rate vector |
-| 49 | `sun_valid` | uint8 | bool | Sun sensor reference is usable |
-| 50 | `mag_valid` | uint8 | bool | Magnetometer reference is usable |
-| 51 | `eclipse` | uint8 | bool | Spacecraft is in Earth shadow |
-| 52 | `torque_cmd_x` | float32 | N*m | Commanded control torque X |
-| 56 | `torque_cmd_y` | float32 | N*m | Commanded control torque Y |
-| 60 | `torque_cmd_z` | float32 | N*m | Commanded control torque Z |
-| 64 | `pos_eci_x` | float64 | m | On-board estimated position ECI X |
-| 72 | `pos_eci_y` | float64 | m | On-board estimated position ECI Y |
-| 80 | `pos_eci_z` | float64 | m | On-board estimated position ECI Z |
+| 1 | `ctrl_mode` | uint8 |  | Attitude controller mode (IDLE=0, DETUMBLE=1, STANDBY=2, POINTING=3) |
+| 2 | `q_est_0` | float32 | - | Estimated attitude quaternion scalar part |
+| 6 | `q_est_1` | float32 | - | Estimated attitude quaternion x |
+| 10 | `q_est_2` | float32 | - | Estimated attitude quaternion y |
+| 14 | `q_est_3` | float32 | - | Estimated attitude quaternion z |
+| 18 | `omega_x` | float32 | rad/s | Bias-corrected body rate about X |
+| 22 | `omega_y` | float32 | rad/s | Bias-corrected body rate about Y |
+| 26 | `omega_z` | float32 | rad/s | Bias-corrected body rate about Z |
+| 30 | `gyro_bias_x` | float32 | rad/s | Estimated gyro bias X |
+| 34 | `gyro_bias_y` | float32 | rad/s | Estimated gyro bias Y |
+| 38 | `gyro_bias_z` | float32 | rad/s | Estimated gyro bias Z |
+| 42 | `pointing_err_deg` | float32 | deg | Angle between body and reference pointing axis |
+| 46 | `rate_norm` | float32 | deg/s | Magnitude of the body rate vector |
+| 50 | `sun_valid` | uint8 | bool | Sun sensor reference is usable |
+| 51 | `mag_valid` | uint8 | bool | Magnetometer reference is usable |
+| 52 | `eclipse` | uint8 | bool | Spacecraft is in Earth shadow |
+| 53 | `torque_cmd_x` | float32 | N*m | Commanded control torque X |
+| 57 | `torque_cmd_y` | float32 | N*m | Commanded control torque Y |
+| 61 | `torque_cmd_z` | float32 | N*m | Commanded control torque Z |
+| 65 | `pos_eci_x` | float64 | m | On-board estimated position ECI X |
+| 73 | `pos_eci_y` | float64 | m | On-board estimated position ECI Y |
+| 81 | `pos_eci_z` | float64 | m | On-board estimated position ECI Z |
+| 89 | `att_sigma_deg` | float32 | deg | Estimator one-sigma attitude uncertainty |
+| 93 | `wheel_h_x` | float32 | N*m*s | Reaction wheel momentum X |
+| 97 | `wheel_h_y` | float32 | N*m*s | Reaction wheel momentum Y |
+| 101 | `wheel_h_z` | float32 | N*m*s | Reaction wheel momentum Z |
+| 105 | `dipole_cmd_x` | float32 | A*m^2 | Commanded magnetorquer dipole X |
+| 109 | `dipole_cmd_y` | float32 | A*m^2 | Commanded magnetorquer dipole Y |
+| 113 | `dipole_cmd_z` | float32 | A*m^2 | Commanded magnetorquer dipole Z |
+| 117 | `gps_valid` | uint8 | bool | GPS fix used in the last second |
 
 ### EPS_HK — structure id 3, APID `0x003`
 
@@ -202,6 +211,10 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 12 | `DETUMBLE_STARTED` | INFO | B-dot detumble control engaged |
 | 13 | `DETUMBLE_COMPLETE` | INFO | Body rate fell below the hand-over threshold and detumble control stopped |
 | 14 | `SENSOR_TIMEOUT` | MEDIUM | No sensor data from the simulator bridge; actuators commanded to zero |
+| 16 | `ESTIMATOR_INIT` | INFO | Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker |
+| 17 | `ESTIMATOR_CONVERGED` | INFO | Attitude estimator uncertainty fell below the pointing threshold |
+| 18 | `POINTING_STARTED` | INFO | Nadir pointing control engaged |
+| 19 | `ESTIMATOR_RESET` | MEDIUM | Attitude estimator discarded after persistent large innovations |
 | 15 | `SENSOR_RESTORED` | INFO | Sensor data resumed after a timeout |
 
 ## On-board parameters (PUS ST[20])
@@ -219,6 +232,9 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 9 | `BDOT_GAIN` | float32 | 300000.0 | 0.0 | 10000000.0 | A*m^2/(T/s) | B-dot proportional gain |
 | 10 | `MTQ_MAX_DIPOLE` | float32 | 0.2 | 0.0 | 10.0 | A*m^2 | Largest magnetic dipole commanded on any axis |
 | 11 | `BDOT_FILTER_TAU_S` | float32 | 3.0 | 0.1 | 60.0 | s | Time constant of the filter applied to the field derivative |
+| 12 | `POINT_BANDWIDTH_RADPS` | float32 | 0.1 | 0.005 | 1.0 | rad/s | Natural frequency of the pointing control loop |
+| 13 | `POINT_MAX_SLEW_DPS` | float32 | 1.0 | 0.05 | 5.0 | deg/s | Largest body rate the pointing controller will command while acquiring |
+| 14 | `MOMENTUM_DUMP_GAIN` | float32 | 0.0005 | 0.0 | 0.1 | 1/s | Magnetic momentum-unloading gain |
 
 `ST[20,1]` requests one parameter and is answered by `ST[20,2]`, which reports the identifier followed by the value widened to a 64-bit float. `ST[20,3]` sets a parameter; the value is sent as a 64-bit float and converted to the parameter's declared type, and is rejected with `ILLEGAL_ARG` if it falls outside the declared range.
 

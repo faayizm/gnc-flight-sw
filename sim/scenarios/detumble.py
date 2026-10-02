@@ -14,9 +14,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import pathlib
-import socket
 import struct
-import subprocess
 import sys
 import time
 
@@ -26,39 +24,11 @@ sys.path.insert(0, str(ROOT / "gnd"))
 
 from pyground.client import GroundClient          # noqa: E402
 from sim.sil.bridge import Bridge                 # noqa: E402
+from sim.sil.harness import FSW, Flight           # noqa: E402
 from sim.sil.simulation import Scenario, Simulation  # noqa: E402
-
-FSW = ROOT / "build" / "fsw"
 
 SCENARIO = Scenario(name="detumble", seed=1, duration_s=2.5 * 5677.0, tumble_dps=10.0)
 TARGET_DPS = 0.5
-
-
-def free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return int(s.getsockname()[1])
-
-
-class Flight:
-    def __init__(self, time_scale: float, ttc_port: int | None = None):
-        self.ttc, self.sim = ttc_port or free_port(), free_port()
-        self.nvm = ROOT / "build" / f"sim_nvm_{self.sim}.bin"
-        self.args = [str(FSW), "--ttc-port", str(self.ttc), "--sim-port", str(self.sim),
-                     "--time-scale", str(time_scale), "--nvm", str(self.nvm)]
-
-    def __enter__(self):
-        self.nvm.unlink(missing_ok=True)
-        self.proc = subprocess.Popen(self.args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return self
-
-    def __exit__(self, *_):
-        self.proc.terminate()
-        try:
-            self.proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            self.proc.kill()
-        self.nvm.unlink(missing_ok=True)
 
 
 def run(scenario: Scenario, time_scale: float, verbose: bool = True):

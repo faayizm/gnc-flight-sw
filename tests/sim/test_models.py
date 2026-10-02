@@ -45,6 +45,33 @@ def test_rigid_body():
           "rotate_inv undoes rotate")
 
 
+def test_wheels():
+    print("[reaction wheels]")
+    from sim.models.actuators import ReactionWheels
+    from sim.models.linalg import add
+    rb = RigidBody((0.10, 0.12, 0.04), (1, 0, 0, 0), (0.01, -0.02, 0.015))
+    rw = ReactionWheels(coulomb=1e-5, viscous=1e-8, compensation=0.0)
+
+    def total_h_inertial():
+        hb = add(rb.angular_momentum(), tuple(rw.h))
+        return rotate(rb.q, hb)
+
+    h0 = total_h_inertial()
+    for k in range(6000):
+        cmd = (1e-3 * math.sin(k * 0.01), -5e-4, 8e-4 * math.cos(k * 0.003))
+        hdot = rw.momentum_rate(cmd)
+        rb.step((0.0, 0.0, 0.0), 0.1, tuple(rw.h), hdot)
+        rw.advance(hdot, 0.1)
+    drift = norm(tuple(a - b for a, b in zip(total_h_inertial(), h0)))
+    # The residual is RK4 truncation (it falls 10^4-fold for a 10x smaller
+    # step), not physics: motor torque and friction are internal.
+    check(drift < 1e-5 * norm(h0),
+          f"body + wheel momentum is conserved in inertial space ({drift / norm(h0):.1e} relative)")
+    rw2 = ReactionWheels()
+    rw2.h = [rw2.max_h, 0.0, 0.0]
+    check(rw2.momentum_rate((1e-3, 0.0, 0.0))[0] <= 0.0, "a saturated wheel cannot be spun up further")
+
+
 def test_orbit():
     print("[orbit]")
     o = Orbit(500e3, 51.6)
@@ -100,6 +127,6 @@ def test_sun():
 
 
 if __name__ == "__main__":
-    test_rigid_body(); test_orbit(); test_igrf(); test_sun()
+    test_rigid_body(); test_wheels(); test_orbit(); test_igrf(); test_sun()
     print(f"\n{'FAILED: ' + str(fails) if fails else 'all model checks passed'}")
     sys.exit(1 if fails else 0)

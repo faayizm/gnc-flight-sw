@@ -1,0 +1,31 @@
+# ============================================================================
+#  GENERATED FILE -- DO NOT EDIT.
+#  Source:    dictionary/mission.yaml
+#  Generator: tools/gen.py
+#  Edit the dictionary and run `make gen` instead.
+# ============================================================================
+
+SCREEN AUTO AUTO 1.0
+
+VERTICALBOX "Attitude control"
+  LABELVALUE SAT ADCS_HK CTRL_MODE
+  LABELVALUE SAT ADCS_HK EST_STATE
+  LABELVALUE SAT ADCS_HK POINTING_ERR_DEG WITH_UNITS
+  LABELVALUE SAT ADCS_HK ATT_SIGMA_DEG WITH_UNITS
+  LABELVALUE SAT ADCS_HK ECLIPSE
+  LABELVALUE SAT ADCS_HK GPS_VALID
+  LINEGRAPH SAT ADCS_HK POINTING_ERR_DEG
+END
+
+VERTICALBOX "Wheel momentum (N*m*s)"
+  LINEGRAPH SAT ADCS_HK WHEEL_H_X
+  LINEGRAPH SAT ADCS_HK WHEEL_H_Y
+  LINEGRAPH SAT ADCS_HK WHEEL_H_Z
+END
+
+VERTICALBOX "Estimated gyro bias (rad/s)"
+  LINEGRAPH SAT ADCS_HK GYRO_BIAS_X
+  LINEGRAPH SAT ADCS_HK GYRO_BIAS_Y
+  LINEGRAPH SAT ADCS_HK GYRO_BIAS_Z
+END
+

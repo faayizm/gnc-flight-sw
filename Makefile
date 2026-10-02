@@ -87,6 +87,10 @@ sil: build  ## Run the software-in-the-loop tests against the real binary
 detumble: build  ## Fly the detumble scenario: simulator + flight software, asserted on truth
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --determinism
 
+.PHONY: pointing
+pointing: build  ## Fly the nadir-pointing scenario: tumble to 0.2 deg pointing, through eclipse
+	@$(SYS_PYTHON) -m sim.scenarios.nadir_pointing
+
 .PHONY: detumble-live
 detumble-live: build  ## Fly a detumble for a viewer on the TT&C port (COSMOS DETUMBLE screen)
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --live --ttc-port $(TTC_PORT)
@@ -145,7 +149,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test test-sim sil detumble check-layering check-links check-toolbox  ## Everything CI runs
+check: check-gen build test test-sim sil detumble pointing check-layering check-links check-toolbox  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 

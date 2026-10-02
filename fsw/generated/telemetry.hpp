@@ -73,10 +73,11 @@ struct SysHk {
 };
 static_assert(sizeof(SysHk) > 0, "SysHk must be instantiable");
 
-// Attitude determination and control state. Populated from Phase 2 onward.
+// Attitude determination and control state.
 // PUS ST[3,25] report, structure id 2, APID 0x002, nominal rate 1 Hz.
 struct AdcsHk {
     uint8_t est_state{};  // Estimator convergence state
+    uint8_t ctrl_mode{};  // Attitude controller mode
     float q_est_0{};  // Estimated attitude quaternion scalar part
     float q_est_1{};  // Estimated attitude quaternion x
     float q_est_2{};  // Estimated attitude quaternion y
@@ -98,17 +99,26 @@ struct AdcsHk {
     double pos_eci_x{};  // On-board estimated position ECI X [m]
     double pos_eci_y{};  // On-board estimated position ECI Y [m]
     double pos_eci_z{};  // On-board estimated position ECI Z [m]
+    float att_sigma_deg{};  // Estimator one-sigma attitude uncertainty [deg]
+    float wheel_h_x{};  // Reaction wheel momentum X [N*m*s]
+    float wheel_h_y{};  // Reaction wheel momentum Y [N*m*s]
+    float wheel_h_z{};  // Reaction wheel momentum Z [N*m*s]
+    float dipole_cmd_x{};  // Commanded magnetorquer dipole X [A*m^2]
+    float dipole_cmd_y{};  // Commanded magnetorquer dipole Y [A*m^2]
+    float dipole_cmd_z{};  // Commanded magnetorquer dipole Z [A*m^2]
+    uint8_t gps_valid{};  // GPS fix used in the last second [bool]
 
     static constexpr dict::HkSid kSid  = dict::HkSid::ADCS_HK;
     static constexpr dict::Apid  kApid = dict::Apid::ADCS;
-    static constexpr uint16_t kPayloadBytes = 88;
-    static constexpr uint16_t kPacketBytes  = 110;
+    static constexpr uint16_t kPayloadBytes = 118;
+    static constexpr uint16_t kPacketBytes  = 140;
 
     // Serialises the field block only. The ST[3,25] structure id and the
     // packet headers are written by the telemetry builder.
     bool serialize(core::ByteWriter& w) const {
         return true
             && w.write_uint8(est_state)
+            && w.write_uint8(ctrl_mode)
             && w.write_float32(q_est_0)
             && w.write_float32(q_est_1)
             && w.write_float32(q_est_2)
@@ -130,12 +140,21 @@ struct AdcsHk {
             && w.write_float64(pos_eci_x)
             && w.write_float64(pos_eci_y)
             && w.write_float64(pos_eci_z)
+            && w.write_float32(att_sigma_deg)
+            && w.write_float32(wheel_h_x)
+            && w.write_float32(wheel_h_y)
+            && w.write_float32(wheel_h_z)
+            && w.write_float32(dipole_cmd_x)
+            && w.write_float32(dipole_cmd_y)
+            && w.write_float32(dipole_cmd_z)
+            && w.write_uint8(gps_valid)
             ;
     }
 
     bool deserialize(core::ByteReader& r) {
         return true
             && r.read_uint8(est_state)
+            && r.read_uint8(ctrl_mode)
             && r.read_float32(q_est_0)
             && r.read_float32(q_est_1)
             && r.read_float32(q_est_2)
@@ -157,6 +176,14 @@ struct AdcsHk {
             && r.read_float64(pos_eci_x)
             && r.read_float64(pos_eci_y)
             && r.read_float64(pos_eci_z)
+            && r.read_float32(att_sigma_deg)
+            && r.read_float32(wheel_h_x)
+            && r.read_float32(wheel_h_y)
+            && r.read_float32(wheel_h_z)
+            && r.read_float32(dipole_cmd_x)
+            && r.read_float32(dipole_cmd_y)
+            && r.read_float32(dipole_cmd_z)
+            && r.read_uint8(gps_valid)
             ;
     }
 };
