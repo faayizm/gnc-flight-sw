@@ -52,7 +52,9 @@ size_t encode_sensor(const SensorFrame& f, uint8_t* out, size_t capacity) {
     w.write_float64(f.time_s);
     write_vec(w, f.mag_t);
     write_vec(w, f.gyro_rps);
-    w.write_uint8(static_cast<uint8_t>((f.mag_valid ? 1 : 0) | (f.gyro_valid ? 2 : 0)));
+    write_vec(w, f.sun_b);
+    w.write_uint8(static_cast<uint8_t>((f.mag_valid ? 1 : 0) | (f.gyro_valid ? 2 : 0) |
+                                       (f.sun_valid ? 4 : 0)));
     size_t total = 0;
     return finish_frame(w, out, total) ? total : 0;
 }
@@ -66,12 +68,14 @@ bool decode_sensor(const uint8_t* body, size_t length, SensorFrame& out) {
     SensorFrame f;
     if (!r.read_uint8(type) || type != kFrameSensor) { return false; }
     if (!r.read_uint32(f.seq) || !r.read_float64(f.time_s) ||
-        !read_vec(r, f.mag_t) || !read_vec(r, f.gyro_rps) || !r.read_uint8(flags)) {
+        !read_vec(r, f.mag_t) || !read_vec(r, f.gyro_rps) ||
+        !read_vec(r, f.sun_b) || !r.read_uint8(flags)) {
         return false;
     }
     if (!r.exhausted()) { return false; }
     f.mag_valid  = (flags & 1) != 0;
     f.gyro_valid = (flags & 2) != 0;
+    f.sun_valid  = (flags & 4) != 0;
     out = f;
     return true;
 }

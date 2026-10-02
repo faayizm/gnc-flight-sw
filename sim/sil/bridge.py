@@ -18,9 +18,10 @@ def crc16(data: bytes, crc: int = 0xFFFF) -> int:
     return crc
 
 
-def encode_sensor(seq: int, t: float, mag, gyro, mag_valid=True, gyro_valid=True) -> bytes:
-    flags = (1 if mag_valid else 0) | (2 if gyro_valid else 0)
-    body = struct.pack(">BId3f3fB", SENSOR, seq, t, *mag, *gyro, flags)
+def encode_sensor(seq: int, t: float, mag, gyro, sun=(0.0, 0.0, 0.0), mag_valid=True,
+                  gyro_valid=True, sun_valid=False) -> bytes:
+    flags = (1 if mag_valid else 0) | (2 if gyro_valid else 0) | (4 if sun_valid else 0)
+    body = struct.pack(">BId3f3f3fB", SENSOR, seq, t, *mag, *gyro, *sun, flags)
     body += struct.pack(">H", crc16(body))
     return struct.pack(">H", len(body)) + body
 
@@ -54,10 +55,11 @@ class Bridge:
         if self.sock:
             self.sock.close()
 
-    def exchange(self, seq: int, t: float, mag, gyro, mag_valid=True, gyro_valid=True):
+    def exchange(self, seq: int, t: float, mag, gyro, sun=(0.0, 0.0, 0.0), mag_valid=True,
+                 gyro_valid=True, sun_valid=False):
         """Send one sensor frame and block for the matching actuator frame."""
         assert self.sock is not None
-        self.sock.sendall(encode_sensor(seq, t, mag, gyro, mag_valid, gyro_valid))
+        self.sock.sendall(encode_sensor(seq, t, mag, gyro, sun, mag_valid, gyro_valid, sun_valid))
         while True:
             if len(self.buf) >= 2:
                 n = struct.unpack(">H", self.buf[:2])[0]

@@ -135,6 +135,11 @@ def main() -> int:
     check(first is not None and first < 2.0 * 5677.0, "within two orbits")
     check(hist[-1][1] < TARGET_DPS, f"and stays there (final {hist[-1][1]:.3f} deg/s)")
     check(max(r for _, r in hist[:5]) > 9.0, "the run really did start from a ~10 deg/s tumble")
+    frac = sim.eclipse_samples / sim.samples
+    check(0.25 < frac < 0.45, f"eclipse covers a plausible fraction of the orbit ({frac:.0%})")
+    check(sim.blind_violations == 0, "the sun sensor is blind throughout eclipse")
+    check(sim.sun_valid_samples > 0.3 * sim.samples,
+          f"and sees the sun for much of the sunlit arc ({sim.sun_valid_samples / sim.samples:.0%} of samples valid)")
     check(hk is not None and hk["mag_valid"] == 1, "ADCS_HK is downlinked with a valid magnetometer")
     if hk is not None:
         check(abs(hk["rate_norm"] - sim.rate_dps) < 0.3,

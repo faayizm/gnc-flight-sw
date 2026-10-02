@@ -20,8 +20,10 @@
 //  FRAMES
 //    0x01 SENSOR    simulator -> flight   seq u32, time f64 (s), mag f32[3]
 //                                         (tesla, body frame), gyro f32[3]
-//                                         (rad/s, body frame), flags u8
-//                                         (bit0 mag valid, bit1 gyro valid)
+//                                         (rad/s, body frame), sun f32[3]
+//                                         (unit vector, body frame), flags u8
+//                                         (bit0 mag valid, bit1 gyro valid,
+//                                         bit2 sun valid)
 //    0x02 ACTUATOR  flight -> simulator   seq u32 (echo of the sensor frame it
 //                                         answers), dipole f32[3] (A*m^2, body
 //                                         frame), flags u8 (bit0 = commanded)
@@ -50,8 +52,10 @@ struct SensorFrame {
     double   time_s     = 0.0;
     Vec3f    mag_t{};
     Vec3f    gyro_rps{};
+    Vec3f    sun_b{};
     bool     mag_valid  = false;
     bool     gyro_valid = false;
+    bool     sun_valid  = false;
 };
 
 struct ActuatorFrame {
@@ -60,7 +64,7 @@ struct ActuatorFrame {
     bool     commanded = false;
 };
 
-constexpr size_t kSensorFrameBytes   = 2 + 1 + 37 + 2;
+constexpr size_t kSensorFrameBytes   = 2 + 1 + 49 + 2;
 constexpr size_t kActuatorFrameBytes = 2 + 1 + 17 + 2;
 
 // Pure codecs, separated from the link so they can be tested byte for byte.

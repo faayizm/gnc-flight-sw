@@ -81,6 +81,10 @@ ActuatorFrame AdcsApp::step(const SensorFrame& s) {
     }
 
     hk_.mag_valid = s.mag_valid ? 1 : 0;
+    // Sun sensor validity is reported; the vector is not used until Phase 3.
+    // `eclipse` stays 0: knowing it needs an on-board orbit, which also waits
+    // for Phase 3. The sun sensor going blind is a symptom, not the same fact.
+    hk_.sun_valid = s.sun_valid ? 1 : 0;
     hk_.omega_x = s.gyro_rps.x;
     hk_.omega_y = s.gyro_rps.y;
     hk_.omega_z = s.gyro_rps.z;

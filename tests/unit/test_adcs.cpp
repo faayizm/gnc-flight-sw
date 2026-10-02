@@ -48,7 +48,8 @@ TEST(bridge, sensor_frame_round_trips_through_the_codec) {
     in.seq = 42; in.time_s = 12.5;
     in.mag_t = Vec3f{1e-5f, -2e-5f, 3e-5f};
     in.gyro_rps = Vec3f{0.1f, -0.2f, 0.3f};
-    in.mag_valid = true; in.gyro_valid = false;
+    in.sun_b = Vec3f{0.0f, 0.6f, 0.8f};
+    in.mag_valid = true; in.gyro_valid = false; in.sun_valid = true;
 
     uint8_t buf[64];
     const size_t n = encode_sensor(in, buf, sizeof buf);
@@ -59,8 +60,10 @@ TEST(bridge, sensor_frame_round_trips_through_the_codec) {
     CHECK_EQ(out.seq, 42u);
     CHECK_NEAR(out.time_s, 12.5, 1e-12);
     CHECK_NEAR(out.mag_t.z, 3e-5f, 1e-12f);
+    CHECK_NEAR(out.sun_b.z, 0.8f, 1e-6f);
     CHECK(out.mag_valid);
     CHECK(!out.gyro_valid);
+    CHECK(out.sun_valid);
 }
 
 TEST(bridge, a_corrupted_sensor_frame_is_rejected) {

@@ -5,7 +5,7 @@
 
 **Phase 2, partly built.** Orbit, attitude dynamics, a dipole magnetic field,
 gyro and magnetometer models, magnetorquers, the bridge and the detumble
-scenario work. Sun sensors, IGRF and the other scenarios below do not exist yet.
+scenario work. The sun sensor and eclipse work; IGRF and the other scenarios below do not exist yet.
 
 ```bash
 make build

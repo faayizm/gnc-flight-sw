@@ -61,8 +61,9 @@ Done:
 Still to do:
 
 - ⬜ IGRF in place of the dipole
-- ⬜ Sun sensors with a field of view and eclipse blindness (needed by Phase 3)
-- ⬜ Solar vector and eclipse in the environment
+- ✅ Solar vector and cylindrical-shadow eclipse in the environment
+- ✅ Sun sensors: six cosine-law faces, noise, blind in eclipse; sun vector and
+  validity cross the bridge and `sun_valid` is downlinked (not yet used by control)
 - ⬜ A COSMOS screen showing the detumble live
 
 **Ends with:** a spacecraft tumbling at 10 °/s, detumbled below 0.5 °/s, watched

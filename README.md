@@ -10,8 +10,7 @@ chain works end to end, and the first closed loop flies: a Python simulator
 holds the truth and the flight software detumbles a 10 °/s tumble with B-dot
 control (`make detumble`). Attitude estimation, pointing, power, mode
 management and fault handling are scheduled and scaffolded, not yet
-implemented. Phase 2 is not complete: sun sensors, IGRF and a COSMOS graph are
-still to do. The roadmap in
+implemented. Phase 2 is not complete: IGRF and a COSMOS graph are still to do. The roadmap in
 [docs/ROADMAP.md](docs/ROADMAP.md) says exactly what exists and what does not.
 
 ```
