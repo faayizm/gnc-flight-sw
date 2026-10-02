@@ -608,6 +608,28 @@ def gen_cosmos_screen(d: Dictionary) -> str:
     return "\n".join(o) + "\n"
 
 
+def gen_cosmos_detumble_screen(d: Dictionary) -> str:
+    """The screen to watch while the simulator flies the detumble scenario."""
+    o = [BANNER_HASH, "SCREEN AUTO AUTO 1.0", "",
+         'VERTICALBOX "Detumble"',
+         "  LABELVALUE SAT ADCS_HK RATE_NORM WITH_UNITS",
+         "  LABELVALUE SAT ADCS_HK MAG_VALID WITH_UNITS",
+         "  LABELVALUE SAT ADCS_HK SUN_VALID WITH_UNITS",
+         "  LINEGRAPH SAT ADCS_HK RATE_NORM",
+         "END", "",
+         'VERTICALBOX "Body rate (rad/s)"',
+         "  LINEGRAPH SAT ADCS_HK OMEGA_X",
+         "  LINEGRAPH SAT ADCS_HK OMEGA_Y",
+         "  LINEGRAPH SAT ADCS_HK OMEGA_Z",
+         "END", "",
+         'VERTICALBOX "Commanded torque (N*m)"',
+         "  LINEGRAPH SAT ADCS_HK TORQUE_CMD_X",
+         "  LINEGRAPH SAT ADCS_HK TORQUE_CMD_Y",
+         "  LINEGRAPH SAT ADCS_HK TORQUE_CMD_Z",
+         "END", ""]
+    return "\n".join(o) + "\n"
+
+
 # ---------------------------------------------------------------------------
 # Python ground client dictionary
 # ---------------------------------------------------------------------------
@@ -841,6 +863,7 @@ def main() -> int:
     write(ROOT / "gnd/openc3/targets/SAT/cmd_tlm/tlm.txt", gen_cosmos_tlm(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/cmd_tlm/cmd.txt", gen_cosmos_cmd(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/screens/overview.txt", gen_cosmos_screen(d), written)
+    write(ROOT / "gnd/openc3/targets/SAT/screens/detumble.txt", gen_cosmos_detumble_screen(d), written)
     write(ROOT / "gnd/pyground/dictionary.py", gen_pyground_dict(d), written)
     write(ROOT / "docs/ICD.md", gen_icd(d), written)
 

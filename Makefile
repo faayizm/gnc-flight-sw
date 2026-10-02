@@ -87,6 +87,14 @@ sil: build  ## Run the software-in-the-loop tests against the real binary
 detumble: build  ## Fly the detumble scenario: simulator + flight software, asserted on truth
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --determinism
 
+.PHONY: detumble-live
+detumble-live: build  ## Fly a detumble for a viewer on the TT&C port (COSMOS DETUMBLE screen)
+	@$(SYS_PYTHON) -m sim.scenarios.detumble --live --ttc-port $(TTC_PORT)
+
+.PHONY: test-sim
+test-sim:  ## Check the simulator's physics models (conservation laws, IGRF reference values)
+	@$(SYS_PYTHON) tests/sim/test_models.py
+
 .PHONY: check-layering
 check-layering:  ## Enforce the architecture: no OS headers outside platform/
 	@echo "checking layering rules..."
@@ -137,7 +145,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test sil detumble check-layering check-links check-toolbox  ## Everything CI runs
+check: check-gen build test test-sim sil detumble check-layering check-links check-toolbox  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 

@@ -3,12 +3,13 @@
 > 📚 **Learning this?** See [Lessons 12–16 — orbits, attitude, sensors, estimation, control](../learn/) in the lesson track.
 
 
-**Phase 2, partly built.** Orbit, attitude dynamics, a dipole magnetic field,
+**Phase 2, built.** Orbit, attitude dynamics, the IGRF magnetic field,
 gyro and magnetometer models, magnetorquers, the bridge and the detumble
-scenario work. The sun sensor and eclipse work; IGRF and the other scenarios below do not exist yet.
+scenario work. The sun sensor and eclipse work. Only the detumble scenario exists; the others below arrive with their phases.
 
 ```bash
 make build
+make test-sim     # physics checks: conservation laws, IGRF vs a reference
 make detumble     # ~12 s: flies 10 deg/s down to ~0.4 deg/s over 0.8 orbit
 ```
 
@@ -91,6 +92,8 @@ is asserted. They run in CI. Planned for Phase 2 onwards:
   actuator frame before advancing. Results do not depend on host load or on
   `--time-scale`; `--determinism` checks that by running twice at different
   scales and comparing the final state.
+- **Watching it.** `make detumble-live` flies the same scenario on the real
+  TT&C port for COSMOS (`DETUMBLE` screen) or `make monitor`.
 - **The residual rate.** B-dot does not reach zero. It settles near twice the
   rate at which the field direction sweeps around the orbit — about 0.3 °/s
   here. That is why the hand-over threshold is 0.5 °/s and not lower.

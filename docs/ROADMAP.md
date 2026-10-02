@@ -3,7 +3,7 @@
 Seven phases. Each ends with something you can watch happen, because a phase
 that produces only internal machinery is a phase whose value cannot be checked.
 
-**Currently part-way through Phase 2** (detumble flies; see the checklist there).
+**Currently at the end of Phase 2.**
 
 ---
 
@@ -37,7 +37,7 @@ which is why this came before any GNC.
 
 ---
 
-## Phase 2 — The simulator and detumble — 🚧 in progress
+## Phase 2 — The simulator and detumble ✅ done
 
 The first closed loop, and the first real GNC.
 
@@ -45,7 +45,9 @@ Done:
 
 - ✅ Rigid-body attitude dynamics, quaternion state, RK4 integration
 - ✅ Two-body orbit with J2
-- ✅ Environment: magnetic field as a tilted, rotating dipole (stand-in for IGRF)
+- ✅ Environment: IGRF-14 magnetic field (degree 10, epoch 2025.0, coefficients
+  extracted from the published table and checked against an independent
+  implementation), with the tilted dipole kept as a cross-check
 - ✅ Sensors: gyroscope with bias random walk, noise and quantisation;
   magnetometer with noise, quantisation and range limit
 - ✅ Magnetorquer model with dipole limit and quantisation; torque is
@@ -58,16 +60,14 @@ Done:
   chain with no change there
 - ✅ Scenario `sim/scenarios/detumble.py`, bit-for-bit deterministic
 
-Still to do:
-
-- ⬜ IGRF in place of the dipole
-- ✅ Solar vector and cylindrical-shadow eclipse in the environment
-- ✅ Sun sensors: six cosine-law faces, noise, blind in eclipse; sun vector and
-  validity cross the bridge and `sun_valid` is downlinked (not yet used by control)
-- ⬜ A COSMOS screen showing the detumble live
+- ✅ COSMOS `DETUMBLE` screen (generated) and `make detumble-live` to drive it
+- ✅ Model checks (`make test-sim`): conservation laws, IGRF reference values,
+  divergence-free field
 
 **Ends with:** a spacecraft tumbling at 10 °/s, detumbled below 0.5 °/s, watched
-live on a COSMOS graph. The first part is real today: `make detumble`.
+live on a COSMOS graph. `make detumble` asserts it; `make detumble-live` lets you
+watch it. The COSMOS screen has been generated and checked against the
+dictionary, but not opened in a running COSMOS installation.
 
 ## Phase 3 — Attitude determination and pointing
 

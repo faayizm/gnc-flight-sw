@@ -41,8 +41,8 @@ def free_port() -> int:
 
 
 class Flight:
-    def __init__(self, time_scale: float):
-        self.ttc, self.sim = free_port(), free_port()
+    def __init__(self, time_scale: float, ttc_port: int | None = None):
+        self.ttc, self.sim = ttc_port or free_port(), free_port()
         self.nvm = ROOT / "build" / f"sim_nvm_{self.sim}.bin"
         self.args = [str(FSW), "--ttc-port", str(self.ttc), "--sim-port", str(self.sim),
                      "--time-scale", str(time_scale), "--nvm", str(self.nvm)]
@@ -107,15 +107,44 @@ def run(scenario: Scenario, time_scale: float, verbose: bool = True):
     return history, digest, adcs_hk, events, sim
 
 
+def live(time_scale: float, ttc_port: int) -> int:
+    """Fly the scenario for a human watching COSMOS. No assertions, and no
+    ground client of our own -- the TT&C link takes one peer at a time and it
+    belongs to the viewer."""
+    sc = Scenario(name="detumble-live", seed=SCENARIO.seed, duration_s=SCENARIO.duration_s,
+                  tumble_dps=SCENARIO.tumble_dps)
+    with Flight(time_scale, ttc_port) as fl:
+        print(f"flight software: TT&C on 127.0.0.1:{fl.ttc} -- connect COSMOS or `make monitor` now")
+        bridge = Bridge(fl.sim)
+        bridge.connect()
+        sim = Simulation(sc, bridge)
+        print("simulator connected; flying. Ctrl-C to stop.")
+        try:
+            for k in range(int(sc.duration_s / sc.dt)):
+                sim.step()
+                if k % 600 == 0:
+                    print(f"  t={sim.t:7.0f} s  true rate {sim.rate_dps:6.3f} deg/s"
+                          f"{'  [eclipse]' if sim.eclipsed else ''}", flush=True)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            bridge.close()
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--time-scale", type=float, default=100.0)
+    ap.add_argument("--live", action="store_true", help="fly for a viewer: fixed TT&C port, no assertions")
+    ap.add_argument("--ttc-port", type=int, default=50001)
     ap.add_argument("--determinism", action="store_true", help="also check two runs agree bit for bit")
     args = ap.parse_args()
 
     if not FSW.exists():
         print("build/fsw not found -- run `make build` first")
         return 2
+    if args.live:
+        return live(args.time_scale if args.time_scale != 100.0 else 10.0, args.ttc_port)
 
     fails: list[str] = []
 

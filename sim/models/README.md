@@ -3,7 +3,7 @@
 > 📚 **Learning this?** See [Lesson 14 — Sensors and noise](../../learn/14-sensors-and-noise/) in the lesson track.
 
 
-**Phase 2: partly built.** Orbit, dynamics, dipole field, gyro, magnetometer and magnetorquers exist. Sun sensors and cylindrical eclipse exist too. IGRF and reaction wheels do not.
+**Phase 2: partly built.** Orbit, dynamics, dipole field, gyro, magnetometer and magnetorquers exist. IGRF, sun sensors and cylindrical eclipse exist too. Reaction wheels and drag do not.
 
 Truth models. Nothing here is flight code, nothing here is under the flight
 software's constraints, and nothing here may ever be linked into the flight

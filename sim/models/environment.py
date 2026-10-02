@@ -1,16 +1,16 @@
-"""The magnetic field.
+"""The environment: magnetic field, Sun and Earth's shadow.
 
-A tilted, rotating centred dipole -- NOT the IGRF. The roadmap lists IGRF; this
-is the honest stand-in until then. A dipole gets the things detumbling cares
-about right: the field magnitude (about 25-50 uT in LEO), its roughly 2:1
-variation between equator and poles, and the way its direction sweeps in the
-inertial frame around an orbit. It misses the higher-order terms, which change
-the field by up to tens of percent locally.
+Two magnetic field models are provided. `magnetic_field_eci` is the IGRF
+(degree 10, see igrf.py) and is what the simulator uses. `dipole_field_eci` is
+a tilted centred dipole, kept as the simple model the lessons derive by hand
+and as a cross-check; it differs from the IGRF by tens of percent locally.
 """
 
 from __future__ import annotations
 
 import math
+
+from .igrf import field_ecef
 
 from .linalg import Vec, dot, scale, sub, norm
 from .orbit import R_EARTH
@@ -36,8 +36,8 @@ def dipole_axis_eci(t: float) -> Vec:
     return scale(north, -1.0)
 
 
-def magnetic_field_eci(r: Vec, t: float) -> Vec:
-    """Field in tesla at inertial position r (metres)."""
+def dipole_field_eci(r: Vec, t: float) -> Vec:
+    """Tilted-dipole field in tesla at inertial position r (metres)."""
     rn = norm(r)
     rhat = scale(r, 1.0 / rn)
     m = dipole_axis_eci(t)
@@ -68,3 +68,15 @@ def in_eclipse(r: Vec, t: float) -> bool:
         return False
     perp = sub(r, scale(s, along))
     return norm(perp) < R_EARTH
+
+
+def magnetic_field_eci(r: Vec, t: float) -> Vec:
+    """IGRF field in tesla at inertial position r (metres), inertial axes.
+
+    The Earth-fixed frame is the inertial frame rotated about Z by the Earth
+    rotation angle; Greenwich is aligned with inertial X at t = 0.
+    """
+    th = EARTH_RATE * t
+    c, s = math.cos(th), math.sin(th)
+    bx, by, bz = field_ecef(c * r[0] + s * r[1], -s * r[0] + c * r[1], r[2])
+    return (c * bx - s * by, s * bx + c * by, bz)

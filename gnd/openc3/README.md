@@ -9,6 +9,7 @@ Configuration only. No COSMOS source is vendored here.
 | `targets/SAT/cmd_tlm/tlm.txt` | Every telemetry packet. **Generated** |
 | `targets/SAT/cmd_tlm/cmd.txt` | Every telecommand. **Generated** |
 | `targets/SAT/screens/overview.txt` | A spacecraft overview screen. **Generated** |
+| `targets/SAT/screens/detumble.txt` | Rate, body rates and commanded torque, for watching a detumble. **Generated** |
 
 All of it comes from `dictionary/mission.yaml` via `make gen`. Editing these
 files by hand means losing the change on the next regeneration — and, worse,
@@ -40,6 +41,17 @@ procedure. In outline:
 The `host.docker.internal` hostname is how a container reaches a process on the
 host. On Linux this may need `--add-host=host.docker.internal:host-gateway`, or
 change the `sat_host` variable in `plugin.txt` to the host's address.
+
+## Watching a detumble live
+
+```bash
+make detumble-live      # flight software on TTC port 50001 + the simulator, no assertions
+```
+
+then open the `DETUMBLE` screen in COSMOS (or run `make monitor` for a text
+view). The run is slowed to 10x real time by default so a graph has time to
+draw; a full detumble takes about eight minutes of wall clock. Only one ground
+tool can hold the TT&C link at a time, so stop other monitors first.
 
 ## The framing configuration
 
