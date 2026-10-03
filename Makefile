@@ -95,6 +95,10 @@ pointing: build  ## Fly the nadir-pointing scenario: tumble to 0.2 deg pointing,
 detumble-live: build  ## Fly a detumble for a viewer on the TT&C port (COSMOS DETUMBLE screen)
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --live --ttc-port $(TTC_PORT)
 
+.PHONY: test-gnd
+test-gnd:  ## Check the ground station's link layer (Reed-Solomon, frames, FOP-1)
+	@$(SYS_PYTHON) tests/gnd/test_link.py
+
 .PHONY: test-sim
 test-sim:  ## Check the simulator's physics models (conservation laws, IGRF reference values)
 	@$(SYS_PYTHON) tests/sim/test_models.py
@@ -149,7 +153,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test test-sim sil detumble pointing check-layering check-links check-toolbox  ## Everything CI runs
+check: check-gen build test test-gnd test-sim sil detumble pointing check-layering check-links check-toolbox  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 
@@ -176,6 +180,10 @@ monitor:  ## Watch the downlink (the spacecraft must be running)
 .PHONY: params
 params:  ## Read every on-board parameter back from the spacecraft
 	@cd gnd && $(SYS_PYTHON) -m pyground --port $(TTC_PORT) params
+
+.PHONY: fep
+fep:  ## Front-end processor: coded link to the spacecraft, plain packets for COSMOS on 50002
+	@cd gnd && $(SYS_PYTHON) -m pyground --port $(TTC_PORT) fep --listen 50002
 
 .PHONY: commands
 commands:  ## List the telecommands this spacecraft accepts

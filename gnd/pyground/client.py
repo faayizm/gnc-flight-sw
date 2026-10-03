@@ -1,14 +1,13 @@
 """
-TCP ground client: connects to the flight software, sends telecommands,
-reassembles and decodes downlinked telemetry.
+Ground client: connects to the spacecraft, sends telecommands, receives and
+decodes telemetry -- through the full CCSDS link stack in gnd/pyground/link.py.
 
-The framing question is the same one the flight software faces, and it gets the
-same answer: raw CCSDS Space Packets over TCP, with packet boundaries taken
-from the CCSDS length field. That is honest about what this is -- a
-software-in-the-loop stand-in for a link. A real RF chain would add TM/TC
-transfer frames with an attached sync marker, pseudo-randomisation and
-Reed-Solomon, which is what lets a receiver regain framing after noise. See
-docs/ARCHITECTURE.md for where that is planned.
+    send("SET_PARAM", ...)  -> PUS packet -> FOP-1 -> TC frame -> CLTU -> socket
+    socket -> ASM sync -> RS decode -> TM frame -> packets -> poll()
+
+Telecommands are sequence-controlled (COP-1 type AD) by default: FOP-1 keeps
+them until the spacecraft's CLCW acknowledges them, and retransmits what it
+does not. The caller never sees that happening except in the statistics.
 """
 
 from __future__ import annotations
@@ -18,7 +17,8 @@ import struct
 import time
 from collections.abc import Iterator
 
-from .packets import CCSDS_HEADER_BYTES, Telemetry, build_tc, parse_tm
+from .link import Fop1, TmDecoder, cltu, tc_frame
+from .packets import Telemetry, build_tc, parse_tm
 
 
 class GroundClient:
@@ -37,8 +37,10 @@ class GroundClient:
         self.port = port
         self.timeout = timeout
         self._sock: socket.socket | None = None
-        self._rx = bytearray()
         self._seq = 0
+        self.decoder = TmDecoder()
+        self.fop = Fop1(self._transmit)
+        self._ready: list[Telemetry] = []
 
         # Counters, so a test can assert on what actually happened rather than
         # on scraped console output.
@@ -61,6 +63,9 @@ class GroundClient:
                 sock = socket.create_connection((self.host, self.port), timeout=self.timeout)
                 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 self._sock = sock
+                # Bring the spacecraft's FARM-1 into step with our FOP-1
+                # before the first sequence-controlled frame.
+                self.fop.initialise()
                 return
             except OSError as exc:
                 last_error = exc
@@ -84,53 +89,68 @@ class GroundClient:
 
     # -- uplink -------------------------------------------------------------
 
-    def send(self, command: str, **args: object) -> bytes:
-        """Encode and uplink one telecommand by dictionary name."""
+    def _transmit(self, data: bytes) -> None:
         if self._sock is None:
             raise ConnectionError("not connected")
+        self._sock.sendall(data)
+
+    def send(self, command: str, **args: object) -> bytes:
+        """Encode and uplink one telecommand by dictionary name, through FOP-1."""
         packet = build_tc(command, sequence_count=self._seq, **args)
+        return self.send_packet(packet)
+
+    def send_packet(self, packet: bytes) -> bytes:
+        """Uplink an already-encoded telecommand packet, sequence-controlled."""
         self._seq = (self._seq + 1) & 0x3FFF
-        self._sock.sendall(packet)
+        self.fop.send(packet)
         self.tc_sent += 1
         return packet
 
     def send_raw(self, packet: bytes) -> None:
         """
-        Uplink arbitrary bytes, bypassing every check in build_tc().
+        Uplink arbitrary packet bytes in a bypass (type BD) frame, skipping
+        every check in build_tc() and COP-1's sequencing.
 
         This is how the spacecraft's input validation gets tested: deliberately
         corrupt packets, wrong lengths, unknown services. A ground library that
         can only produce valid packets cannot test a receiver's error handling.
         """
-        if self._sock is None:
-            raise ConnectionError("not connected")
-        self._sock.sendall(packet)
+        self._transmit(cltu(tc_frame(packet, 0, bypass=True)))
+
+    def send_bytes(self, data: bytes) -> None:
+        """Put raw bytes on the uplink, below even the CLTU layer."""
+        self._transmit(data)
+
+    @property
+    def link(self):
+        """Downlink decoding statistics (RS corrections, lost frames...)."""
+        return self.decoder.stats
 
     # -- downlink -----------------------------------------------------------
 
     def poll(self, timeout: float = 1.0) -> Iterator[Telemetry]:
         """
-        Yield every complete packet that arrives within `timeout` seconds.
-        Returns as soon as the socket goes quiet for the remaining budget.
+        Yield every packet that arrives within `timeout` seconds. Also keeps
+        COP-1 running: acknowledgements, retransmissions, the queue.
         """
         if self._sock is None:
             raise ConnectionError("not connected")
 
         deadline = time.monotonic() + timeout
         while True:
-            yield from self._drain()
-
+            yield from self._take()
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 return
-            self._sock.settimeout(remaining)
+            self._sock.settimeout(min(remaining, 0.05))
             try:
-                chunk = self._sock.recv(4096)
+                chunk = self._sock.recv(65536)
             except socket.timeout:
-                return
+                self._ingest(b"")
+                continue
             if not chunk:
                 return   # spacecraft closed the link
-            self._rx += chunk
+            self._ingest(chunk)
 
     def poll_nowait(self) -> Iterator[Telemetry]:
         """
@@ -149,10 +169,11 @@ class GroundClient:
                     break
                 if not chunk:
                     break
-                self._rx += chunk
+                self._ingest(chunk)
         finally:
             self._sock.settimeout(None)
-        yield from self._drain()
+        self._ingest(b"")
+        yield from self._take()
 
     def wait_for(self, name: str, timeout: float = 3.0) -> Telemetry | None:
         """
@@ -167,26 +188,28 @@ class GroundClient:
                     return tm
         return None
 
-    def _drain(self) -> Iterator[Telemetry]:
-        """Extract whole Space Packets from the receive buffer."""
-        while len(self._rx) >= CCSDS_HEADER_BYTES:
-            (length_field,) = struct.unpack(">H", self._rx[4:6])
-            total = CCSDS_HEADER_BYTES + length_field + 1   # the "minus one" again
+    def wait_idle(self, timeout: float = 5.0) -> bool:
+        """Keep the link serviced until every telecommand is acknowledged."""
+        deadline = time.monotonic() + timeout
+        while self.fop.outstanding and time.monotonic() < deadline:
+            for tm in self.poll(timeout=0.1):
+                self._ready.append(tm)
+        return self.fop.outstanding == 0
 
-            if total > 65536 or total < CCSDS_HEADER_BYTES:
-                # Cannot be a packet. Without an attached sync marker there is
-                # no principled way to resynchronise, so drop one octet and
-                # retry -- the same limited mitigation the flight software uses.
-                del self._rx[0]
-                continue
-            if len(self._rx) < total:
-                return
-
-            packet = bytes(self._rx[:total])
-            del self._rx[:total]
-
+    def _ingest(self, chunk: bytes) -> None:
+        for vcid, packet in self.decoder.push(chunk):
             tm = parse_tm(packet)
+            tm.vcid = vcid
+            tm.raw = packet
             self.tm_received += 1
             if not tm.crc_ok:
                 self.crc_failures += 1
-            yield tm
+            self._ready.append(tm)
+        if self.decoder.last_clcw is not None:
+            self.fop.on_clcw(self.decoder.last_clcw)
+            self.decoder.last_clcw = None
+        self.fop.service()
+
+    def _take(self) -> Iterator[Telemetry]:
+        while self._ready:
+            yield self._ready.pop(0)

@@ -160,12 +160,10 @@ nothing about flight software.
 
 ## Known limitations, stated rather than hidden
 
-**No transfer frames.** Packet boundaries over TCP come from the CCSDS length
-field. That works only while the byte stream stays in sync; a corrupted length
-field would desynchronise it, and the recovery — discard one octet and retry —
-is a mitigation, not a solution. A real RF link carries TM/TC transfer frames
-with an attached sync marker precisely so a receiver can regain framing after
-noise, plus pseudo-randomisation and Reed-Solomon. Phase 4.
+**The link is a TCP socket underneath.** Everything above it is the real
+CCSDS stack: transfer frames, sync markers, Reed-Solomon, BCH and COP-1 (see
+[LINK.md](LINK.md)). TCP itself never corrupts or reorders bytes, so link
+errors exist only where something injects them.
 
 **Time is not correlated.** The PUS time reference status field is reported as
 0, meaning "not synchronised with a ground clock", which is honest. ST[09] time

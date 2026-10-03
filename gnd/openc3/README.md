@@ -37,7 +37,13 @@ procedure. In outline:
 2. Build this directory into a plugin and install it through the COSMOS admin
    interface.
 3. Start the flight software: `make run`.
-4. The `SAT_INT` interface connects to `host.docker.internal:50001`.
+4. Start the front-end processor: `make fep`. It holds the coded link to the
+   spacecraft (TCP 50001) and serves plain Space Packets on TCP 50002.
+5. The `SAT_INT` interface connects to `host.docker.internal:50002`.
+
+Why the FEP: the space link carries CCSDS transfer frames with Reed-Solomon,
+randomisation and COP-1 ([docs/LINK.md](../../docs/LINK.md)). COSMOS handles
+packets, not coded frames. Real ground stations split the job the same way.
 
 The `host.docker.internal` hostname is how a container reaches a process on the
 host. On Linux this may need `--add-host=host.docker.internal:host-gateway`, or
@@ -49,10 +55,10 @@ change the `sat_host` variable in `plugin.txt` to the host's address.
 make detumble-live      # flight software on TTC port 50001 + the simulator, no assertions
 ```
 
-then open the `DETUMBLE` screen in COSMOS (or run `make monitor` for a text
-view). The run is slowed to 10x real time by default so a graph has time to
-draw; a full detumble takes about eight minutes of wall clock. Only one ground
-tool can hold the TT&C link at a time, so stop other monitors first.
+then `make fep` and open the `DETUMBLE` screen in COSMOS (or run `make monitor`
+instead of the FEP for a text view). The run is slowed to 10x real time by
+default so a graph has time to draw; a full detumble takes about eight minutes
+of wall clock. Only one ground tool can hold the TT&C link at a time.
 
 ## The framing configuration
 

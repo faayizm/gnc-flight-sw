@@ -43,6 +43,14 @@ TELEMETRY SAT SYS_HK BIG_ENDIAN "Core system health, scheduler timing and link s
     STATE TRUE 1
   APPEND_ITEM    EVENTS_LOGGED  32 UINT  "Events raised since boot"
   APPEND_ITEM    LAST_EVENT_ID  16 UINT  "Identifier of most recent event"
+  APPEND_ITEM    TM_FRAMES_SENT 32 UINT  "TM transfer frames transmitted"
+  APPEND_ITEM    TC_FRAMES_OK   32 UINT  "TC transfer frames accepted"
+  APPEND_ITEM    TC_FRAMES_BAD  32 UINT  "TC transfer frames rejected (frame checks or FARM-1)"
+  APPEND_ITEM    CLTU_CORRECTED 32 UINT  "Uplink bit errors corrected by BCH"
+  APPEND_ITEM    FARM_VR         8 UINT  "FARM-1 V(R)"
+  APPEND_ITEM    FARM_LOCKOUT    8 UINT  "FARM-1 is in lockout and needs an Unlock"
+    STATE FALSE 0
+    STATE TRUE 1
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
 TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state."

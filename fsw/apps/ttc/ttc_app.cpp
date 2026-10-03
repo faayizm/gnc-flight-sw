@@ -71,85 +71,57 @@ void TtcApp::pump_link() {
         events_.raise(connected ? dict::EventId::LINK_CONNECTED
                                 : dict::EventId::LINK_LOST);
         was_connected_ = connected;
-        if (!connected) {
-            // Drop any half-received packet. Resuming a partial packet across
-            // a reconnection would splice two unrelated byte streams together.
-            rx_used_ = 0;
-        }
+        // Drop any half-received CLTU. Resuming one across a reconnection
+        // would splice two unrelated byte streams together.
+        if (!connected) { tc_rx_.reset(); }
     }
     if (!connected) { return; }
 
-    const size_t taken = link_.receive(rx_buffer_ + rx_used_,
-                                       kRxBufferBytes - rx_used_);
-    rx_used_ += taken;
-    drain_rx_buffer();
+    // Everything framing-related lives in TcReceiver: start-sequence hunt,
+    // BCH, frame checks, FARM-1. What comes out the other end is the data
+    // field of each accepted frame.
+    for (;;) {
+        const size_t taken = link_.receive(rx_chunk_, sizeof rx_chunk_);
+        if (taken == 0) { break; }
+        tc_rx_.push(rx_chunk_, taken);
+    }
 }
 
-void TtcApp::drain_rx_buffer() {
-    // Extract as many whole Space Packets as the buffer currently holds.
-    //
-    // TCP is a byte stream with no packet boundaries, so framing comes from
-    // the CCSDS length field itself. That works only while the stream stays in
-    // sync. A real radio link does not rely on this: TM/TC transfer frames
-    // carry an attached sync marker precisely so a receiver can regain framing
-    // after a burst of noise. Adding that is Phase 4; until then a corrupted
-    // length field would desynchronise the stream, and the recovery below is
-    // the honest, limited mitigation -- discard one octet and try again.
-    size_t consumed = 0;
+void TtcApp::on_frame_data(void* context, const uint8_t* data, size_t length) {
+    static_cast<TtcApp*>(context)->accept_packets(data, length);
+}
 
-    while (rx_used_ - consumed >= kSpacePacketHeaderBytes) {
-        const uint8_t* at        = rx_buffer_ + consumed;
-        const size_t   available = rx_used_ - consumed;
-
-        core::ByteReader   header_reader(at, available);
-        SpacePacketHeader  header;
-        if (!header.decode(header_reader)) { break; }
-
+void TtcApp::accept_packets(const uint8_t* data, size_t length) {
+    // A frame's data field holds whole telecommand packets. The frame's own
+    // CRC has already vouched for these bytes, so a length field that does not
+    // fit means the ground built a bad frame, not that noise struck.
+    size_t pos = 0;
+    while (length - pos >= kSpacePacketHeaderBytes) {
+        core::ByteReader  hr(data + pos, length - pos);
+        SpacePacketHeader header;
+        if (!header.decode(hr)) { break; }
         const size_t total = header.total_size();
-        if (total > kMaxPacketBytes) {
-            // Not a packet we could ever accept. Skip a single octet rather
-            // than the claimed length, because the length itself is suspect.
-            ++consumed;
+        if (total > length - pos || total > kMaxPacketBytes) {
             ++tc_rejected_;
             events_.raise(dict::EventId::TC_REJECTED,
                           static_cast<uint32_t>(core::FailureCode::BadLength));
-            continue;
+            return;
         }
-        if (available < total) { break; }   // wait for the rest to arrive
 
         ReceivedTc        tc;
         core::FailureCode failure = core::FailureCode::Ok;
-        const core::Status status = parse_tc(at, total, tc, failure);
-
-        if (core::is_ok(status)) {
+        if (core::is_ok(parse_tc(data + pos, total, tc, failure))) {
             ++tc_received_;
             handle_tc(tc);
         } else {
             ++tc_rejected_;
-            events_.raise(dict::EventId::TC_REJECTED,
-                          static_cast<uint32_t>(failure));
-            // A packet that failed its CRC cannot be answered with a
-            // verification report: its APID and sequence count are exactly the
-            // fields we would have to quote back, and they are not trustworthy.
-            // The event above is the only honest notification.
+            // A packet that failed its own CRC cannot be answered with a
+            // verification report: its APID and sequence count are exactly
+            // the fields we would have to quote back. The event is the only
+            // honest notification.
+            events_.raise(dict::EventId::TC_REJECTED, static_cast<uint32_t>(failure));
         }
-        consumed += total;
-    }
-
-    // Shuffle whatever is left to the front. At most one partial packet, so
-    // this moves a few hundred bytes at worst.
-    if (consumed > 0) {
-        const size_t leftover = rx_used_ - consumed;
-        if (leftover > 0) {
-            std::memmove(rx_buffer_, rx_buffer_ + consumed, leftover);
-        }
-        rx_used_ = leftover;
-    } else if (rx_used_ == kRxBufferBytes) {
-        // Full of something that never resolves into a packet. Reset rather
-        // than wedge the uplink forever.
-        rx_used_ = 0;
-        events_.raise(dict::EventId::TC_REJECTED,
-                      static_cast<uint32_t>(core::FailureCode::BadLength));
+        pos += total;
     }
 }
 
@@ -307,9 +279,27 @@ uint16_t TtcApp::next_message_count(uint8_t service, uint8_t subtype) {
 bool TtcApp::send_packet(size_t length) {
     if (length == 0) { return false; }
     if (!link_.connected()) { return false; }
-    if (!core::is_ok(link_.send(tx_scratch_, length))) { return false; }
+    if (!framer_.realtime().enqueue(tx_scratch_, length)) { return false; }
     ++tm_sent_;
     return true;
+}
+
+void TtcApp::task_downlink(void* context) {
+    auto* self = static_cast<TtcApp*>(context);
+    if (!self->link_.connected()) { return; }
+    const uint32_t tick = self->scheduler_.tick_count();
+
+    // Up to two frames per 20 ms tick: 100 frames/s, about 207 kbit/s of
+    // coded downlink -- an S-band CubeSat radio. An idle frame goes out at
+    // least every half second, because the ground's COP-1 lives on the CLCW
+    // it carries.
+    for (int i = 0; i < kFramesPerTick; ++i) {
+        const bool idle_due = (tick - self->last_frame_tick_) >= kIdleFrameTicks;
+        const size_t n = self->framer_.next_cadu(tick, self->tc_rx_.farm().clcw(), idle_due, self->cadu_);
+        if (n == 0) { break; }
+        if (!core::is_ok(self->link_.send(self->cadu_, n))) { break; }
+        self->last_frame_tick_ = tick;
+    }
 }
 
 void TtcApp::send_verification(const ReceivedTc& tc, uint8_t subtype,
@@ -414,6 +404,12 @@ void TtcApp::send_hk(dict::HkSid sid) {
             hk.link_up        = link_.connected() ? 1 : 0;
             hk.events_logged  = events_.raised_count();
             hk.last_event_id  = events_.last_id();
+            hk.tm_frames_sent = framer_.frames_sent();
+            hk.tc_frames_ok   = tc_rx_.frames_accepted();
+            hk.tc_frames_bad  = tc_rx_.frames_rejected();
+            hk.cltu_corrected = tc_rx_.bits_corrected();
+            hk.farm_vr        = tc_rx_.farm().vr();
+            hk.farm_lockout   = tc_rx_.farm().lockout() ? 1 : 0;
             hk.serialize(b.payload());
             break;
         }

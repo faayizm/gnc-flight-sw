@@ -21,6 +21,18 @@ enum class Apid : uint16_t {
 };
 constexpr uint16_t apid_value(Apid a) { return static_cast<uint16_t>(a); }
 
+// --- Space link --------------------------------------------------------------
+namespace link {
+constexpr uint16_t kScid = 421;
+constexpr uint16_t kTmFrameBytes = 223;
+constexpr uint16_t kTcMaxFrameBytes = 1024;
+constexpr uint16_t kVcRealtime = 0;
+constexpr uint16_t kVcPlayback = 1;
+constexpr uint16_t kVcIdle = 7;
+constexpr uint16_t kTcVc = 0;
+constexpr uint16_t kFarmWindow = 10;
+}  // namespace link
+
 // --- Mission enumerations --------------------------------------------------
 // Top-level spacecraft mode owned by the mode manager.
 enum class SystemMode : uint8_t {

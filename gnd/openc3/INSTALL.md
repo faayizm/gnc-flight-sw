@@ -35,12 +35,14 @@ documentation for the current `openc3cli` invocation.
 
 ```bash
 make run
+make fep        # in a second terminal: the front-end processor
 ```
 
 ## 4. Connect
 
-The `SAT_INT` interface connects as a TCP client to
-`host.docker.internal:50001`.
+The `SAT_INT` interface connects as a TCP client to the front-end processor at
+`host.docker.internal:50002`. The FEP holds the coded space link to the
+spacecraft on 50001.
 
 - **macOS and Windows:** `host.docker.internal` resolves automatically.
 - **Linux:** it may not. Either start the container with

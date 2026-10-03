@@ -150,6 +150,11 @@ def _bad_service_packet() -> bytes:
     return packet
 
 
+def cmd_fep(args: argparse.Namespace) -> int:
+    from .fep import run
+    return run(args.host, args.port, args.listen)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="pyground", description="HYPERSAT ground station")
@@ -175,6 +180,10 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("demo", help="a scripted pass exercising the whole slice")
     p.set_defaults(func=cmd_demo)
+
+    p = sub.add_parser("fep", help="front-end processor: serve plain packets to COSMOS")
+    p.add_argument("--listen", type=int, default=50002)
+    p.set_defaults(func=cmd_fep)
 
     args = parser.parse_args(argv)
     try:

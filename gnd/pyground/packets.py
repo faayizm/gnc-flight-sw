@@ -153,6 +153,8 @@ class Telemetry:
     crc_ok: bool
     name: str = "UNKNOWN"
     fields: dict[str, Any] = field(default_factory=dict)
+    vcid: int = 0          # virtual channel it arrived on: 0 live, 1 playback
+    raw: bytes = b""       # the packet exactly as received
 
     def summary(self) -> str:
         """One line, suitable for a scrolling monitor."""

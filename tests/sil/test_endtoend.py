@@ -273,6 +273,58 @@ def test_reconnection() -> None:
               "the flight software survived the ground tool disconnecting")
 
 
+def test_uplink_coding_and_framing_recovery() -> None:
+    print("\n[uplink coding]")
+    from pyground.link import cltu, tc_frame
+    with Spacecraft() as sat, sat.client() as gnd:
+        gnd.wait_idle()
+        # A hand-built CLTU, bypass frame, with one bit flipped in each of
+        # three codeblocks and garbage on the line before it. BCH must repair
+        # the bits; the start-sequence hunt must skip the garbage.
+        raw = bytearray(cltu(tc_frame(build_tc("TEST_CONNECTION", sequence_count=7), 0, bypass=True)))
+        for at in (3, 12, 21):
+            raw[at] ^= 0x04
+        gnd.send_bytes(b"\x00\xEB\x13\x37\xEB\x91garbage" + bytes(raw))
+        check(gnd.wait_for("TEST_REPORT", timeout=2.0) is not None,
+              "a CLTU with three bit errors, after garbage, still delivers its command")
+        hk = gnd.wait_for("SYS_HK", timeout=2.0)
+        check(hk is not None and hk.fields["cltu_corrected"] >= 3,
+              "the spacecraft counts the corrected bits")
+
+
+def test_cop1_recovers_lost_frames() -> None:
+    print("\n[COP-1]")
+    with Spacecraft() as sat, sat.client() as gnd:
+        gnd.wait_idle()
+        # Lose every third CLTU on the way up.
+        real = gnd.fop.transmit
+        counter = {"n": 0}
+
+        def lossy(data: bytes) -> None:
+            counter["n"] += 1
+            if counter["n"] % 3 != 0:
+                real(data)
+        gnd.fop.transmit = lossy
+
+        for value in (200, 300, 400, 500, 600, 700):
+            gnd.send("SET_PARAM", param_id=1, value=float(value))
+        done = []
+        deadline = time.monotonic() + 15.0
+        while len(done) < 6 and time.monotonic() < deadline:
+            for tm in gnd.poll(timeout=0.2):
+                if tm.name == "VERIF_COMPLETE_OK":
+                    done.append(tm.fields["req_seqcnt"])
+        gnd.fop.transmit = real
+        check(len(done) == 6, f"all six commands executed despite a lossy uplink ({len(done)} of 6)")
+        check(done == sorted(done), "and in the order they were sent")
+        check(gnd.fop.retransmissions > 0,
+              f"because FOP-1 retransmitted ({gnd.fop.retransmissions} frames)")
+        gnd.send("REPORT_PARAM", param_id=1)
+        report = gnd.wait_for("PARAM_REPORT", timeout=3.0)
+        check(report is not None and report.fields["value"] == 700.0,
+              "the last value written is the one that stuck -- nothing executed twice out of order")
+
+
 def main() -> int:
     if not FSW_BINARY.exists():
         print(f"error: {FSW_BINARY} not found. Run `make build` first.", file=sys.stderr)
@@ -289,7 +341,9 @@ def main() -> int:
                  test_corrupted_telecommand_is_dropped_silently,
                  test_housekeeping_can_be_silenced_and_restored,
                  test_parameters_survive_a_restart,
-                 test_reconnection):
+                 test_reconnection,
+                 test_uplink_coding_and_framing_recovery,
+                 test_cop1_recovers_lost_frames):
         test()
 
     elapsed = time.monotonic() - started

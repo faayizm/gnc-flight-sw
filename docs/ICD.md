@@ -14,6 +14,21 @@ with ECSS-E-ST-70-41C (PUS-C) secondary headers.
 | EPS | `0x003` (3) |
 | GND | `0x00A` (10) |
 
+## Space link
+
+See [LINK.md](LINK.md) for the frame and coding layers in full.
+
+| Constant | Value |
+|---|---|
+| `scid` | 421 |
+| `tm_frame_bytes` | 223 |
+| `tc_max_frame_bytes` | 1024 |
+| `vc_realtime` | 0 |
+| `vc_playback` | 1 |
+| `vc_idle` | 7 |
+| `tc_vc` | 0 |
+| `farm_window` | 10 |
+
 ## Packet headers
 
 ### CCSDS primary header (6 bytes, all packets)
@@ -56,7 +71,7 @@ Every packet ends with a 2-byte packet error control field: CCSDS CRC-16, polyno
 
 ### SYS_HK — structure id 1, APID `0x001`
 
-Core system health, scheduler timing and link statistics. Nominal generation rate 1 Hz. Total packet size 55 bytes.
+Core system health, scheduler timing and link statistics. Nominal generation rate 1 Hz. Total packet size 73 bytes.
 
 | Offset | Field | Type | Units | Description |
 |---:|---|---|---|---|
@@ -72,6 +87,12 @@ Core system health, scheduler timing and link statistics. Nominal generation rat
 | 26 | `link_up` | uint8 | bool | Ground link connected |
 | 27 | `events_logged` | uint32 | count | Events raised since boot |
 | 31 | `last_event_id` | uint16 | id | Identifier of most recent event |
+| 33 | `tm_frames_sent` | uint32 | count | TM transfer frames transmitted |
+| 37 | `tc_frames_ok` | uint32 | count | TC transfer frames accepted |
+| 41 | `tc_frames_bad` | uint32 | count | TC transfer frames rejected (frame checks or FARM-1) |
+| 45 | `cltu_corrected` | uint32 | count | Uplink bit errors corrected by BCH |
+| 49 | `farm_vr` | uint8 | - | FARM-1 V(R) |
+| 50 | `farm_lockout` | uint8 | bool | FARM-1 is in lockout and needs an Unlock |
 
 ### ADCS_HK — structure id 2, APID `0x002`
 

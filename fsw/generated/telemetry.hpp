@@ -29,11 +29,17 @@ struct SysHk {
     uint8_t link_up{};  // Ground link connected [bool]
     uint32_t events_logged{};  // Events raised since boot [count]
     uint16_t last_event_id{};  // Identifier of most recent event [id]
+    uint32_t tm_frames_sent{};  // TM transfer frames transmitted [count]
+    uint32_t tc_frames_ok{};  // TC transfer frames accepted [count]
+    uint32_t tc_frames_bad{};  // TC transfer frames rejected (frame checks or FARM-1) [count]
+    uint32_t cltu_corrected{};  // Uplink bit errors corrected by BCH [count]
+    uint8_t farm_vr{};  // FARM-1 V(R)
+    uint8_t farm_lockout{};  // FARM-1 is in lockout and needs an Unlock [bool]
 
     static constexpr dict::HkSid kSid  = dict::HkSid::SYS_HK;
     static constexpr dict::Apid  kApid = dict::Apid::TTC;
-    static constexpr uint16_t kPayloadBytes = 33;
-    static constexpr uint16_t kPacketBytes  = 55;
+    static constexpr uint16_t kPayloadBytes = 51;
+    static constexpr uint16_t kPacketBytes  = 73;
 
     // Serialises the field block only. The ST[3,25] structure id and the
     // packet headers are written by the telemetry builder.
@@ -51,6 +57,12 @@ struct SysHk {
             && w.write_uint8(link_up)
             && w.write_uint32(events_logged)
             && w.write_uint16(last_event_id)
+            && w.write_uint32(tm_frames_sent)
+            && w.write_uint32(tc_frames_ok)
+            && w.write_uint32(tc_frames_bad)
+            && w.write_uint32(cltu_corrected)
+            && w.write_uint8(farm_vr)
+            && w.write_uint8(farm_lockout)
             ;
     }
 
@@ -68,6 +80,12 @@ struct SysHk {
             && r.read_uint8(link_up)
             && r.read_uint32(events_logged)
             && r.read_uint16(last_event_id)
+            && r.read_uint32(tm_frames_sent)
+            && r.read_uint32(tc_frames_ok)
+            && r.read_uint32(tc_frames_bad)
+            && r.read_uint32(cltu_corrected)
+            && r.read_uint8(farm_vr)
+            && r.read_uint8(farm_lockout)
             ;
     }
 };

@@ -20,6 +20,17 @@ mission:
     ADCS: 0x002      # attitude determination & control
     EPS:  0x003      # electrical power
     GND:  0x00A      # ground segment (source APID of uplinked telecommands)
+  # Space link: CCSDS TM/TC Space Data Link Protocols over a coded channel.
+  # Both ends of the link are generated from these numbers.
+  link:
+    scid: 0x1A5              # spacecraft identifier (10 bits), in every frame header
+    tm_frame_bytes: 223      # TM transfer frame = one RS(255,223) codeword, depth 1
+    tc_max_frame_bytes: 1024 # largest TC transfer frame the spacecraft accepts (the CCSDS maximum)
+    vc_realtime: 0           # TM virtual channel for live telemetry
+    vc_playback: 1           # TM virtual channel for packets replayed from storage
+    vc_idle: 7               # TM virtual channel for idle frames
+    tc_vc: 0                 # TC virtual channel
+    farm_window: 10          # FARM-1 sliding window width W (frames)
   # PUS time is CCSDS Unsegmented Code: 4 B coarse seconds + 2 B fine (1/65536 s)
   time:
     epoch: "2000-01-01T00:00:00Z"   # TAI-referenced mission epoch
@@ -94,6 +105,12 @@ telemetry:
       - {name: link_up,          type: uint8,  units: bool,  desc: Ground link connected}
       - {name: events_logged,    type: uint32, units: count, desc: Events raised since boot}
       - {name: last_event_id,    type: uint16, units: id,    desc: Identifier of most recent event}
+      - {name: tm_frames_sent,   type: uint32, units: count, desc: TM transfer frames transmitted}
+      - {name: tc_frames_ok,     type: uint32, units: count, desc: TC transfer frames accepted}
+      - {name: tc_frames_bad,    type: uint32, units: count, desc: TC transfer frames rejected (frame checks or FARM-1)}
+      - {name: cltu_corrected,   type: uint32, units: count, desc: Uplink bit errors corrected by BCH}
+      - {name: farm_vr,          type: uint8,  units: "-",   desc: FARM-1 V(R), the next expected frame sequence number}
+      - {name: farm_lockout,     type: uint8,  units: bool,  desc: FARM-1 is in lockout and needs an Unlock}
 
   - name: ADCS_HK
     sid: 2

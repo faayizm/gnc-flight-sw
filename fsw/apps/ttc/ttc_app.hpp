@@ -25,6 +25,8 @@
 
 #include "apps/ttc/pus.hpp"
 #include "apps/ttc/space_packet.hpp"
+#include "apps/ttc/tc_receiver.hpp"
+#include "apps/ttc/tm_framer.hpp"
 #include "core/bus.hpp"
 #include "core/event_log.hpp"
 #include "core/param_store.hpp"
@@ -45,6 +47,8 @@ class TtcApp {
     // merely because the application had not run yet.
     static constexpr size_t kRxBufferBytes = 4096;
     static constexpr size_t kTxScratchBytes = kMaxPacketBytes;
+    static constexpr int      kFramesPerTick  = 2;
+    static constexpr uint32_t kIdleFrameTicks = 25;
 
     TtcApp(hal::ILink& link, hal::IClock& clock, core::Bus& bus,
            core::EventLog& events, core::ParamStore& params,
@@ -66,6 +70,9 @@ class TtcApp {
     // 10 Hz: evaluate which housekeeping structures are due and emit them.
     static void task_telemetry(void* context);
 
+    // 50 Hz: cut queued packets into transfer frames and transmit them.
+    static void task_downlink(void* context);
+
     // ---- statistics, reported in SYS_HK --------------------------------
     uint32_t tc_received() const { return tc_received_; }
     uint32_t tc_rejected() const { return tc_rejected_; }
@@ -79,7 +86,8 @@ class TtcApp {
  private:
     // ---- uplink --------------------------------------------------------
     void pump_link();
-    void drain_rx_buffer();
+    static void on_frame_data(void* context, const uint8_t* data, size_t length);
+    void accept_packets(const uint8_t* data, size_t length);
     void handle_tc(const ReceivedTc& tc);
 
     // Individual PUS service handlers. Each returns the failure code to be
@@ -126,9 +134,12 @@ class TtcApp {
     SequenceCounter seq_adcs_;
     SequenceCounter seq_eps_;
 
-    uint8_t rx_buffer_[kRxBufferBytes]{};
-    size_t  rx_used_ = 0;
-    uint8_t tx_scratch_[kTxScratchBytes]{};
+    uint8_t    rx_chunk_[kRxBufferBytes]{};
+    uint8_t    tx_scratch_[kTxScratchBytes]{};
+    uint8_t    cadu_[coding::kCaduBytes]{};
+    TmFramer   framer_;
+    TcReceiver tc_rx_{&TtcApp::on_frame_data, this};
+    uint32_t   last_frame_tick_ = 0;
 
     // Which housekeeping structures are being generated, and when each is next
     // due. Indexed by position in the generated dictionary, not by SID value.

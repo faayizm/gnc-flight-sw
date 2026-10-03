@@ -83,6 +83,7 @@ class Dictionary:
     def __init__(self, raw: dict):
         self.mission = raw["mission"]
         self.apids = {k: int(v) for k, v in self.mission["apids"].items()}
+        self.link = {k: int(v) for k, v in self.mission["link"].items()}
         self.enums = raw.get("enums", {})
         self.telemetry = raw.get("telemetry", [])
         self.commands = raw.get("commands", [])
@@ -172,6 +173,13 @@ def gen_dictionary_hpp(d: Dictionary) -> str:
         o.append(f"    {name} = 0x{value:03X},")
     o.append("};")
     o.append("constexpr uint16_t apid_value(Apid a) { return static_cast<uint16_t>(a); }")
+    o.append("")
+
+    o.append("// --- Space link --------------------------------------------------------------")
+    o.append("namespace link {")
+    for name, value in d.link.items():
+        o.append(f"constexpr uint16_t k{''.join(p.capitalize() for p in name.split('_'))} = {value};")
+    o.append("}  // namespace link")
     o.append("")
 
     o.append("// --- Mission enumerations --------------------------------------------------")
@@ -536,19 +544,20 @@ def gen_cosmos_plugin(d: Dictionary) -> str:
 # OpenC3 COSMOS plugin definition for {d.mission['name']}.
 #
 # Bring it up with:   cd gnd/openc3 && ./install.sh
-# The flight software listens as a TCP server, so COSMOS connects as a client.
 #
-# Framing: raw CCSDS Space Packets, no transfer frames. The LENGTH protocol
-# reads the 16-bit CCSDS packet data length at bit offset 32 and adds 7
-# (6 header bytes, plus 1 because CCSDS stores "length minus one").
+# COSMOS does not talk to the spacecraft directly. The space link carries
+# coded transfer frames (ASM, Reed-Solomon, randomisation, COP-1), and the
+# front-end processor turns those into plain Space Packets:
 #
-# A real RF link would wrap these in TM/TC transfer frames with an attached
-# sync marker, pseudo-randomisation and Reed-Solomon coding. That belongs to
-# Phase 4 and is deliberately not present yet.
+#     make fep          (python3 -m pyground --port 50001 fep --listen 50002)
+#
+# COSMOS connects to the FEP as a client. On that local socket the LENGTH
+# protocol reads the 16-bit CCSDS packet data length at bit offset 32 and adds
+# 7 (6 header bytes, plus 1 because CCSDS stores "length minus one").
 
 VARIABLE sat_target_name SAT
 VARIABLE sat_host host.docker.internal
-VARIABLE sat_port 50001
+VARIABLE sat_port 50002
 
 TARGET SAT <%= sat_target_name %>
 
@@ -666,6 +675,8 @@ def gen_pyground_dict(d: Dictionary) -> str:
         o.append(f"    {k!r}: 0x{v:03X},")
     o.append("}")
     o.append("")
+    o.append(f"LINK = {d.link!r}")
+    o.append("")
     o.append("ENUMS = {")
     for ename, edef in d.enums.items():
         o.append(f"    {ename!r}: {edef['values']!r},")
@@ -722,6 +733,16 @@ def gen_icd(d: Dictionary) -> str:
     o.append("|---|---|")
     for k, v in d.apids.items():
         o.append(f"| {k} | `0x{v:03X}` ({v}) |")
+    o.append("")
+
+    o.append("## Space link")
+    o.append("")
+    o.append("See [LINK.md](LINK.md) for the frame and coding layers in full.")
+    o.append("")
+    o.append("| Constant | Value |")
+    o.append("|---|---|")
+    for k, v in d.link.items():
+        o.append(f"| `{k}` | {v} |")
     o.append("")
 
     o.append("## Packet headers")

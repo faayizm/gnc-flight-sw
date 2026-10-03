@@ -20,6 +20,7 @@ set(FSW_TEST_SOURCES
   unit/test_containers.cpp
   unit/test_adcs.cpp
   unit/test_adcs_estimation.cpp
+  unit/test_link.cpp
 )
 
 add_executable(fsw_tests unit/main.cpp ${FSW_TEST_SOURCES})

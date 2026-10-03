@@ -8,19 +8,20 @@
 # OpenC3 COSMOS plugin definition for HYPERSAT.
 #
 # Bring it up with:   cd gnd/openc3 && ./install.sh
-# The flight software listens as a TCP server, so COSMOS connects as a client.
 #
-# Framing: raw CCSDS Space Packets, no transfer frames. The LENGTH protocol
-# reads the 16-bit CCSDS packet data length at bit offset 32 and adds 7
-# (6 header bytes, plus 1 because CCSDS stores "length minus one").
+# COSMOS does not talk to the spacecraft directly. The space link carries
+# coded transfer frames (ASM, Reed-Solomon, randomisation, COP-1), and the
+# front-end processor turns those into plain Space Packets:
 #
-# A real RF link would wrap these in TM/TC transfer frames with an attached
-# sync marker, pseudo-randomisation and Reed-Solomon coding. That belongs to
-# Phase 4 and is deliberately not present yet.
+#     make fep          (python3 -m pyground --port 50001 fep --listen 50002)
+#
+# COSMOS connects to the FEP as a client. On that local socket the LENGTH
+# protocol reads the 16-bit CCSDS packet data length at bit offset 32 and adds
+# 7 (6 header bytes, plus 1 because CCSDS stores "length minus one").
 
 VARIABLE sat_target_name SAT
 VARIABLE sat_host host.docker.internal
-VARIABLE sat_port 50001
+VARIABLE sat_port 50002
 
 TARGET SAT <%= sat_target_name %>
 

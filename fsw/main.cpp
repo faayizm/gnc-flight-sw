@@ -182,6 +182,7 @@ int main(int argc, char** argv) {
     // Offsets stagger the slower groups so they never land on the same tick.
     scheduler.add_task("ttc_rx",  &fsw::ttc::TtcApp::task_receive,   &ttc, 1);
     scheduler.add_task("ttc_tm",  &fsw::ttc::TtcApp::task_telemetry, &ttc, 5, 1);
+    scheduler.add_task("ttc_dl",  &fsw::ttc::TtcApp::task_downlink,  &ttc, 1);
 
     scheduler.add_task("adcs",    &fsw::adcs::AdcsApp::task_run,     &adcs, 1);
 
