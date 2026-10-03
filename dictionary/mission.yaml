@@ -111,6 +111,11 @@ telemetry:
       - {name: cltu_corrected,   type: uint32, units: count, desc: Uplink bit errors corrected by BCH}
       - {name: farm_vr,          type: uint8,  units: "-",   desc: FARM-1 V(R), the next expected frame sequence number}
       - {name: farm_lockout,     type: uint8,  units: bool,  desc: FARM-1 is in lockout and needs an Unlock}
+      - {name: time_status,      type: uint8,  units: "-",   desc: PUS time reference status, 1 = correlated with the ground}
+      - {name: sched_pending,    type: uint16, units: count, desc: Time-tagged telecommands waiting for release}
+      - {name: sched_enabled,    type: uint8,  units: bool,  desc: Time-based release is enabled}
+      - {name: store_packets,    type: uint32, units: count, desc: Packets held in the packet store}
+      - {name: store_used_pct,   type: uint8,  units: "%",   desc: Packet store fill level}
 
   - name: ADCS_HK
     sid: 2
@@ -218,6 +223,83 @@ commands:
     desc: ST[8,2] clear the housekeeping statistics counters.
     args: []
 
+  - name: SET_TIME_REPORT_RATE
+    service: 9
+    subtype: 1
+    desc: ST[9,1] generate a CUC time report every 2^rate_exp seconds; 255 stops them.
+    args:
+      - {name: rate_exp, type: uint8, desc: Report period exponent (0 = every second)}
+
+  - name: ADJUST_TIME
+    service: 9
+    subtype: 128
+    desc: "ST[9,128] (mission-specific) shift the on-board clock by delta_s and mark time as correlated. The ground computes delta from a time report."
+    args:
+      - {name: delta_s, type: float64, desc: Correction to add to on-board time, seconds}
+
+  - name: ENABLE_SCHEDULE
+    service: 11
+    subtype: 1
+    desc: ST[11,1] enable the release of time-tagged telecommands.
+    args: []
+
+  - name: DISABLE_SCHEDULE
+    service: 11
+    subtype: 2
+    desc: ST[11,2] disable release; activities stay stored.
+    args: []
+
+  - name: RESET_SCHEDULE
+    service: 11
+    subtype: 3
+    desc: ST[11,3] delete every scheduled activity.
+    args: []
+
+  - name: INSERT_ACTIVITIES
+    service: 11
+    subtype: 4
+    desc: "ST[11,4] insert time-tagged telecommands. Data: count (u8), then per activity release time (CUC coarse u32, fine u16) and a complete telecommand packet. All-or-nothing: one bad activity rejects the request."
+    variable: true
+    args: []
+
+  - name: ENABLE_STORAGE
+    service: 15
+    subtype: 1
+    desc: ST[15,1] start recording telemetry into a packet store.
+    args:
+      - {name: store_id, type: uint8, desc: Packet store identifier}
+
+  - name: DISABLE_STORAGE
+    service: 15
+    subtype: 2
+    desc: ST[15,2] stop recording into a packet store.
+    args:
+      - {name: store_id, type: uint8, desc: Packet store identifier}
+
+  - name: RETRIEVE_BY_TIME
+    service: 15
+    subtype: 9
+    desc: ST[15,9] replay stored packets with on-board time in [from_s, to_s] on the playback virtual channel.
+    args:
+      - {name: store_id, type: uint8,  desc: Packet store identifier}
+      - {name: from_s,   type: uint32, desc: Start of the time range (CUC coarse seconds)}
+      - {name: to_s,     type: uint32, desc: End of the time range (CUC coarse seconds)}
+
+  - name: DELETE_STORE_UP_TO
+    service: 15
+    subtype: 11
+    desc: ST[15,11] delete stored packets older than to_s.
+    args:
+      - {name: store_id, type: uint8,  desc: Packet store identifier}
+      - {name: to_s,     type: uint32, desc: Delete everything before this time (CUC coarse seconds)}
+
+  - name: REPORT_STORE_SUMMARY
+    service: 15
+    subtype: 12
+    desc: ST[15,12] request a packet store summary, answered by ST[15,13].
+    args:
+      - {name: store_id, type: uint8, desc: Packet store identifier}
+
 # -----------------------------------------------------------------------------
 # On-board events, downlinked as PUS ST[05] reports. Subtype = severity.
 # -----------------------------------------------------------------------------
@@ -240,6 +322,11 @@ events:
   - {name: ESTIMATOR_CONVERGED, id: 17, severity: INFO, desc: Attitude estimator uncertainty fell below the pointing threshold}
   - {name: POINTING_STARTED,  id: 18, severity: INFO,   desc: Nadir pointing control engaged}
   - {name: ESTIMATOR_RESET,   id: 19, severity: MEDIUM, desc: Attitude estimator discarded after persistent large innovations}
+  - {name: TIME_ADJUSTED,     id: 20, severity: INFO,   desc: "On-board time corrected from the ground; aux = correction in ms, two's complement"}
+  - {name: SCHED_RELEASED,    id: 21, severity: INFO,   desc: A time-tagged telecommand was released; aux = its packet sequence count}
+  - {name: PLAYBACK_STARTED,  id: 22, severity: INFO,   desc: Packet store retrieval began; aux = packets selected}
+  - {name: PLAYBACK_DONE,     id: 23, severity: INFO,   desc: Packet store retrieval finished; aux = packets replayed}
+  - {name: STORE_WRAPPED,     id: 24, severity: LOW,    desc: The packet store filled and began overwriting its oldest packets}
   - {name: SENSOR_RESTORED,   id: 15, severity: INFO,   desc: Sensor data resumed after a timeout}
 
 # -----------------------------------------------------------------------------

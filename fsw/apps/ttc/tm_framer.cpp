@@ -57,10 +57,11 @@ void TmVirtualChannel::make_idle_packet(size_t length) {
 bool TmVirtualChannel::ready(uint32_t tick) const {
     const size_t pending = pending_bytes();
     if (pending == 0) { return false; }
-    return pending >= kTmDataBytes || (tick - oldest_tick_) >= kFlushTicks;
+    return expedite_ || pending >= kTmDataBytes || (tick - oldest_tick_) >= kFlushTicks;
 }
 
 uint16_t TmVirtualChannel::fill(uint8_t* data, bool flush) {
+    expedite_ = false;
     uint16_t fhp = kFhpNoPacket;
     size_t pos = 0;
     while (pos < kTmDataBytes) {

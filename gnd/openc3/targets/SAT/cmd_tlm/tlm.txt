@@ -51,6 +51,14 @@ TELEMETRY SAT SYS_HK BIG_ENDIAN "Core system health, scheduler timing and link s
   APPEND_ITEM    FARM_LOCKOUT    8 UINT  "FARM-1 is in lockout and needs an Unlock"
     STATE FALSE 0
     STATE TRUE 1
+  APPEND_ITEM    TIME_STATUS     8 UINT  "PUS time reference status"
+  APPEND_ITEM    SCHED_PENDING  16 UINT  "Time-tagged telecommands waiting for release"
+  APPEND_ITEM    SCHED_ENABLED   8 UINT  "Time-based release is enabled"
+    STATE FALSE 0
+    STATE TRUE 1
+  APPEND_ITEM    STORE_PACKETS  32 UINT  "Packets held in the packet store"
+  APPEND_ITEM    STORE_USED_PCT  8 UINT  "Packet store fill level"
+    UNITS % %
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
 TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state."
@@ -213,6 +221,11 @@ TELEMETRY SAT EVENT_INFO BIG_ENDIAN "PUS ST[5,1] info event report"
     STATE ESTIMATOR_CONVERGED 17
     STATE POINTING_STARTED 18
     STATE ESTIMATOR_RESET 19
+    STATE TIME_ADJUSTED 20
+    STATE SCHED_RELEASED 21
+    STATE PLAYBACK_STARTED 22
+    STATE PLAYBACK_DONE 23
+    STATE STORE_WRAPPED 24
     STATE SENSOR_RESTORED 15
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -252,6 +265,11 @@ TELEMETRY SAT EVENT_LOW BIG_ENDIAN "PUS ST[5,2] low event report"
     STATE ESTIMATOR_CONVERGED 17
     STATE POINTING_STARTED 18
     STATE ESTIMATOR_RESET 19
+    STATE TIME_ADJUSTED 20
+    STATE SCHED_RELEASED 21
+    STATE PLAYBACK_STARTED 22
+    STATE PLAYBACK_DONE 23
+    STATE STORE_WRAPPED 24
     STATE SENSOR_RESTORED 15
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -291,6 +309,11 @@ TELEMETRY SAT EVENT_MEDIUM BIG_ENDIAN "PUS ST[5,3] medium event report"
     STATE ESTIMATOR_CONVERGED 17
     STATE POINTING_STARTED 18
     STATE ESTIMATOR_RESET 19
+    STATE TIME_ADJUSTED 20
+    STATE SCHED_RELEASED 21
+    STATE PLAYBACK_STARTED 22
+    STATE PLAYBACK_DONE 23
+    STATE STORE_WRAPPED 24
     STATE SENSOR_RESTORED 15
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -330,6 +353,11 @@ TELEMETRY SAT EVENT_HIGH BIG_ENDIAN "PUS ST[5,4] high event report"
     STATE ESTIMATOR_CONVERGED 17
     STATE POINTING_STARTED 18
     STATE ESTIMATOR_RESET 19
+    STATE TIME_ADJUSTED 20
+    STATE SCHED_RELEASED 21
+    STATE PLAYBACK_STARTED 22
+    STATE PLAYBACK_DONE 23
+    STATE STORE_WRAPPED 24
     STATE SENSOR_RESTORED 15
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -446,6 +474,50 @@ TELEMETRY SAT TEST_REPORT BIG_ENDIAN "PUS ST[17,2] connection test report"
   APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
   APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
   APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT TIME_REPORT BIG_ENDIAN "PUS ST[9,2] CUC time report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 9 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 2 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    RATE_EXP        8 UINT  "Report period exponent"
+  APPEND_ITEM    CUC_COARSE     32 UINT  "On-board time, whole seconds"
+  APPEND_ITEM    CUC_FINE       16 UINT  "On-board time, 1/65536 s"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
+TELEMETRY SAT STORE_SUMMARY BIG_ENDIAN "PUS ST[15,13] packet store summary report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 1 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 15 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 13 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    STORE_ID        8 UINT  "Packet store identifier"
+  APPEND_ITEM    OLDEST_S       32 UINT  "Time of the oldest stored packet"
+  APPEND_ITEM    NEWEST_S       32 UINT  "Time of the newest stored packet"
+  APPEND_ITEM    PACKETS        32 UINT  "Packets stored"
+  APPEND_ITEM    USED_PCT        8 UINT  "Fill level, percent"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
 TELEMETRY SAT PARAM_REPORT BIG_ENDIAN "PUS ST[20,2] parameter value report"

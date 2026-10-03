@@ -138,7 +138,7 @@ void TtcApp::handle_tc(const ReceivedTc& tc) {
                       static_cast<uint32_t>(core::FailureCode::UnknownService));
         return;
     }
-    if (tc.args_size != info->arg_bytes) {
+    if (!info->variable && tc.args_size != info->arg_bytes) {
         if (tc.secondary.wants(kAckAcceptance)) {
             send_verification(tc, kVerifAcceptFailure, core::FailureCode::BadLength);
         }
@@ -159,6 +159,9 @@ void TtcApp::handle_tc(const ReceivedTc& tc) {
         case Service::Housekeeping: result = svc_housekeeping(tc); break;
         case Service::Parameter:    result = svc_parameter(tc);    break;
         case Service::Function:     result = svc_function(tc);     break;
+        case Service::Time:         result = svc_time(tc);         break;
+        case Service::Scheduling:   result = svc_scheduling(tc);   break;
+        case Service::Storage:      result = svc_storage(tc);      break;
         default:                    result = core::FailureCode::UnknownService; break;
     }
 
@@ -261,6 +264,190 @@ core::FailureCode TtcApp::svc_function(const ReceivedTc& tc) {
     return core::FailureCode::UnknownService;
 }
 
+// ---- ST[9] time management ---------------------------------------------
+
+core::FailureCode TtcApp::svc_time(const ReceivedTc& tc) {
+    core::ByteReader r(tc.args, tc.args_size);
+    if (tc.secondary.subtype == cmd::SetTimeReportRateArgs::kSubtype) {
+        cmd::SetTimeReportRateArgs a;
+        if (!a.deserialize(r)) { return core::FailureCode::BadLength; }
+        if (a.rate_exp > 16 && a.rate_exp != 255) { return core::FailureCode::IllegalArg; }
+        time_rate_exp_ = a.rate_exp;
+        next_time_report_ = 0.0;            // first report straight away
+        return core::FailureCode::Ok;
+    }
+    if (tc.secondary.subtype == cmd::AdjustTimeArgs::kSubtype) {
+        cmd::AdjustTimeArgs a;
+        if (!a.deserialize(r)) { return core::FailureCode::BadLength; }
+        if (!(a.delta_s == a.delta_s)) { return core::FailureCode::IllegalArg; }
+        const double t = clock_.mission_time_s() + a.delta_s;
+        if (t < 0.0 || t > 4.0e9) { return core::FailureCode::IllegalArg; }   // CUC coarse is 32 bits
+        clock_.set_mission_time_s(t);
+        time_status_ = 1;
+        // Everything already scheduled in mission time stays where it is in
+        // mission time; periodic reports re-anchor on their next run.
+        const double ms = a.delta_s * 1000.0;
+        const double clamped = ms > 2.0e9 ? 2.0e9 : (ms < -2.0e9 ? -2.0e9 : ms);
+        events_.raise(dict::EventId::TIME_ADJUSTED,
+                      static_cast<uint32_t>(static_cast<int32_t>(clamped)));
+        return core::FailureCode::Ok;
+    }
+    return core::FailureCode::UnknownService;
+}
+
+void TtcApp::send_time_report() {
+    TmBuilder b(tx_scratch_, sizeof tx_scratch_);
+    const core::CucTime t = now_cuc();
+    if (!b.begin(dict::apid_value(dict::Apid::TTC), seq_ttc_.next(), Service::Time, 2,
+                 next_message_count(9, 2), t, time_status_)) {
+        return;
+    }
+    b.payload().write_uint8(time_rate_exp_);
+    b.payload().write_uint32(t.coarse);
+    b.payload().write_uint16(t.fine);
+    if (send_packet(b.finish())) { framer_.realtime().expedite(); }
+}
+
+// ---- ST[11] time-based scheduling --------------------------------------
+
+core::FailureCode TtcApp::svc_scheduling(const ReceivedTc& tc) {
+    switch (tc.secondary.subtype) {
+        case cmd::EnableScheduleArgs::kSubtype:  schedule_.set_enabled(true);  return core::FailureCode::Ok;
+        case cmd::DisableScheduleArgs::kSubtype: schedule_.set_enabled(false); return core::FailureCode::Ok;
+        case cmd::ResetScheduleArgs::kSubtype:   schedule_.reset();            return core::FailureCode::Ok;
+        case cmd::InsertActivitiesArgs::kSubtype: break;
+        default: return core::FailureCode::UnknownService;
+    }
+
+    // Two passes over the request: validate everything, then insert
+    // everything. Nothing is stored unless all of it can be.
+    const double now = clock_.mission_time_s();
+    for (int pass = 0; pass < 2; ++pass) {
+        core::ByteReader r(tc.args, tc.args_size);
+        uint8_t count = 0;
+        if (!r.read_uint8(count) || count == 0) { return core::FailureCode::BadLength; }
+        if (pass == 0 && count > schedule_.free_slots()) { return core::FailureCode::Unavailable; }
+        for (uint8_t i = 0; i < count; ++i) {
+            uint32_t coarse = 0;
+            uint16_t fine = 0;
+            if (!r.read_uint32(coarse) || !r.read_uint16(fine)) { return core::FailureCode::BadLength; }
+            const uint8_t* at = r.take(0);
+            if (at == nullptr || r.remaining() < kSpacePacketHeaderBytes) { return core::FailureCode::BadLength; }
+            core::ByteReader hr(at, r.remaining());
+            SpacePacketHeader h;
+            if (!h.decode(hr)) { return core::FailureCode::BadLength; }
+            const size_t total = h.total_size();
+            if (total > r.remaining() || total > TimeSchedule::kMaxTcBytes) { return core::FailureCode::BadLength; }
+
+            const double release = core::CucTime{coarse, fine}.to_seconds();
+            if (pass == 0) {
+                ReceivedTc inner;
+                core::FailureCode why = core::FailureCode::Ok;
+                if (!core::is_ok(parse_tc(at, total, inner, why))) { return why; }
+                if (cmd::find_command(inner.secondary.service, inner.secondary.subtype) == nullptr) {
+                    return core::FailureCode::IllegalArg;
+                }
+                if (release < now) { return core::FailureCode::IllegalArg; }   // already in the past
+            } else {
+                schedule_.insert(release, at, total);
+            }
+            r.skip(total);
+        }
+        if (pass == 0 && !r.exhausted()) { return core::FailureCode::BadLength; }
+    }
+    return core::FailureCode::Ok;
+}
+
+void TtcApp::release_scheduled() {
+    if (!schedule_.enabled()) { return; }
+    const double now = clock_.mission_time_s();
+    // Several may fall due in one 100 ms tick; each runs, oldest first.
+    for (TimeSchedule::Activity* a = schedule_.due(now); a != nullptr; a = schedule_.due(now)) {
+        const size_t n = a->length;
+        std::memcpy(release_buf_, a->packet, n);
+        schedule_.release(a);
+        const uint16_t seq = static_cast<uint16_t>(((release_buf_[2] & 0x3F) << 8) | release_buf_[3]);
+        events_.raise(dict::EventId::SCHED_RELEASED, seq);
+        execute_packet(release_buf_, n);
+    }
+}
+
+void TtcApp::execute_packet(const uint8_t* packet, size_t length) {
+    ReceivedTc tc;
+    core::FailureCode failure = core::FailureCode::Ok;
+    if (core::is_ok(parse_tc(packet, length, tc, failure))) {
+        ++tc_received_;
+        handle_tc(tc);
+    } else {
+        ++tc_rejected_;
+        events_.raise(dict::EventId::TC_REJECTED, static_cast<uint32_t>(failure));
+    }
+}
+
+// ---- ST[15] on-board storage and retrieval ------------------------------
+
+core::FailureCode TtcApp::svc_storage(const ReceivedTc& tc) {
+    core::ByteReader r(tc.args, tc.args_size);
+    uint8_t id = 0;
+    if (!r.read_uint8(id)) { return core::FailureCode::BadLength; }
+    if (id != kStoreId) { return core::FailureCode::IllegalArg; }
+
+    switch (tc.secondary.subtype) {
+        case cmd::EnableStorageArgs::kSubtype:  store_.set_enabled(true);  return core::FailureCode::Ok;
+        case cmd::DisableStorageArgs::kSubtype: store_.set_enabled(false); return core::FailureCode::Ok;
+        case cmd::RetrieveByTimeArgs::kSubtype: {
+            uint32_t from = 0, to = 0;
+            if (!r.read_uint32(from) || !r.read_uint32(to)) { return core::FailureCode::BadLength; }
+            if (to < from) { return core::FailureCode::IllegalArg; }
+            if (store_.retrieving()) { return core::FailureCode::Unavailable; }
+            const uint32_t n = store_.start_retrieval(from, to);
+            playback_sent_ = 0;
+            events_.raise(dict::EventId::PLAYBACK_STARTED, n);
+            return core::FailureCode::Ok;
+        }
+        case cmd::DeleteStoreUpToArgs::kSubtype: {
+            uint32_t to = 0;
+            if (!r.read_uint32(to)) { return core::FailureCode::BadLength; }
+            if (store_.retrieving()) { return core::FailureCode::Unavailable; }
+            store_.delete_up_to(to);
+            return core::FailureCode::Ok;
+        }
+        case cmd::ReportStoreSummaryArgs::kSubtype:
+            send_store_summary();
+            return core::FailureCode::Ok;
+        default:
+            return core::FailureCode::UnknownService;
+    }
+}
+
+void TtcApp::send_store_summary() {
+    TmBuilder b(tx_scratch_, sizeof tx_scratch_);
+    if (!b.begin(dict::apid_value(dict::Apid::TTC), seq_ttc_.next(), Service::Storage, 13,
+                 next_message_count(15, 13), now_cuc(), time_status_)) {
+        return;
+    }
+    b.payload().write_uint8(kStoreId);
+    b.payload().write_uint32(store_.oldest());
+    b.payload().write_uint32(store_.newest());
+    b.payload().write_uint32(store_.count());
+    b.payload().write_uint8(store_.used_pct());
+    send_packet(b.finish());
+}
+
+void TtcApp::pump_playback() {
+    // Keep the playback channel topped up without flooding it: live
+    // telemetry always has priority in the framer, and a bounded backlog here
+    // means a retrieval never starves the store of the CPU either.
+    while (store_.retrieving() && framer_.playback().pending_bytes() < 4096) {
+        const size_t n = store_.next(playback_buf_, sizeof playback_buf_);
+        if (n == 0) {
+            events_.raise(dict::EventId::PLAYBACK_DONE, playback_sent_);
+            return;
+        }
+        if (framer_.playback().enqueue(playback_buf_, n)) { ++playback_sent_; }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Downlink
 // ---------------------------------------------------------------------------
@@ -278,6 +465,11 @@ uint16_t TtcApp::next_message_count(uint8_t service, uint8_t subtype) {
 
 bool TtcApp::send_packet(size_t length) {
     if (length == 0) { return false; }
+    // Everything the spacecraft says is written down, contact or not. The
+    // store cannot raise its own event from here -- that would rebuild a
+    // packet in tx_scratch_ while this one is still in it -- so it is flagged
+    // and raised from the next telemetry task.
+    if (store_.record(tx_scratch_, length)) { wrap_event_pending_ = true; }
     if (!link_.connected()) { return false; }
     if (!framer_.realtime().enqueue(tx_scratch_, length)) { return false; }
     ++tm_sent_;
@@ -288,6 +480,7 @@ void TtcApp::task_downlink(void* context) {
     auto* self = static_cast<TtcApp*>(context);
     if (!self->link_.connected()) { return; }
     const uint32_t tick = self->scheduler_.tick_count();
+    self->pump_playback();
 
     // Up to two frames per 20 ms tick: 100 frames/s, about 207 kbit/s of
     // coded downlink -- an S-band CubeSat radio. An idle frame goes out at
@@ -307,7 +500,7 @@ void TtcApp::send_verification(const ReceivedTc& tc, uint8_t subtype,
     TmBuilder b(tx_scratch_, sizeof tx_scratch_);
     if (!b.begin(dict::apid_value(dict::Apid::TTC), seq_ttc_.next(),
                  Service::Verification, subtype,
-                 next_message_count(1, subtype), now_cuc())) {
+                 next_message_count(1, subtype), now_cuc(), time_status_)) {
         return;
     }
     // Quote back exactly which telecommand this refers to. APID plus sequence
@@ -323,7 +516,7 @@ void TtcApp::send_verification(const ReceivedTc& tc, uint8_t subtype,
 void TtcApp::send_test_report() {
     TmBuilder b(tx_scratch_, sizeof tx_scratch_);
     if (!b.begin(dict::apid_value(dict::Apid::TTC), seq_ttc_.next(),
-                 Service::Test, 2, next_message_count(17, 2), now_cuc())) {
+                 Service::Test, 2, next_message_count(17, 2), now_cuc(), time_status_)) {
         return;
     }
     // ST[17,2] carries no source data at all: its existence is the message.
@@ -333,7 +526,7 @@ void TtcApp::send_test_report() {
 void TtcApp::send_param_report(dict::ParamId id, double value) {
     TmBuilder b(tx_scratch_, sizeof tx_scratch_);
     if (!b.begin(dict::apid_value(dict::Apid::TTC), seq_ttc_.next(),
-                 Service::Parameter, 2, next_message_count(20, 2), now_cuc())) {
+                 Service::Parameter, 2, next_message_count(20, 2), now_cuc(), time_status_)) {
         return;
     }
     b.payload().write_uint16(static_cast<uint16_t>(id));
@@ -351,7 +544,8 @@ void TtcApp::event_sink(void* context, const core::EventRecord& record) {
     TmBuilder b(self->tx_scratch_, sizeof self->tx_scratch_);
     if (!b.begin(dict::apid_value(dict::Apid::TTC), self->seq_ttc_.next(),
                  Service::Event, subtype,
-                 self->next_message_count(5, subtype), record.time)) {
+                 self->next_message_count(5, subtype), record.time,
+                 self->time_status_)) {
         return;
     }
     b.payload().write_uint16(static_cast<uint16_t>(record.id));
@@ -380,7 +574,7 @@ void TtcApp::send_hk(dict::HkSid sid) {
 
     TmBuilder b(tx_scratch_, sizeof tx_scratch_);
     if (!b.begin(apid, seq->next(), Service::Housekeeping, 25,
-                 next_message_count(3, 25), now_cuc())) {
+                 next_message_count(3, 25), now_cuc(), time_status_)) {
         return;
     }
     // ST[3,25] source data begins with the structure identifier, which is how
@@ -410,6 +604,11 @@ void TtcApp::send_hk(dict::HkSid sid) {
             hk.cltu_corrected = tc_rx_.bits_corrected();
             hk.farm_vr        = tc_rx_.farm().vr();
             hk.farm_lockout   = tc_rx_.farm().lockout() ? 1 : 0;
+            hk.time_status    = time_status_;
+            hk.sched_pending  = static_cast<uint16_t>(schedule_.pending());
+            hk.sched_enabled  = schedule_.enabled() ? 1 : 0;
+            hk.store_packets  = store_.count();
+            hk.store_used_pct = store_.used_pct();
             hk.serialize(b.payload());
             break;
         }
@@ -423,6 +622,21 @@ void TtcApp::send_hk(dict::HkSid sid) {
 void TtcApp::task_telemetry(void* context) {
     auto* self = static_cast<TtcApp*>(context);
     const double now = self->clock_.mission_time_s();
+
+    if (self->wrap_event_pending_) {
+        self->wrap_event_pending_ = false;
+        self->events_.raise(dict::EventId::STORE_WRAPPED);
+    }
+    self->release_scheduled();
+
+    if (self->time_rate_exp_ != 255) {
+        const double period = static_cast<double>(1u << (self->time_rate_exp_ > 16 ? 16 : self->time_rate_exp_));
+        if (self->next_time_report_ > now + period) { self->next_time_report_ = now + period; }
+        if (now >= self->next_time_report_) {
+            self->send_time_report();
+            self->next_time_report_ = now + period;
+        }
+    }
 
     // Each structure has its own period, taken from a parameter so an operator
     // can slow telemetry down over a congested link without a software change.

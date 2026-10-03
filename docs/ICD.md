@@ -71,7 +71,7 @@ Every packet ends with a 2-byte packet error control field: CCSDS CRC-16, polyno
 
 ### SYS_HK — structure id 1, APID `0x001`
 
-Core system health, scheduler timing and link statistics. Nominal generation rate 1 Hz. Total packet size 73 bytes.
+Core system health, scheduler timing and link statistics. Nominal generation rate 1 Hz. Total packet size 82 bytes.
 
 | Offset | Field | Type | Units | Description |
 |---:|---|---|---|---|
@@ -93,6 +93,11 @@ Core system health, scheduler timing and link statistics. Nominal generation rat
 | 45 | `cltu_corrected` | uint32 | count | Uplink bit errors corrected by BCH |
 | 49 | `farm_vr` | uint8 | - | FARM-1 V(R) |
 | 50 | `farm_lockout` | uint8 | bool | FARM-1 is in lockout and needs an Unlock |
+| 51 | `time_status` | uint8 | - | PUS time reference status |
+| 52 | `sched_pending` | uint16 | count | Time-tagged telecommands waiting for release |
+| 54 | `sched_enabled` | uint8 | bool | Time-based release is enabled |
+| 55 | `store_packets` | uint32 | count | Packets held in the packet store |
+| 59 | `store_used_pct` | uint8 | % | Packet store fill level |
 
 ### ADCS_HK — structure id 2, APID `0x002`
 
@@ -159,6 +164,17 @@ Power subsystem state. Populated from Phase 5 onward. Nominal generation rate 1 
 | 20 | 3 | `SET_PARAM` | 10 B | ST[20,3] set one on-board parameter. Value is interpreted per the parameter type. |
 | 8 | 1 | `SET_MODE` | 1 B | ST[8,1] request a spacecraft mode transition. The mode manager may refuse. |
 | 8 | 2 | `RESET_COUNTERS` | 0 B | ST[8,2] clear the housekeeping statistics counters. |
+| 9 | 1 | `SET_TIME_REPORT_RATE` | 1 B | ST[9,1] generate a CUC time report every 2^rate_exp seconds; 255 stops them. |
+| 9 | 128 | `ADJUST_TIME` | 8 B | ST[9,128] (mission-specific) shift the on-board clock by delta_s and mark time as correlated. The ground computes delta from a time report. |
+| 11 | 1 | `ENABLE_SCHEDULE` | 0 B | ST[11,1] enable the release of time-tagged telecommands. |
+| 11 | 2 | `DISABLE_SCHEDULE` | 0 B | ST[11,2] disable release; activities stay stored. |
+| 11 | 3 | `RESET_SCHEDULE` | 0 B | ST[11,3] delete every scheduled activity. |
+| 11 | 4 | `INSERT_ACTIVITIES` | 0 B | ST[11,4] insert time-tagged telecommands. Data: count (u8), then per activity release time (CUC coarse u32, fine u16) and a complete telecommand packet. All-or-nothing: one bad activity rejects the request. |
+| 15 | 1 | `ENABLE_STORAGE` | 1 B | ST[15,1] start recording telemetry into a packet store. |
+| 15 | 2 | `DISABLE_STORAGE` | 1 B | ST[15,2] stop recording into a packet store. |
+| 15 | 9 | `RETRIEVE_BY_TIME` | 9 B | ST[15,9] replay stored packets with on-board time in [from_s, to_s] on the playback virtual channel. |
+| 15 | 11 | `DELETE_STORE_UP_TO` | 5 B | ST[15,11] delete stored packets older than to_s. |
+| 15 | 12 | `REPORT_STORE_SUMMARY` | 1 B | ST[15,12] request a packet store summary, answered by ST[15,13]. |
 
 ### `ENABLE_HK` — ST[3,5]
 
@@ -190,6 +206,51 @@ Power subsystem state. Populated from Phase 5 onward. Nominal generation rate 1 
 | Offset | Argument | Type | Description |
 |---:|---|---|---|
 | 0 | `mode` | uint8 | Requested mode (BOOT=0, SAFE=1, DETUMBLE=2, STANDBY=3, POINTING=4) |
+
+### `SET_TIME_REPORT_RATE` — ST[9,1]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `rate_exp` | uint8 | Report period exponent (0 = every second) |
+
+### `ADJUST_TIME` — ST[9,128]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `delta_s` | float64 | Correction to add to on-board time |
+
+### `ENABLE_STORAGE` — ST[15,1]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `store_id` | uint8 | Packet store identifier |
+
+### `DISABLE_STORAGE` — ST[15,2]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `store_id` | uint8 | Packet store identifier |
+
+### `RETRIEVE_BY_TIME` — ST[15,9]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `store_id` | uint8 | Packet store identifier |
+| 1 | `from_s` | uint32 | Start of the time range (CUC coarse seconds) |
+| 5 | `to_s` | uint32 | End of the time range (CUC coarse seconds) |
+
+### `DELETE_STORE_UP_TO` — ST[15,11]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `store_id` | uint8 | Packet store identifier |
+| 1 | `to_s` | uint32 | Delete everything before this time (CUC coarse seconds) |
+
+### `REPORT_STORE_SUMMARY` — ST[15,12]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `store_id` | uint8 | Packet store identifier |
 
 ## Request verification (PUS ST[01])
 
@@ -236,6 +297,11 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 17 | `ESTIMATOR_CONVERGED` | INFO | Attitude estimator uncertainty fell below the pointing threshold |
 | 18 | `POINTING_STARTED` | INFO | Nadir pointing control engaged |
 | 19 | `ESTIMATOR_RESET` | MEDIUM | Attitude estimator discarded after persistent large innovations |
+| 20 | `TIME_ADJUSTED` | INFO | On-board time corrected from the ground; aux = correction in ms, two's complement |
+| 21 | `SCHED_RELEASED` | INFO | A time-tagged telecommand was released; aux = its packet sequence count |
+| 22 | `PLAYBACK_STARTED` | INFO | Packet store retrieval began; aux = packets selected |
+| 23 | `PLAYBACK_DONE` | INFO | Packet store retrieval finished; aux = packets replayed |
+| 24 | `STORE_WRAPPED` | LOW | The packet store filled and began overwriting its oldest packets |
 | 15 | `SENSOR_RESTORED` | INFO | Sensor data resumed after a timeout |
 
 ## On-board parameters (PUS ST[20])

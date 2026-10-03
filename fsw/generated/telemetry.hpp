@@ -35,11 +35,16 @@ struct SysHk {
     uint32_t cltu_corrected{};  // Uplink bit errors corrected by BCH [count]
     uint8_t farm_vr{};  // FARM-1 V(R)
     uint8_t farm_lockout{};  // FARM-1 is in lockout and needs an Unlock [bool]
+    uint8_t time_status{};  // PUS time reference status
+    uint16_t sched_pending{};  // Time-tagged telecommands waiting for release [count]
+    uint8_t sched_enabled{};  // Time-based release is enabled [bool]
+    uint32_t store_packets{};  // Packets held in the packet store [count]
+    uint8_t store_used_pct{};  // Packet store fill level [%]
 
     static constexpr dict::HkSid kSid  = dict::HkSid::SYS_HK;
     static constexpr dict::Apid  kApid = dict::Apid::TTC;
-    static constexpr uint16_t kPayloadBytes = 51;
-    static constexpr uint16_t kPacketBytes  = 73;
+    static constexpr uint16_t kPayloadBytes = 60;
+    static constexpr uint16_t kPacketBytes  = 82;
 
     // Serialises the field block only. The ST[3,25] structure id and the
     // packet headers are written by the telemetry builder.
@@ -63,6 +68,11 @@ struct SysHk {
             && w.write_uint32(cltu_corrected)
             && w.write_uint8(farm_vr)
             && w.write_uint8(farm_lockout)
+            && w.write_uint8(time_status)
+            && w.write_uint16(sched_pending)
+            && w.write_uint8(sched_enabled)
+            && w.write_uint32(store_packets)
+            && w.write_uint8(store_used_pct)
             ;
     }
 
@@ -86,6 +96,11 @@ struct SysHk {
             && r.read_uint32(cltu_corrected)
             && r.read_uint8(farm_vr)
             && r.read_uint8(farm_lockout)
+            && r.read_uint8(time_status)
+            && r.read_uint16(sched_pending)
+            && r.read_uint8(sched_enabled)
+            && r.read_uint32(store_packets)
+            && r.read_uint8(store_used_pct)
             ;
     }
 };

@@ -26,7 +26,7 @@ ENUMS = {
 
 # name -> (sid, apid, [(field, type, units, enum_or_None), ...])
 TELEMETRY = {
-    'SYS_HK': (1, 0x001, [('uptime_s', 'uint32', 's', None), ('tick_count', 'uint32', 'ticks', None), ('mode', 'uint8', '', 'SystemMode'), ('boot_count', 'uint16', 'count', None), ('cpu_load_pct', 'uint8', '%', None), ('sched_overruns', 'uint16', 'count', None), ('tc_received', 'uint32', 'count', None), ('tc_rejected', 'uint32', 'count', None), ('tm_sent', 'uint32', 'count', None), ('link_up', 'uint8', 'bool', None), ('events_logged', 'uint32', 'count', None), ('last_event_id', 'uint16', 'id', None), ('tm_frames_sent', 'uint32', 'count', None), ('tc_frames_ok', 'uint32', 'count', None), ('tc_frames_bad', 'uint32', 'count', None), ('cltu_corrected', 'uint32', 'count', None), ('farm_vr', 'uint8', '-', None), ('farm_lockout', 'uint8', 'bool', None)]),
+    'SYS_HK': (1, 0x001, [('uptime_s', 'uint32', 's', None), ('tick_count', 'uint32', 'ticks', None), ('mode', 'uint8', '', 'SystemMode'), ('boot_count', 'uint16', 'count', None), ('cpu_load_pct', 'uint8', '%', None), ('sched_overruns', 'uint16', 'count', None), ('tc_received', 'uint32', 'count', None), ('tc_rejected', 'uint32', 'count', None), ('tm_sent', 'uint32', 'count', None), ('link_up', 'uint8', 'bool', None), ('events_logged', 'uint32', 'count', None), ('last_event_id', 'uint16', 'id', None), ('tm_frames_sent', 'uint32', 'count', None), ('tc_frames_ok', 'uint32', 'count', None), ('tc_frames_bad', 'uint32', 'count', None), ('cltu_corrected', 'uint32', 'count', None), ('farm_vr', 'uint8', '-', None), ('farm_lockout', 'uint8', 'bool', None), ('time_status', 'uint8', '-', None), ('sched_pending', 'uint16', 'count', None), ('sched_enabled', 'uint8', 'bool', None), ('store_packets', 'uint32', 'count', None), ('store_used_pct', 'uint8', '%', None)]),
     'ADCS_HK': (2, 0x002, [('est_state', 'uint8', '', 'AdcsEstState'), ('ctrl_mode', 'uint8', '', 'AdcsCtrlMode'), ('q_est_0', 'float32', '-', None), ('q_est_1', 'float32', '-', None), ('q_est_2', 'float32', '-', None), ('q_est_3', 'float32', '-', None), ('omega_x', 'float32', 'rad/s', None), ('omega_y', 'float32', 'rad/s', None), ('omega_z', 'float32', 'rad/s', None), ('gyro_bias_x', 'float32', 'rad/s', None), ('gyro_bias_y', 'float32', 'rad/s', None), ('gyro_bias_z', 'float32', 'rad/s', None), ('pointing_err_deg', 'float32', 'deg', None), ('rate_norm', 'float32', 'deg/s', None), ('sun_valid', 'uint8', 'bool', None), ('mag_valid', 'uint8', 'bool', None), ('eclipse', 'uint8', 'bool', None), ('torque_cmd_x', 'float32', 'N*m', None), ('torque_cmd_y', 'float32', 'N*m', None), ('torque_cmd_z', 'float32', 'N*m', None), ('pos_eci_x', 'float64', 'm', None), ('pos_eci_y', 'float64', 'm', None), ('pos_eci_z', 'float64', 'm', None), ('att_sigma_deg', 'float32', 'deg', None), ('wheel_h_x', 'float32', 'N*m*s', None), ('wheel_h_y', 'float32', 'N*m*s', None), ('wheel_h_z', 'float32', 'N*m*s', None), ('dipole_cmd_x', 'float32', 'A*m^2', None), ('dipole_cmd_y', 'float32', 'A*m^2', None), ('dipole_cmd_z', 'float32', 'A*m^2', None), ('gps_valid', 'uint8', 'bool', None)]),
     'EPS_HK': (3, 0x003, [('power_state', 'uint8', '', 'PowerState'), ('batt_voltage', 'float32', 'V', None), ('batt_current', 'float32', 'A', None), ('batt_soc_pct', 'float32', '%', None), ('batt_temp_c', 'float32', 'degC', None), ('solar_power_w', 'float32', 'W', None), ('load_power_w', 'float32', 'W', None), ('rails_enabled', 'uint16', 'mask', None), ('shed_level', 'uint8', 'level', None)]),
 }
@@ -40,7 +40,21 @@ COMMANDS = {
     'SET_PARAM': (20, 3, [('param_id', 'uint16', None), ('value', 'float64', None)]),
     'SET_MODE': (8, 1, [('mode', 'uint8', 'SystemMode')]),
     'RESET_COUNTERS': (8, 2, []),
+    'SET_TIME_REPORT_RATE': (9, 1, [('rate_exp', 'uint8', None)]),
+    'ADJUST_TIME': (9, 128, [('delta_s', 'float64', None)]),
+    'ENABLE_SCHEDULE': (11, 1, []),
+    'DISABLE_SCHEDULE': (11, 2, []),
+    'RESET_SCHEDULE': (11, 3, []),
+    'INSERT_ACTIVITIES': (11, 4, []),
+    'ENABLE_STORAGE': (15, 1, [('store_id', 'uint8', None)]),
+    'DISABLE_STORAGE': (15, 2, [('store_id', 'uint8', None)]),
+    'RETRIEVE_BY_TIME': (15, 9, [('store_id', 'uint8', None), ('from_s', 'uint32', None), ('to_s', 'uint32', None)]),
+    'DELETE_STORE_UP_TO': (15, 11, [('store_id', 'uint8', None), ('to_s', 'uint32', None)]),
+    'REPORT_STORE_SUMMARY': (15, 12, [('store_id', 'uint8', None)]),
 }
+
+# commands whose argument block is free-form: build_tc(name, data=bytes)
+VARIABLE_COMMANDS = ['INSERT_ACTIVITIES']
 
 # id -> (name, severity, description)
 EVENTS = {
@@ -62,6 +76,11 @@ EVENTS = {
     17: ('ESTIMATOR_CONVERGED', 'INFO', 'Attitude estimator uncertainty fell below the pointing threshold'),
     18: ('POINTING_STARTED', 'INFO', 'Nadir pointing control engaged'),
     19: ('ESTIMATOR_RESET', 'MEDIUM', 'Attitude estimator discarded after persistent large innovations'),
+    20: ('TIME_ADJUSTED', 'INFO', "On-board time corrected from the ground; aux = correction in ms, two's complement"),
+    21: ('SCHED_RELEASED', 'INFO', 'A time-tagged telecommand was released; aux = its packet sequence count'),
+    22: ('PLAYBACK_STARTED', 'INFO', 'Packet store retrieval began; aux = packets selected'),
+    23: ('PLAYBACK_DONE', 'INFO', 'Packet store retrieval finished; aux = packets replayed'),
+    24: ('STORE_WRAPPED', 'LOW', 'The packet store filled and began overwriting its oldest packets'),
     15: ('SENSOR_RESTORED', 'INFO', 'Sensor data resumed after a timeout'),
 }
 

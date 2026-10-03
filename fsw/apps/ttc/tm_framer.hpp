@@ -76,6 +76,11 @@ class TmVirtualChannel {
 
     void note_tick(uint32_t tick) { if (pending_bytes() == 0) { oldest_tick_ = tick; } }
 
+    // Send whatever is queued in the next frame, without waiting for the
+    // flush time. Used for time reports, whose value to the ground depends on
+    // how quickly they arrive.
+    void expedite() { expedite_ = true; }
+
     static constexpr uint32_t kFlushTicks = 5;   // 100 ms at 50 Hz
 
  private:
@@ -97,6 +102,7 @@ class TmVirtualChannel {
 
     uint32_t oldest_tick_ = 0;
     uint32_t dropped_ = 0;
+    bool     expedite_ = false;
 };
 
 class TmFramer {

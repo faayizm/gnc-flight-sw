@@ -17,7 +17,8 @@ import struct
 from dataclasses import dataclass, field
 from typing import Any
 
-from .dictionary import APIDS, COMMANDS, ENUMS, EVENTS, PARAMS, STRUCT_CODES, TELEMETRY
+from .dictionary import (APIDS, COMMANDS, ENUMS, EVENTS, PARAMS, STRUCT_CODES, TELEMETRY,
+                         VARIABLE_COMMANDS)
 
 CCSDS_HEADER_BYTES = 6
 PUS_TM_HEADER_BYTES = 13   # 1 + 1 + 1 + 2 + 2 + 6
@@ -75,6 +76,16 @@ class Telecommand:
     ack_flags: int = ACK_ACCEPTANCE | ACK_COMPLETION
 
 
+def schedule_data(activities: list[tuple[float, bytes]]) -> bytes:
+    """Argument block for INSERT_ACTIVITIES: [(release_time_s, tc_packet), ...]."""
+    out = bytes([len(activities)])
+    for t, packet in activities:
+        coarse = int(t)
+        fine = min(65535, int((t - coarse) * 65536))
+        out += struct.pack(">IH", coarse, fine) + packet
+    return out
+
+
 def build_tc(name: str, sequence_count: int = 0, **args: Any) -> bytes:
     """
     Encode a telecommand by dictionary name, e.g. build_tc("SET_PARAM",
@@ -89,6 +100,11 @@ def build_tc(name: str, sequence_count: int = 0, **args: Any) -> bytes:
                        f"known: {', '.join(sorted(COMMANDS))}")
 
     service, subtype, arg_spec = COMMANDS[name]
+
+    if name in VARIABLE_COMMANDS:
+        if set(args) != {"data"}:
+            raise TypeError(f"{name}: takes a single data=bytes argument block")
+        return _assemble_tc(service, subtype, bytes(args["data"]), sequence_count)
 
     expected = {a[0] for a in arg_spec}
     provided = set(args)
@@ -114,6 +130,10 @@ def build_tc(name: str, sequence_count: int = 0, **args: Any) -> bytes:
             value = values[value]
         payload += struct.pack(">" + STRUCT_CODES[arg_type], value)
 
+    return _assemble_tc(service, subtype, payload, sequence_count)
+
+
+def _assemble_tc(service: int, subtype: int, payload: bytes, sequence_count: int) -> bytes:
     data_field_len = PUS_TC_HEADER_BYTES + len(payload) + CRC_BYTES
 
     # CCSDS primary header. Type bit 1 = telecommand, secondary header flag 1,
@@ -225,6 +245,15 @@ def _decode_payload(tm: Telemetry) -> None:
             tm.name = "TEST_REPORT"
         elif tm.service == 20 and tm.subtype == 2:
             _decode_param_report(tm)
+        elif tm.service == 9 and tm.subtype == 2:
+            tm.name = "TIME_REPORT"
+            rate, coarse, fine = struct.unpack(">BIH", tm.payload[:7])
+            tm.fields.update(rate_exp=rate, time_s=coarse + fine / 65536.0)
+        elif tm.service == 15 and tm.subtype == 13:
+            tm.name = "STORE_SUMMARY"
+            sid, oldest, newest, count, pct = struct.unpack(">BIIIB", tm.payload[:14])
+            tm.fields.update(store_id=sid, oldest_s=oldest, newest_s=newest,
+                             packets=count, used_pct=pct)
         else:
             tm.name = f"ST[{tm.service},{tm.subtype}]"
     except (struct.error, IndexError, KeyError):

@@ -24,6 +24,8 @@
 #include <cstdint>
 
 #include "apps/ttc/pus.hpp"
+#include "apps/ttc/packet_store.hpp"
+#include "apps/ttc/schedule.hpp"
 #include "apps/ttc/space_packet.hpp"
 #include "apps/ttc/tc_receiver.hpp"
 #include "apps/ttc/tm_framer.hpp"
@@ -96,6 +98,15 @@ class TtcApp {
     core::FailureCode svc_housekeeping(const ReceivedTc& tc);
     core::FailureCode svc_parameter(const ReceivedTc& tc);
     core::FailureCode svc_function(const ReceivedTc& tc);
+    core::FailureCode svc_time(const ReceivedTc& tc);
+    core::FailureCode svc_scheduling(const ReceivedTc& tc);
+    core::FailureCode svc_storage(const ReceivedTc& tc);
+
+    void release_scheduled();
+    void send_time_report();
+    void send_store_summary();
+    void pump_playback();
+    void execute_packet(const uint8_t* packet, size_t length);
 
     // ---- downlink ------------------------------------------------------
     bool send_packet(size_t length);
@@ -140,6 +151,24 @@ class TtcApp {
     TmFramer   framer_;
     TcReceiver tc_rx_{&TtcApp::on_frame_data, this};
     uint32_t   last_frame_tick_ = 0;
+
+    // ST[9]: time. 255 = time reports off.
+    uint8_t  time_status_      = 0;
+    uint8_t  time_rate_exp_    = 255;
+    double   next_time_report_ = 0.0;
+
+    // ST[11]: time-tagged commands.
+    TimeSchedule schedule_;
+    uint8_t      release_buf_[TimeSchedule::kMaxTcBytes]{};
+
+    // ST[15]: one packet store, id 1. 4 MiB is about three hours of the
+    // default housekeeping -- two orbits out of contact, with margin.
+    static constexpr uint8_t kStoreId    = 1;
+    static constexpr size_t  kStoreBytes = 4u * 1024u * 1024u;
+    PacketStore<kStoreBytes> store_;
+    uint8_t  playback_buf_[kMaxPacketBytes]{};
+    uint32_t playback_sent_ = 0;
+    bool     wrap_event_pending_ = false;
 
     // Which housekeeping structures are being generated, and when each is next
     // due. Indexed by position in the generated dictionary, not by SID value.

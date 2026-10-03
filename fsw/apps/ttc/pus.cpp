@@ -127,7 +127,7 @@ core::Status parse_tc(const uint8_t* data, size_t length,
 
 bool TmBuilder::begin(uint16_t apid, uint16_t sequence_count, Service service,
                       uint8_t subtype, uint16_t message_count,
-                      const core::CucTime& time) {
+                      const core::CucTime& time, uint8_t time_status) {
     writer_.reset();
     started_ = false;
 
@@ -158,11 +158,10 @@ bool TmBuilder::begin(uint16_t apid, uint16_t sequence_count, Service service,
     secondary.message_count = message_count;
     secondary.destination   = 0;
     secondary.time          = time;
-    // Time reference status 0 means "not synchronised with a ground clock".
-    // Phase 4 sets this once ST[09] time correlation is implemented; reporting
-    // it honestly matters, because a ground system must know whether a
-    // timestamp can be trusted for correlation.
-    secondary.time_status   = 0;
+    // Time reference status: 0 means "not synchronised with a ground clock",
+    // 1 that ST[9] correlation has been applied. Reporting it honestly
+    // matters: a ground system must know whether a timestamp can be trusted.
+    secondary.time_status   = time_status;
     if (!secondary.encode(writer_)) { return false; }
 
     started_ = true;

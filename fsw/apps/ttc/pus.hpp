@@ -74,6 +74,9 @@ enum class Service : uint8_t {
     Housekeeping = 3,
     Event        = 5,
     Function     = 8,
+    Time         = 9,
+    Scheduling   = 11,
+    Storage      = 15,
     Test         = 17,
     Parameter    = 20,
 };
@@ -136,7 +139,8 @@ class TmBuilder {
     // Start a packet. Reserves space for both headers; the length field is
     // written provisionally and corrected in finish().
     bool begin(uint16_t apid, uint16_t sequence_count, Service service,
-               uint8_t subtype, uint16_t message_count, const core::CucTime& time);
+               uint8_t subtype, uint16_t message_count, const core::CucTime& time,
+               uint8_t time_status = 0);
 
     core::ByteWriter& payload() { return writer_; }
 

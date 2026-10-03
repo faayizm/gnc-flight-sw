@@ -339,7 +339,8 @@ def gen_commands_hpp(d: Dictionary) -> str:
     o.append("struct CommandInfo {")
     o.append("    uint8_t     service;")
     o.append("    uint8_t     subtype;")
-    o.append("    uint16_t    arg_bytes;")
+    o.append("    uint16_t    arg_bytes;      // fixed argument length, ignored if variable")
+    o.append("    bool        variable;       // argument block is free-form, checked by its handler")
     o.append("    const char* name;")
     o.append("    const char* description;")
     o.append("};")
@@ -348,6 +349,7 @@ def gen_commands_hpp(d: Dictionary) -> str:
     for c in d.commands:
         args = c.get("args") or []
         o.append(f"    {{ {c['service']}, {c['subtype']}, {d.payload_size(args)}, "
+                 f"{'true' if c.get('variable') else 'false'}, "
                  f"\"{c['name']}\", \"{c['desc']}\" }},")
     o.append("};")
     o.append(f"inline constexpr size_t kCommandCount = {len(d.commands)};")
@@ -490,6 +492,26 @@ def gen_cosmos_tlm(d: Dictionary) -> str:
     o.append('  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"')
     o.append("")
 
+    # Time report, ST[9,2].
+    o.append('TELEMETRY SAT TIME_REPORT BIG_ENDIAN "PUS ST[9,2] CUC time report"')
+    o += _cosmos_tm_header(d.apids["TTC"], 9, 2)
+    o.append('  APPEND_ITEM    RATE_EXP        8 UINT  "Report period exponent"')
+    o.append('  APPEND_ITEM    CUC_COARSE     32 UINT  "On-board time, whole seconds"')
+    o.append('  APPEND_ITEM    CUC_FINE       16 UINT  "On-board time, 1/65536 s"')
+    o.append('  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"')
+    o.append("")
+
+    # Packet store summary, ST[15,13].
+    o.append('TELEMETRY SAT STORE_SUMMARY BIG_ENDIAN "PUS ST[15,13] packet store summary report"')
+    o += _cosmos_tm_header(d.apids["TTC"], 15, 13)
+    o.append('  APPEND_ITEM    STORE_ID        8 UINT  "Packet store identifier"')
+    o.append('  APPEND_ITEM    OLDEST_S       32 UINT  "Time of the oldest stored packet"')
+    o.append('  APPEND_ITEM    NEWEST_S       32 UINT  "Time of the newest stored packet"')
+    o.append('  APPEND_ITEM    PACKETS        32 UINT  "Packets stored"')
+    o.append('  APPEND_ITEM    USED_PCT        8 UINT  "Fill level, percent"')
+    o.append('  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"')
+    o.append("")
+
     # Parameter value report, ST[20,2].
     o.append('TELEMETRY SAT PARAM_REPORT BIG_ENDIAN "PUS ST[20,2] parameter value report"')
     o += _cosmos_tm_header(d.apids["TTC"], 20, 2)
@@ -522,6 +544,8 @@ def gen_cosmos_cmd(d: Dictionary) -> str:
         o.append(f'  APPEND_ID_PARAMETER PUS_SERVICE     8 UINT {c["service"]} {c["service"]} {c["service"]} "PUS service type"')
         o.append(f'  APPEND_ID_PARAMETER PUS_SUBTYPE     8 UINT {c["subtype"]} {c["subtype"]} {c["subtype"]} "PUS message subtype"')
         o.append('  APPEND_PARAMETER    PUS_SOURCEID   16 UINT 0 65535 0 "Source identifier, echoed in verification reports"')
+        if c.get("variable"):
+            o.append('  APPEND_PARAMETER    DATA            0 BLOCK "" "Free-form argument block, see the ICD"')
         for a in args:
             _, _, ctype_cosmos, bits, _ = TYPES[a["type"]]
             if "enum" in a:
@@ -695,6 +719,9 @@ def gen_pyground_dict(d: Dictionary) -> str:
         args = [(a["name"], a["type"], a.get("enum")) for a in (c.get("args") or [])]
         o.append(f"    {c['name']!r}: ({c['service']}, {c['subtype']}, {args!r}),")
     o.append("}")
+    o.append("")
+    o.append("# commands whose argument block is free-form: build_tc(name, data=bytes)")
+    o.append(f"VARIABLE_COMMANDS = {sorted(c['name'] for c in d.commands if c.get('variable'))!r}")
     o.append("")
     o.append("# id -> (name, severity, description)")
     o.append("EVENTS = {")

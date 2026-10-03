@@ -149,6 +149,11 @@ enum class EventId : uint16_t {
     ESTIMATOR_CONVERGED = 17,
     POINTING_STARTED = 18,
     ESTIMATOR_RESET = 19,
+    TIME_ADJUSTED = 20,
+    SCHED_RELEASED = 21,
+    PLAYBACK_STARTED = 22,
+    PLAYBACK_DONE = 23,
+    STORE_WRAPPED = 24,
     SENSOR_RESTORED = 15,
 };
 
@@ -178,9 +183,14 @@ inline constexpr EventInfo kEvents[] = {
     { EventId::ESTIMATOR_CONVERGED, Severity::INFO, "ESTIMATOR_CONVERGED", "Attitude estimator uncertainty fell below the pointing threshold" },
     { EventId::POINTING_STARTED, Severity::INFO, "POINTING_STARTED", "Nadir pointing control engaged" },
     { EventId::ESTIMATOR_RESET, Severity::MEDIUM, "ESTIMATOR_RESET", "Attitude estimator discarded after persistent large innovations" },
+    { EventId::TIME_ADJUSTED, Severity::INFO, "TIME_ADJUSTED", "On-board time corrected from the ground; aux = correction in ms, two's complement" },
+    { EventId::SCHED_RELEASED, Severity::INFO, "SCHED_RELEASED", "A time-tagged telecommand was released; aux = its packet sequence count" },
+    { EventId::PLAYBACK_STARTED, Severity::INFO, "PLAYBACK_STARTED", "Packet store retrieval began; aux = packets selected" },
+    { EventId::PLAYBACK_DONE, Severity::INFO, "PLAYBACK_DONE", "Packet store retrieval finished; aux = packets replayed" },
+    { EventId::STORE_WRAPPED, Severity::LOW, "STORE_WRAPPED", "The packet store filled and began overwriting its oldest packets" },
     { EventId::SENSOR_RESTORED, Severity::INFO, "SENSOR_RESTORED", "Sensor data resumed after a timeout" },
 };
-inline constexpr size_t kEventCount = 19;
+inline constexpr size_t kEventCount = 24;
 
 inline const EventInfo* find_event(EventId id) {
     for (size_t i = 0; i < kEventCount; ++i) {
