@@ -3,7 +3,7 @@
 Seven phases. Each ends with something you can watch happen, because a phase
 that produces only internal machinery is a phase whose value cannot be checked.
 
-**Currently at the end of Phase 3.**
+**Currently at the end of Phase 4.**
 
 ---
 
@@ -101,23 +101,34 @@ How it works, the filter derivation and the results: [ATTITUDE.md](ATTITUDE.md).
 `make pointing` asserts it against simulator truth: 0.11° worst once settled,
 0.06° worst in eclipse.
 
-## Phase 4 — A real communications link
+## Phase 4 — A real communications link ✅ done
 
-Making the ground link resemble a radio rather than a socket.
+Making the ground link resemble a radio rather than a socket. How it works:
+[LINK.md](LINK.md).
 
-- TM and TC transfer frames (CCSDS 132.0-B, 231.0-B)
-- Attached sync marker, pseudo-randomisation, Reed-Solomon — proper framing
-  recovery, retiring the limitation documented in `ARCHITECTURE.md`
-- COP-1 command operation procedure
-- PUS ST[09] time correlation, so timestamps become trustworthy and the time
-  reference status field stops reading 0
-- PUS ST[11] time-based command scheduling
-- PUS ST[15] on-board storage and retrieval: record telemetry out of contact,
-  play it back during a pass
-- A link model with pass windows, propagation delay and a bit error rate
+- ✅ TM and TC transfer frames (CCSDS 132.0-B, 232.0-B), with virtual
+  channels for live telemetry, playback and idle frames
+- ✅ Attached sync marker, pseudo-randomisation, Reed-Solomon (255,223) on the
+  downlink, and BCH-coded CLTUs on the uplink (131.0-B, 231.0-B). This gives
+  proper framing recovery and retires the limitation documented in
+  `ARCHITECTURE.md`. RS is checked against libfec.
+- ✅ COP-1: FARM-1 on board, FOP-1 on the ground, CLCW in every TM frame
+- ✅ PUS ST[09] time reports and correlation: the time reference status
+  field reads 1 once the ground has corrected the clock
+- ✅ PUS ST[11] time-based command scheduling
+- ✅ PUS ST[15] on-board storage and retrieval: everything recorded, contact
+  or not, and replayed by time range on its own virtual channel
+- ✅ A link model with pass windows from orbit geometry, propagation delay
+  and an elevation-dependent bit error rate
+- ✅ A front-end processor (`make fep`), so COSMOS still sees plain packets
+- ⬜ *Decided against:* Orekit, deferred here from Phase 3. Pass prediction
+  needed only the simulator's own orbit model and a ground station
+  position, and its accuracy (seconds on pass times) is far below anything
+  this link can notice.
 
 **Ends with:** commands time-tagged during one pass and executing out of
-contact, with the results played back during the next.
+contact, with the results played back during the next. `make store-forward`
+does exactly that, through a noisy channel, and asserts on every step.
 
 ## Phase 5 — Power and modes
 

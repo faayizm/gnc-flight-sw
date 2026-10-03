@@ -91,6 +91,10 @@ detumble: build  ## Fly the detumble scenario: simulator + flight software, asse
 pointing: build  ## Fly the nadir-pointing scenario: tumble to 0.2 deg pointing, through eclipse
 	@$(SYS_PYTHON) -m sim.scenarios.nadir_pointing
 
+.PHONY: store-forward
+store-forward: build  ## Fly two ground passes: schedule commands, run them out of contact, replay the gap
+	@$(SYS_PYTHON) -m sim.scenarios.store_and_forward
+
 .PHONY: detumble-live
 detumble-live: build  ## Fly a detumble for a viewer on the TT&C port (COSMOS DETUMBLE screen)
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --live --ttc-port $(TTC_PORT)
@@ -153,7 +157,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test test-gnd test-sim sil detumble pointing check-layering check-links check-toolbox  ## Everything CI runs
+check: check-gen build test test-gnd test-sim sil detumble pointing store-forward check-layering check-links check-toolbox  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 

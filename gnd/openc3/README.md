@@ -11,6 +11,7 @@ Configuration only. No COSMOS source is vendored here.
 | `targets/SAT/screens/overview.txt` | A spacecraft overview screen. **Generated** |
 | `targets/SAT/screens/detumble.txt` | Rate, body rates and commanded torque, for watching a detumble. **Generated** |
 | `targets/SAT/screens/pointing.txt` | Control mode, pointing error, wheel momentum and gyro bias. **Generated** |
+| `targets/SAT/screens/link.txt` | Frame counts, COP-1 state, time status, schedule and packet store. **Generated** |
 
 All of it comes from `dictionary/mission.yaml` via `make gen`. Editing these
 files by hand means losing the change on the next regeneration — and, worse,

@@ -56,8 +56,17 @@ telemetry is useless at exactly the moment it is needed. Problems are reported
 in the returned object — `crc_ok`, a name of `TRUNCATED` or `UNDECODABLE` —
 rather than as exceptions.
 
+**Every command goes through the full link stack.** `send()` hands the packet
+to FOP-1, which frames it, codes it into a CLTU and retransmits it until the
+spacecraft's CLCW acknowledges it; `poll()` runs the downlink decoder
+(frame sync, Reed-Solomon, reassembly) and keeps COP-1 serviced. `wait_idle()`
+blocks until everything sent has been acknowledged. See
+[docs/LINK.md](../../docs/LINK.md).
+
 **`send_raw()` bypasses every check.** This is how the spacecraft's input
 validation gets tested: deliberately corrupt packets, wrong lengths, unknown
-services. A ground library that can only produce valid packets cannot test a
-receiver's error handling, and the SIL suite depends on being able to send
-nonsense on purpose.
+services. It sends in a bypass (type BD) frame, outside COP-1's sequence. A
+ground library that can only produce valid packets cannot test a receiver's
+error handling, and the SIL suite depends on being able to send nonsense on
+purpose. `send_bytes()` goes lower still: raw bytes on the uplink, below the
+CLTU layer.

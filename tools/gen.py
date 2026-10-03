@@ -663,6 +663,28 @@ def gen_cosmos_detumble_screen(d: Dictionary) -> str:
     return "\n".join(o) + "\n"
 
 
+def gen_cosmos_link_screen(d: Dictionary) -> str:
+    """The space link, COP-1, time, schedule and store, at a glance."""
+    o = [BANNER_HASH, "SCREEN AUTO AUTO 1.0", "",
+         'VERTICALBOX "Space link"',
+         "  LABELVALUE SAT SYS_HK TM_FRAMES_SENT",
+         "  LABELVALUE SAT SYS_HK TC_FRAMES_OK",
+         "  LABELVALUE SAT SYS_HK TC_FRAMES_BAD",
+         "  LABELVALUE SAT SYS_HK CLTU_CORRECTED",
+         "  LABELVALUE SAT SYS_HK FARM_VR",
+         "  LABELVALUE SAT SYS_HK FARM_LOCKOUT",
+         "END", "",
+         'VERTICALBOX "Time, schedule and storage"',
+         "  LABELVALUE SAT SYS_HK TIME_STATUS",
+         "  LABELVALUE SAT SYS_HK SCHED_ENABLED",
+         "  LABELVALUE SAT SYS_HK SCHED_PENDING",
+         "  LABELVALUE SAT SYS_HK STORE_PACKETS",
+         "  LABELVALUE SAT SYS_HK STORE_USED_PCT WITH_UNITS",
+         "  LINEGRAPH SAT SYS_HK STORE_USED_PCT",
+         "END", ""]
+    return "\n".join(o) + "\n"
+
+
 def gen_cosmos_pointing_screen(d: Dictionary) -> str:
     """The screen to watch while the spacecraft acquires and holds nadir."""
     o = [BANNER_HASH, "SCREEN AUTO AUTO 1.0", "",
@@ -979,6 +1001,7 @@ def main() -> int:
     write(ROOT / "gnd/openc3/targets/SAT/screens/overview.txt", gen_cosmos_screen(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/screens/detumble.txt", gen_cosmos_detumble_screen(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/screens/pointing.txt", gen_cosmos_pointing_screen(d), written)
+    write(ROOT / "gnd/openc3/targets/SAT/screens/link.txt", gen_cosmos_link_screen(d), written)
     write(ROOT / "gnd/pyground/dictionary.py", gen_pyground_dict(d), written)
     write(ROOT / "docs/ICD.md", gen_icd(d), written)
 

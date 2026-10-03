@@ -1,0 +1,27 @@
+# ============================================================================
+#  GENERATED FILE -- DO NOT EDIT.
+#  Source:    dictionary/mission.yaml
+#  Generator: tools/gen.py
+#  Edit the dictionary and run `make gen` instead.
+# ============================================================================
+
+SCREEN AUTO AUTO 1.0
+
+VERTICALBOX "Space link"
+  LABELVALUE SAT SYS_HK TM_FRAMES_SENT
+  LABELVALUE SAT SYS_HK TC_FRAMES_OK
+  LABELVALUE SAT SYS_HK TC_FRAMES_BAD
+  LABELVALUE SAT SYS_HK CLTU_CORRECTED
+  LABELVALUE SAT SYS_HK FARM_VR
+  LABELVALUE SAT SYS_HK FARM_LOCKOUT
+END
+
+VERTICALBOX "Time, schedule and storage"
+  LABELVALUE SAT SYS_HK TIME_STATUS
+  LABELVALUE SAT SYS_HK SCHED_ENABLED
+  LABELVALUE SAT SYS_HK SCHED_PENDING
+  LABELVALUE SAT SYS_HK STORE_PACKETS
+  LABELVALUE SAT SYS_HK STORE_USED_PCT WITH_UNITS
+  LINEGRAPH SAT SYS_HK STORE_USED_PCT
+END
+

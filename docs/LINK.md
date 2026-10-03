@@ -116,3 +116,50 @@ control.
 - SIL (`make sil`): a CLTU with three bit errors after a burst of garbage
   still executes. With every third uplink CLTU lost, six commands all
   execute, once each, in order.
+
+## Time, schedules and storage (PUS ST[9], ST[11], ST[15])
+
+These are the services that make a link with gaps usable.
+
+**ST[9] time.** The spacecraft boots with no idea what time it is; its clock
+starts at zero. On request it sends CUC time reports (TM[9,2]) in an expedited
+frame. The ground notes when each report arrives by its own clock, computes
+the offset, and uplinks `ADJUST_TIME` (TC[9,128], a mission-specific subtype).
+From then on, every packet's time reference status reads 1, so the ground
+knows the timestamps can be trusted.
+
+**ST[11] scheduling.** `INSERT_ACTIVITIES` carries up to 32 complete
+telecommands, each with a release time. They are validated on insertion and
+stored all-or-nothing. At release, each one goes through exactly the path an
+uplinked command takes: acceptance, execution and verification reports.
+
+**ST[15] storage.** Every packet the spacecraft generates is recorded in a
+4 MiB circular store, in contact or not. `RETRIEVE_BY_TIME` replays a time
+range on the playback virtual channel, at whatever downlink capacity live
+telemetry leaves free. The first overwrite raises `STORE_WRAPPED`, because
+from then on data is being lost.
+
+## The radio channel model
+
+[`sim/sil/radio.py`](../sim/sil/radio.py) stands where the RF link would be: a
+TCP proxy between the ground station and the spacecraft.
+
+- **Pass windows** come from orbit geometry: the simulator's orbit model,
+  Earth rotation and a ground station at 45° N 30° E with a 5° elevation
+  mask. Outside a pass, nothing gets through in either direction.
+- **Propagation delay** is range divided by the speed of light, in mission
+  time.
+- **Bit errors** are drawn at a rate that falls from 10⁻³ at the horizon to
+  10⁻⁶ overhead, from one seeded generator.
+
+## Store and forward, end to end
+
+`make store-forward` flies two real passes of the same orbit, 90 minutes
+apart, through that channel:
+
+| | Result |
+|---|---|
+| Pass 1 | Clock corrected by 26.8 years, residual a few hundred ms at 100× time scale (host latency is magnified as much); three commands scheduled for the dark |
+| Gap | Nothing heard for 90 minutes; the commands run within 35 ms of their release times |
+| Pass 2 | The store replays ~11,800 packets from the gap with no breaks in sequence count. The slowed housekeeping is visible exactly while the command was in force |
+| Channel | ~1,000 bit errors injected on the downlink, all repaired by Reed-Solomon; no frame beyond repair |

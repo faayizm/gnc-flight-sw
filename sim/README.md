@@ -64,8 +64,8 @@ deriving them is most of the learning. Planned:
 
 **Orekit** was planned for Phase 3, for high-fidelity orbit propagation,
 proper IERS reference frames, eclipse geometry and ground station pass windows.
-It has been deferred: nothing yet needs accuracy that justifies a JVM in the
-loop. It will be weighed again when ground-station passes arrive in Phase 4.
+It was deferred, then decided against in Phase 4: pass prediction for the link
+model needed only this orbit model and a ground station position.
 
 ## Determinism is a requirement
 
@@ -83,6 +83,7 @@ is asserted. They run in `make check`.
 |---|---|---|
 | `detumble.py` | B-dot brings 10 °/s of tumble below 0.5 °/s, deterministically | ✅ |
 | `nadir_pointing.py` | Pointing settles below 0.2° and holds through eclipse and a GPS outage; the gyro bias is learned; momentum is dumped before the wheels fill | ✅ |
+| `store_and_forward.py` | Over two real passes and a noisy channel: time correlation, commands scheduled in one pass run on time out of contact, and the gap is replayed from the store in the next | ✅ |
 | `sensor_dropout.py` | A failed magnetometer degrades cleanly instead of diverging | Phase 6 |
 | `wheel_failure.py` | A wheel failure mid-pointing is detected, isolated and recovered | Phase 6 |
 

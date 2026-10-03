@@ -165,9 +165,10 @@ CCSDS stack: transfer frames, sync markers, Reed-Solomon, BCH and COP-1 (see
 [LINK.md](LINK.md)). TCP itself never corrupts or reorders bytes, so link
 errors exist only where something injects them.
 
-**Time is not correlated.** The PUS time reference status field is reported as
-0, meaning "not synchronised with a ground clock", which is honest. ST[09] time
-correlation is Phase 4.
+**Time correlation is one-way.** The ground corrects the on-board clock from
+a single time report, so the correction absorbs the downlink latency, a few
+milliseconds at real time. A proper two-way (round-trip) correlation would
+remove that; it has not been needed yet.
 
 **The parameter store holds every value as a `double`.** Exact for every
 integer up to 2^53, which covers every type the dictionary currently allows

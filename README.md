@@ -5,12 +5,14 @@ principles, together with the simulation and ground tooling needed to actually
 fly it. Written to be read: every design decision that matters is explained in
 the file where it is made, including the ones that were rejected and why.
 
-**Status: Phase 3 of 7 complete.** The telemetry, tracking and command
-chain works end to end. A Python simulator holds the truth, and the flight
-software flies against it. It detumbles with B-dot (`make detumble`), then
-estimates its attitude with a multiplicative Kalman filter. From there it
-holds the Earth's centre within 0.2° on its reaction wheels, through eclipse
-and a GPS outage (`make pointing`; see [docs/ATTITUDE.md](docs/ATTITUDE.md)).
+**Status: Phase 4 of 7 complete.** The flight software flies against a
+simulator that holds the truth. It detumbles with B-dot (`make detumble`),
+estimates its attitude with a multiplicative Kalman filter, and holds the
+Earth's centre within 0.2° on its reaction wheels (`make pointing`; see
+[docs/ATTITUDE.md](docs/ATTITUDE.md)). It talks to the ground over a real
+CCSDS link: transfer frames, Reed-Solomon, COP-1, time correlation,
+time-tagged commands and on-board storage, through a channel with pass
+windows and bit errors (`make store-forward`; see [docs/LINK.md](docs/LINK.md)).
 Power, mode management and fault handling are scheduled and scaffolded, not
 yet implemented. The roadmap in
 [docs/ROADMAP.md](docs/ROADMAP.md) says exactly what exists and what does not.
@@ -72,7 +74,7 @@ answer. [`learn/GLOSSARY.md`](learn/GLOSSARY.md) translates every acronym.
 ## Try it in two minutes
 
 ```bash
-make build          # configure, compile, run 91 unit tests
+make build          # configure, compile, run 106 unit tests
 make run            # the spacecraft boots and waits for a ground station
 ```
 
@@ -125,6 +127,9 @@ is built around, and it is the one most worth copying into your own work.
 | PUS ST[01] request verification | Working — acceptance and completion, success and failure |
 | PUS ST[03] housekeeping | Working — periodic reports, enable/disable per structure |
 | PUS ST[05] event reporting | Working — severity-coded, with a bounded on-board history |
+| PUS ST[09] time management | Working — time reports and ground correlation |
+| PUS ST[11] time-based scheduling | Working — time-tagged commands run out of contact |
+| PUS ST[15] storage and retrieval | Working — 4 MiB circular store, replay by time range |
 | PUS ST[17] connection test | Working |
 | PUS ST[20] parameter management | Working — range-checked, CRC-protected, survives a restart |
 | Rate-group scheduler | Working — deterministic, deadline-monitored, single-threaded |
@@ -134,7 +139,7 @@ is built around, and it is the one most worth copying into your own work.
 | ADCS | **Working.** Detumble, MEKF estimation, nadir pointing, momentum dumping |
 | EPS, mode manager, FDIR | **Not yet.** Phases 5–6. Scaffolded and documented |
 | Orbit and attitude simulator | **Working** (`sim/`, `make detumble`, `make pointing`) |
-| TM/TC transfer frames, Reed-Solomon | **Not yet.** Phase 4 |
+| TM/TC transfer frames, RS, COP-1 | **Working** — with a radio channel model (`make store-forward`) |
 
 ## Repository map
 

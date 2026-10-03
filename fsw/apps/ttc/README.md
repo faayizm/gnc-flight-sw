@@ -3,14 +3,19 @@
 > 📚 **Learning this?** See [Lessons 5–8 — packets, services, verification, housekeeping](../../../learn/) in the lesson track.
 
 
-The spacecraft's mouth and ears, and the only application that currently works
-end to end.
+The spacecraft's mouth and ears: everything between the radio and the PUS
+services.
 
 | File | Layer | Responsibility |
 |---|---|---|
 | `space_packet.hpp/.cpp` | CCSDS 133.0-B | The six-octet primary header. Bit packing, and the "length minus one" arithmetic, in exactly one place |
 | `pus.hpp/.cpp` | ECSS-E-ST-70-41C | TM and TC secondary headers, telecommand validation, telemetry assembly with automatic length back-patching and CRC |
-| `ttc_app.hpp/.cpp` | Application | Reassembly, service dispatch, verification reports, periodic housekeeping, event downlink |
+| `channel_coding.hpp/.cpp` | CCSDS 131.0-B, 231.0-B | Reed-Solomon (255,223) in dual basis, pseudo-randomiser, attached sync marker, BCH(63,56) codeblocks |
+| `tm_framer.hpp/.cpp` | CCSDS 132.0-B | Packets into fixed-length TM frames across virtual channels, then RS, randomisation and ASM |
+| `tc_receiver.hpp/.cpp` | CCSDS 231.0-B, 232.0-B, 232.1-B | CLTU decoding, TC frame checks, FARM-1 and the CLCW |
+| `schedule.hpp` | PUS ST[11] | Time-tagged telecommands awaiting release |
+| `packet_store.hpp` | PUS ST[15] | The circular store every packet is recorded into |
+| `ttc_app.hpp/.cpp` | Application | Service dispatch, verification reports, housekeeping, events, time, scheduling, storage and playback |
 
 ## The services implemented
 
@@ -19,11 +24,14 @@ end to end.
 | ST[01] verification | 1, 2, 7, 8 | Acceptance and completion, success and failure. Without this the ground is commanding blind |
 | ST[03] housekeeping | 5, 6, 25 | Periodic parameter reports; enable and disable per structure |
 | ST[05] events | 1–4 | Severity-coded event reports. The subtype *is* the severity, which lets a ground system filter on urgency knowing nothing about this mission |
+| ST[08] functions | 1, 2 | Mode requests (for the Phase 5 mode manager) and counter reset |
+| ST[09] time | 1, 2, 128 | Periodic CUC time reports; ADJUST_TIME (mission-specific) applies the ground's correlation and sets the time reference status to 1 |
+| ST[11] scheduling | 1, 2, 3, 4 | Time-tagged telecommands: enable, disable, reset, insert (all-or-nothing) |
+| ST[15] storage | 1, 2, 9, 11, 12, 13 | Record every packet; replay a time range on the playback channel; delete; summary |
 | ST[17] test | 1, 2 | A connection test that changes no state — safe to send at any time, in any mode |
 | ST[20] parameters | 1, 2, 3 | Read and write on-board parameters, range-checked |
 
-Phase 4 adds ST[11] time-based scheduling, ST[12] on-board monitoring, ST[15]
-storage and retrieval, and ST[09] time correlation.
+ST[12] on-board monitoring arrives with fault management in Phase 6.
 
 ## Validation order, and why it is fixed
 
@@ -41,17 +49,12 @@ reported as an event. It is also the one rejection that produces no ST[01]
 verification report, because the APID and sequence count such a report would
 have to quote back are exactly the fields that cannot be trusted.
 
-## Framing over TCP, honestly
+## The link below the packets
 
-Packet boundaries come from the CCSDS length field itself. That works only
-while the byte stream stays in sync, and a corrupted length field would
-desynchronise it; the recovery — discard one octet and retry — is a limited
-mitigation, not a solution.
-
-A real RF link does not rely on this. TM/TC transfer frames carry an attached
-sync marker precisely so a receiver can regain framing after a burst of noise,
-along with pseudo-randomisation and Reed-Solomon coding. That is Phase 4, and
-until then this limitation is stated rather than hidden.
+Packets never touch the socket directly. Downlink packets are cut into
+Reed-Solomon-coded transfer frames; uplink bytes are decoded from CLTUs and
+filtered by FARM-1 before any packet is read. [docs/LINK.md](../../../docs/LINK.md)
+has the whole stack.
 
 ## Memory
 
@@ -63,5 +66,7 @@ compile time.
 
 `tests/unit/test_space_packet.cpp` and `test_pus.cpp` for the protocol layers —
 including bit layouts checked against literal octets, so that a reader and
-writer which are both wrong in the same way cannot pass. `tests/sil/` exercises
+writer which are both wrong in the same way cannot pass. `test_link.cpp` for
+the coding and frames (Reed-Solomon against libfec vectors), `test_storage.cpp`
+for the store and schedule. `tests/sil/` exercises
 the application against the real binary over a real socket.
