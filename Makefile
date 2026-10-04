@@ -142,6 +142,10 @@ check-toolbox:  ## Run every teaching program, to prove the lessons still work
 		else echo "FAILED"; $(SYS_PYTHON) "$$f"; exit 1; fi; \
 	done
 
+.PHONY: check-lessons
+check-lessons: build  ## Run the lessons' own commands against a live spacecraft and check what they promise
+	@$(SYS_PYTHON) tests/lessons/test_lessons.py
+
 .PHONY: learn
 learn:  ## Where to start learning
 	@echo ""
@@ -161,7 +165,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test test-gnd test-sim sil detumble pointing store-forward power check-layering check-links check-toolbox  ## Everything CI runs
+check: check-gen build test test-gnd test-sim sil detumble pointing store-forward power check-layering check-links check-toolbox check-lessons  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 

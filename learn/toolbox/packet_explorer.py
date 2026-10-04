@@ -245,24 +245,6 @@ def demo_telemetry(packet: bytes | None = None) -> None:
     explain_crc(packet)
 
 
-def fetch_live() -> bytes | None:
-    from pyground.client import GroundClient
-    try:
-        with GroundClient(port=50001) as gnd:
-            for tm in gnd.poll(timeout=3.0):
-                if tm.name == "SYS_HK":
-                    return _reassemble(gnd, tm)
-    except ConnectionError:
-        print("\n  (no spacecraft on port 50001 -- run `make run` first)\n")
-    return None
-
-
-def _reassemble(_gnd: object, _tm: object) -> None:
-    # parse_tm() keeps the decoded view but not the original bytes, so the
-    # live path grabs raw bytes directly instead. Kept simple on purpose.
-    return None
-
-
 def main() -> None:
     live = "--live" in sys.argv
 
@@ -300,36 +282,22 @@ def main() -> None:
 
 
 def _live_packet() -> bytes | None:
-    """Grab one real packet straight off the socket, bytes and all."""
-    import socket
-    import struct
-    try:
-        sock = socket.create_connection(("127.0.0.1", 50001), timeout=5.0)
-    except OSError:
-        print("\n  (no spacecraft on port 50001 -- run `make run` first)\n")
-        return None
+    """Grab one real housekeeping packet from the running spacecraft.
 
-    buffer = bytearray()
-    sock.settimeout(4.0)
+    The bytes on the wire are not packets any more: they are coded transfer
+    frames (Lesson 5 explains why). The ground station library undoes that --
+    finds each frame, repairs it with Reed-Solomon, and reassembles the
+    packets inside -- and hands back each packet exactly as the spacecraft
+    built it. That untouched packet is what this lesson takes apart.
+    """
+    from pyground.client import GroundClient
     try:
-        while len(buffer) < 4096:
-            chunk = sock.recv(4096)
-            if not chunk:
-                break
-            buffer += chunk
-            while len(buffer) >= 6:
-                (length,) = struct.unpack(">H", buffer[4:6])
-                total = 6 + length + 1
-                if len(buffer) < total:
-                    break
-                packet = bytes(buffer[:total])
-                del buffer[:total]
-                if packet[7] == 3 and packet[8] == 25:      # a housekeeping report
-                    return packet
-    except (OSError, socket.timeout):
-        pass
-    finally:
-        sock.close()
+        with GroundClient(port=50001, timeout=5.0) as gnd:
+            for tm in gnd.poll(timeout=4.0):
+                if tm.service == 3 and tm.subtype == 25:      # a housekeeping report
+                    return tm.raw
+    except ConnectionError:
+        print("\n  (no spacecraft on port 50001 -- run `make run` first)\n")
     return None
 
 

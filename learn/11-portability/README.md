@@ -134,6 +134,12 @@ about 3 seconds of yours. A 96-minute orbit would take ten minutes to simulate.
 The flight software has no idea. Every line of it is unchanged — it asked
 `IClock` for the time and believed the answer.
 
+This is how the flight scenarios fly whole orbits in about a minute: `make
+pointing` runs the spacecraft at 100 times real speed against the simulator.
+There is one subtlety, and it caught this project out twice. The simulator
+keeps its own time, and the two clocks drift apart. Lesson 10 tells that
+story.
+
 The same mechanism gives unit tests a clock that only moves when the test says
 so (Lesson 10), which is why a test of an hour of scheduling runs instantly.
 

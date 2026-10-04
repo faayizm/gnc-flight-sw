@@ -302,7 +302,7 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 16 | `ESTIMATOR_INIT` | INFO | Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker |
 | 17 | `ESTIMATOR_CONVERGED` | INFO | Attitude estimator uncertainty fell below the pointing threshold |
 | 19 | `ESTIMATOR_RESET` | MEDIUM | Attitude estimator discarded after persistent large innovations |
-| 20 | `TIME_ADJUSTED` | INFO | On-board time corrected from the ground; aux = correction in ms, two's complement |
+| 20 | `TIME_ADJUSTED` | INFO | On-board time corrected from the ground; aux = correction in whole seconds, two's complement |
 | 21 | `SCHED_RELEASED` | INFO | A time-tagged telecommand was released; aux = its packet sequence count |
 | 22 | `PLAYBACK_STARTED` | INFO | Packet store retrieval began; aux = packets selected |
 | 23 | `PLAYBACK_DONE` | INFO | Packet store retrieval finished; aux = packets replayed |

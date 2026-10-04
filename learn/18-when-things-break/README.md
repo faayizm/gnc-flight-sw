@@ -2,9 +2,11 @@
 
 🔧 **Builder** · 🎓 Engineer · about 30 minutes
 
-> **Phase 6 note.** FDIR, fault injection and radiation effects are Phase 6.
-> Several ideas here are already implemented and you can exercise them today —
-> those are marked ✅.
+> **Phase 6 note.** A systematic fault-management layer, radiation effects and
+> fault campaigns are Phase 6, the next to be built. A good deal of this lesson
+> already works and you can exercise it today: those parts are marked ✅,
+> including a real fault, injected on purpose, that the spacecraft survives on
+> its own.
 
 ---
 
@@ -69,7 +71,9 @@ on level 1 while the battery drains loses the spacecraft.
 
 ## ✅ What already works
 
-Three rungs of that ladder are in this repository today.
+Every rung of that ladder already appears somewhere in this repository. What
+Phase 6 adds is doing it *systematically*: a monitoring service, one recovery
+ladder for everything, and faults injected by the hundred.
 
 **Detection of corrupted data.** ✅ Every packet carries a CRC and a bad one is
 never interpreted (Lesson 4). Try it:
@@ -118,6 +122,38 @@ survive:
 **The watchdog.** ✅ Modelled and measured even on a laptop, where there is no
 hardware to reset (Lesson 11).
 
+**Retry.** ✅ A command lost on the radio is sent again until it arrives, in
+order, exactly once: COP-1 (Lesson 7).
+
+**Reconfigure: a sensor stops talking.** ✅ If sensor data stops for two
+seconds, the spacecraft zeroes every actuator and raises `SENSOR_TIMEOUT`. A
+controller that keeps applying its last command to a spacecraft it can no
+longer see is how a small fault becomes a large one.
+
+**Reconfigure: the estimator loses track.** ✅ If the attitude filter disagrees
+with every measurement for ten seconds, it is thrown away and restarted from
+scratch, with an `ESTIMATOR_RESET` event. A confident filter that is wrong is
+more dangerous than none.
+
+**Safe mode, for real.** ✅ `make power` injects a fault the flight software
+knows nothing about: a heater whose thermostat sticks on, drawing 12 watts.
+Watch what happens with no help from anyone:
+
+```
+                   shedding 1 2 3 4 0
+```
+
+(Sometimes more numbers follow the 0. After recovery the payload comes back
+on, and depending on exactly when the operator stepped in, the battery may dip
+to LOW once more.)
+
+The battery drains. The spacecraft switches off the payload, then the
+transmitter between contacts, then the heaters, which happens to cut off the
+fault. Then it puts itself into SAFE mode, with the wheels off and just
+enough control to stop it spinning. It stays in SAFE even after the battery
+recovers, until a human on the ground has looked and said so (Lesson 17).
+Every rung, from detecting to safe mode, triggered by one stuck switch.
+
 ## 💡 Radiation: when the computer itself is the fault
 
 This is the part with no equivalent on the ground.
@@ -144,9 +180,11 @@ uncorrectable.
 For truly critical state you go further: store it three times and vote. Two
 copies agreeing beat one that does not.
 
-None of this is implemented yet. Phase 6 adds SEU injection, an EDAC model,
-scrubbing, and voting on critical state — because the only way to know your
-recovery paths work is to *cause* the faults deliberately.
+None of this is implemented yet. (The downlink's Reed–Solomon code from
+Lesson 4 is the same idea as EDAC, applied to the radio instead of to
+memory.) Phase 6 adds SEU injection, an EDAC model, scrubbing, and voting on
+critical state, because the only way to know your recovery paths work is to
+*cause* the faults deliberately.
 
 ## 💡 Fault injection: breaking it on purpose
 
@@ -258,9 +296,13 @@ nobody can reach.
 
 **What next?**
 
+- **Fly the whole thing.** `make detumble`, `make pointing`,
+  `make store-forward` and `make power` each fly the spacecraft against the
+  simulator and check every claim against the truth. Read their output with
+  the lessons beside you.
 - **Build the next phase.** [`docs/ROADMAP.md`](../../docs/ROADMAP.md) says
-  exactly what comes next and why. Phase 2 is the simulator and B-dot detumble —
-  and Lessons 12, 13 and 16 have already taught you the physics for it.
+  exactly what comes next and why. Phase 6 is fault management and radiation,
+  and this lesson has already taught you the ideas behind it.
 - **Read the architecture.**
   [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) explains every major
   decision, including the alternatives that were rejected.

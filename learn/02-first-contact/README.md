@@ -52,10 +52,11 @@ make run
 ```
 HYPERSAT flight software up.
   TT&C link   : TCP 127.0.0.1:50001 (waiting for the ground)
+  sim bridge  : TCP 127.0.0.1:50000 (waiting for the simulator)
   base rate   : 50 Hz
   time scale  : 1.00x
-  tasks       : 2 registered
-  parameters  : 8
+  tasks       : 5 registered
+  parameters  : 15
 t=    1s  link=DOWN  tc=0/0  tm=0  load=0%  overruns=0
 t=    2s  link=DOWN  tc=0/0  tm=0  load=0%  overruns=0
 ```
@@ -63,6 +64,15 @@ t=    2s  link=DOWN  tc=0/0  tm=0  load=0%  overruns=0
 Your spacecraft is alive. It is running its control loop **fifty times a
 second**, and it is waiting for someone to call. `link=DOWN` means no ground
 station is connected yet.
+
+(The first time, it may also print a note that it found no saved
+parameters and is using its built-in ones. That is normal: Lesson 9 explains
+it.)
+
+The `sim bridge` line is where a simulated universe can plug in: sensors that
+see a real Sun and a real magnetic field, wheels that really spin. Nothing is
+connected yet, so for now the spacecraft is a computer in a dark room. It is
+alive and talking, but it cannot see anything. That comes in Lesson 12.
 
 **Now be the ground station.** Open terminal 2, go to the same folder:
 
@@ -75,17 +85,20 @@ Watch terminal 1. `link=DOWN` becomes `link=UP`. You just made contact.
 And in terminal 2, telemetry starts flowing:
 
 ```
-  t=     6.044  apid=0x001 seq=    7  EVENT_INFO   LINK_CONNECTED aux=0
-  t=     6.525  apid=0x001 seq=   11  SYS_HK   uptime_s=6  tick_count=326  mode=BOOT
-  t=     6.525  apid=0x002 seq=    6  ADCS_HK  est_state=INVALID  q_est_0=0
-  t=     6.525  apid=0x003 seq=    6  EPS_HK   power_state=UNKNOWN  batt_voltage=0
+  t=     0.563  apid=0x001 seq=    2  EVENT_INFO         LINK_CONNECTED aux=0
+  t=     1.023  apid=0x001 seq=    3  SYS_HK             uptime_s=1  tick_count=51  mode=BOOT  boot_count=0
+  t=     1.023  apid=0x002 seq=    1  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
+  t=     1.023  apid=0x003 seq=    1  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
 ```
 
 The spacecraft is reporting on itself once a second, without being asked.
 That is **housekeeping telemetry**, and every satellite does it.
 
-Read one line: `uptime_s=6` means it has been alive six seconds. `mode=BOOT`
-means it is still in its start-up mode.
+Read one line: `uptime_s=1` means it has been alive one second. `mode=BOOT`
+means it is still in its start-up mode. With no simulator connected, it has no
+sensors to look at, so it stays there. That is also why the attitude
+(`ADCS_HK`) and power (`EPS_HK`) reports are all zeros and `INVALID`: the
+spacecraft is saying "I don't know", which is better than making something up.
 
 ## 🧪 Try it — say something
 
@@ -99,10 +112,13 @@ python3 -m pyground send TEST_CONNECTION
 ```
 uplinked TEST_CONNECTION
 
-  t=  12.345  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=0)
-  t=  12.345  TEST_REPORT
-  t=  12.345  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
+  t=     0.596  apid=0x001 seq=    2  EVENT_INFO         LINK_CONNECTED aux=0
+  t=     0.596  apid=0x001 seq=    3  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=0)
+  t=     0.596  apid=0x001 seq=    4  TEST_REPORT
+  t=     0.596  apid=0x001 seq=    5  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
 ```
+
+(Housekeeping lines follow too. Ignore them for now.)
 
 Three replies to one command. Read them in order — this is a small conversation:
 
@@ -127,7 +143,7 @@ python3 -m pyground send FLY_TO_MARS
 ```
 
 ```
-error: unknown telecommand 'FLY_TO_MARS'; known: DISABLE_HK, ENABLE_HK, ...
+error: "unknown telecommand 'FLY_TO_MARS'; known: ADJUST_TIME, DELETE_STORE_UP_TO, DISABLE_HK, ...
 ```
 
 The ground station stopped you before anything was transmitted. Good — radio

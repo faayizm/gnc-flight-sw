@@ -310,10 +310,11 @@ core::FailureCode TtcApp::svc_time(const ReceivedTc& tc) {
         time_status_ = 1;
         // Everything already scheduled in mission time stays where it is in
         // mission time; periodic reports re-anchor on their next run.
-        const double ms = a.delta_s * 1000.0;
-        const double clamped = ms > 2.0e9 ? 2.0e9 : (ms < -2.0e9 ? -2.0e9 : ms);
+        // Whole seconds, two's complement: covers +/-68 years, which a first
+        // correction from a clock that booted at the mission epoch needs.
+        const double secs = a.delta_s > 2.0e9 ? 2.0e9 : (a.delta_s < -2.0e9 ? -2.0e9 : a.delta_s);
         events_.raise(dict::EventId::TIME_ADJUSTED,
-                      static_cast<uint32_t>(static_cast<int32_t>(clamped)));
+                      static_cast<uint32_t>(static_cast<int32_t>(secs)));
         return core::FailureCode::Ok;
     }
     return core::FailureCode::UnknownService;

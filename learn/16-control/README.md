@@ -2,8 +2,10 @@
 
 🔧 **Builder** · 🎓 Engineer · about 30 minutes
 
-> **Phase 2–3 note.** B-dot detumble is Phase 2; quaternion feedback pointing is
-> Phase 3. The sandbox here runs today and is real physics.
+> **Built.** Both control laws in this lesson fly: B-dot in `make detumble`,
+> quaternion-feedback pointing on reaction wheels in `make pointing`. The
+> sandbox is the simple version; this lesson then shows what the real one had
+> to add, and why.
 
 ---
 
@@ -149,6 +151,38 @@ Read it back from the running spacecraft right now:
 make params
 ```
 
+## 🔍 What the real B-dot had to add
+
+The flight version is
+[`fsw/apps/adcs/bdot.hpp`](../../fsw/apps/adcs/bdot.hpp), and `make
+detumble` flies it against the simulator from a 10 °/s tumble:
+
+```
+  .  truth rate falls below 0.5 deg/s (at t = 3927 s, 0.69 orbits)
+```
+
+It is the same three-line law, with three things the sandbox gets away
+without:
+
+1. **A filter on the field's rate of change.** `dB/dt` is the difference of
+   two noisy magnetometer readings divided by a tenth of a second, and
+   dividing by a small number makes noise huge. Near the end of a detumble the
+   real signal is about as big as that noise. Unfiltered, the coils would
+   chatter, chasing noise. A gentle low-pass filter (`BDOT_FILTER_TAU_S`,
+   3 seconds) trades a little delay for a lot less noise.
+2. **Saturation that keeps direction.** The sandbox scales the whole dipole
+   down when it is too big. The flight code does the same, deliberately:
+   clipping each axis separately would *change the direction* of the torque,
+   not just its size.
+3. **Knowing when to stop, with a margin.** Detumble hands over below
+   `POINTING_RATE_DPS` (0.5 °/s). The first version stopped at exactly 0.5 as
+   measured by the gyro, and left the spacecraft truly turning at 0.53, because
+   the gyro has a bias (Lesson 14). Now it stops at 80% of the threshold,
+   0.4 °/s. The margin is there to cover the sensor's error.
+
+And the "never reaches zero" above is visible in the flight data: B-dot alone
+settles around 0.3 °/s and stays there.
+
 ## 💡 The second control law: pointing
 
 Once detumbled and the estimator has converged, you can actually point.
@@ -176,7 +210,41 @@ There is a classic trap here, and it comes from Lesson 13: `q` and `−q`
 represent the *same* rotation. A controller that does not check the sign can
 decide to rotate 359° when 1° would do. The fix is one line — if the scalar
 part is negative, negate the whole quaternion — and forgetting it produces a
-spacecraft that occasionally takes the scenic route.
+spacecraft that occasionally takes the scenic route. Here is that line in the
+flight code,
+[`fsw/apps/adcs/pointing.hpp`](../../fsw/apps/adcs/pointing.hpp):
+
+```cpp
+    Quat qe = conj(qt) * q;                  // body relative to target
+    if (qe.w < 0.0) { qe = Quat{-qe.w, -qe.x, -qe.y, -qe.z}; }
+```
+
+## 🔍 The real pointing controller
+
+`make pointing` flies from a 3 °/s tumble to pointing at the centre of the
+Earth, using reaction wheels:
+
+```
+  .  nadir error stays below 0.2 deg once settled (worst 0.113 deg)
+  .  held through eclipse (4104 s in shadow, worst 0.064 deg)
+  .  momentum dumping keeps the wheels below half capacity (peak 0.76 mNms)
+```
+
+The law in `pointing.hpp` is the PD law above, with three refinements:
+
+- **A speed limit.** The attitude error is turned into a *wanted turning rate*,
+  capped at 1 °/s, and a rate loop follows it. With a plain PD law, a 180°
+  error asks for an enormous torque and spins the wheels up to their limit.
+  With the cap, the spacecraft turns at a steady, safe pace instead.
+- **Cancelling the strange term.** Lesson 13's ω × (Iω) term, plus the
+  wheels' own spin, is computed and cancelled, so each axis behaves simply.
+- **Emptying the wheels.** Every outside torque (gravity pulling unevenly,
+  friction in the wheel bearings) ends up stored as wheel spin, and it keeps
+  growing. So the magnetorquers push gently against the Earth's field to bleed
+  it off all the time. Because the flight software knows the torque the
+  magnetorquers will make, it subtracts it from what the wheels are asked for.
+  Dumping momentum then costs no pointing accuracy at all. The wheels never
+  get past 0.76 of their 30 milli-newton-metre-seconds.
 
 ## 🧪 Try it — tune a controller
 
@@ -201,8 +269,10 @@ fail to fully detumble, and work out which component of the spin survives.
 
 ## 🎓 Go deeper
 
-**Actuator allocation.** With three magnetorquers and four reaction wheels you
-have seven actuators for three axes of torque. Which combination should produce
+**Actuator allocation.** This spacecraft keeps it simple: wheels make the
+torque, magnetorquers only dump momentum. Bigger spacecraft with three
+magnetorquers and four reaction wheels have seven actuators for three axes of
+torque. Which combination should produce
 a given demand? There are infinitely many answers, and you choose using a
 pseudo-inverse plus a cost — usually minimising power, or keeping the wheels
 away from saturation and away from zero speed (where friction is worst and

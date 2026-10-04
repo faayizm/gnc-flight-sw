@@ -184,12 +184,93 @@ You get the `TEST_REPORT` — but no acceptance and no completion. The command
 ran; the spacecraft simply did not chatter about it, because you asked it not
 to.
 
+## 💡 One layer down: did it even arrive?
+
+Verification answers "did my command work?". It assumes the command got
+there at all. Over a real radio, some don't: a burst of noise ruins a frame,
+the spacecraft's receiver throws it away, and no report comes back because
+the spacecraft never knew there was anything to report on.
+
+Worse, the *next* command might get through. Now commands execute out of
+order. "Point at the target" then "switch the camera on" becomes "switch the
+camera on" then, maybe, "point at the target".
+
+The fix sits below the packets, in the frames that carry them, and is called
+**COP-1**. Every command frame carries a sequence number. The spacecraft
+accepts a frame only if its number is exactly the next one expected:
+
+| Arriving frame | What the spacecraft does |
+|---|---|
+| the next one expected | Accepts it, executes the command, expects the one after |
+| ahead of the expected one | Throws it away, and raises a **retransmit** flag: something went missing |
+| behind (already had it) | Throws it away quietly: it is a repeat |
+| nowhere near | Throws it away and **locks out** until the ground resets the sequence |
+
+Every frame the spacecraft sends *down* carries a 4-byte status word (the
+**CLCW**) saying which number it expects next and whether the retransmit flag
+is up. The ground station keeps every command until that word confirms it
+arrived, and sends again anything that didn't, in order.
+
+## 🧪 Try it — an unreliable radio
+
+This throws away every third transmission on purpose. Save it in `gnd/` as
+`lossy.py` and run it with `make run` going:
+
+```python
+import sys; sys.path.insert(0, '.')
+from pyground import GroundClient
+
+with GroundClient() as g:
+    g.wait_idle()
+    real = g.fop.transmit
+    count = {"n": 0}
+    def unreliable_radio(cltu):           # lose every third transmission
+        count["n"] += 1
+        if count["n"] % 3 == 0:
+            print(f"    (transmission {count['n']} lost on the way up)")
+        else:
+            real(cltu)
+    g.fop.transmit = unreliable_radio
+
+    for value in (200, 300, 400, 500, 600, 700):
+        g.send("SET_PARAM", param_id=1, value=value)
+    done = []
+    while len(done) < 6:
+        for tm in g.poll(timeout=0.5):
+            if tm.name == "VERIF_COMPLETE_OK":
+                done.append(tm.fields["req_seqcnt"])
+                print(f"  completed: command seq {done[-1]}")
+    print(f"retransmissions: {g.fop.retransmissions}")
+```
+
+```
+    (transmission 3 lost on the way up)
+    (transmission 6 lost on the way up)
+    (transmission 9 lost on the way up)
+  completed: command seq 0
+  completed: command seq 1
+    (transmission 12 lost on the way up)
+  completed: command seq 2
+  completed: command seq 3
+    (transmission 15 lost on the way up)
+  completed: command seq 4
+  completed: command seq 5
+retransmissions: 10
+```
+
+A third of everything lost, and all six commands still executed, once each,
+in the order they were sent. Your exact lines may differ (which
+transmissions get lost depends on timing), but the last seven lines will
+not. The final value left on board is 700, as you would hope: check it with
+`python3 -m pyground send REPORT_PARAM param_id=1`.
+
 ## ✅ Check yourself
 
 1. Give an example of a command that is *accepted* and then *fails*.
 2. Why does every verification report quote back an APID and sequence count?
 3. Why is a corrupted packet the one thing that gets no verification report?
 4. Why do `UNAVAILABLE` and `REFUSED` both exist?
+5. Why is "verification" not enough on its own over a real radio?
 
 ## 🎓 Go deeper
 
@@ -200,8 +281,9 @@ not implement them, because nothing here takes long enough to need them yet.
 **The deeper principle.** A system that fails silently is worse than one that
 fails loudly, because a silent failure consumes the one thing an operator
 cannot get more of: time. Every rejection path in this flight software either
-produces a report or raises an event. There is no path where a command
-disappears without trace.
+produces a report or raises an event. The one place a command can vanish
+without a word is a radio frame too damaged to read at all. Even then it is
+counted (`tc_frames_bad` in `SYS_HK`), and COP-1 sends it again.
 
 ---
 
@@ -223,5 +305,9 @@ disappears without trace.
 4. Because they call for different actions. `UNAVAILABLE` means "try later" —
    the spacecraft is busy or in the wrong mode. `REFUSED` means "no" — retrying
    will not help, and something about the request needs to change.
+5. Because verification only reports on commands that *arrived*. A command
+   lost on the way produces no report at all, and the next one could arrive
+   and run out of order. COP-1 makes delivery guaranteed and in order,
+   underneath, so that verification has something to report on.
 
 </details>

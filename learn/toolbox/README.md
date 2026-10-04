@@ -1,7 +1,8 @@
 # The toolbox
 
 Small standalone programs used by the lessons. They need **only Python** — no
-spacecraft, no build, no installation, no libraries.
+spacecraft, no build, no installation, no libraries. (Only `--live` needs a
+running spacecraft.)
 
 Run any of them from the repository root:
 
@@ -13,6 +14,7 @@ python3 learn/toolbox/byte_order.py
 |---|---|---|
 | `byte_order.py` | The same number written two ways, and the disaster when the two ends disagree | 3 |
 | `crc_playground.py` | Damage a message and watch the checksum catch it, 20,000 times over | 4 |
+| `fec_playground.py` | Wreck bytes and watch Reed–Solomon rebuild them, up to its limit and no further | 4 |
 | `packet_explorer.py` | A real packet taken apart byte by byte, with a bit diagram generated from the actual bytes | 5, 6 |
 | `orbit_sandbox.py` | How fast you must go to stay in orbit, and an orbit integrated from Newton's law alone | 12 |
 | `spin_sandbox.py` | Why a tumbling satellite keeps tumbling, and how a magnet stops it | 13, 16 |
@@ -20,8 +22,14 @@ python3 learn/toolbox/byte_order.py
 ## `packet_explorer.py --live`
 
 With a spacecraft running (`make run` in another terminal), this one grabs a
-**real packet off the socket** and explains it field by field, instead of using
-a constructed example.
+**real packet** from it and explains it field by field, instead of using a
+constructed example. The ground station library first undoes the radio
+framing and error correction (Lesson 5), so what you see is the packet exactly
+as the spacecraft built it.
+
+`fec_playground.py` and `packet_explorer.py` use the ground station's own
+code (`gnd/pyground`) rather than a copy, so what they show is what the real
+link does. Still only Python, still nothing to install.
 
 ## They are meant to be edited
 

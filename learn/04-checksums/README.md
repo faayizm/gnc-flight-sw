@@ -191,6 +191,43 @@ EVENT_LOW          TC_REJECTED aux=BAD_CRC
 No `TEST_REPORT`. No acceptance. The spacecraft detected the damage, threw the
 message away, and told you why.
 
+## 💡 Beyond detecting: repairing
+
+A checksum's answer to damage is "throw it away and ask again". For a
+command that is fine: COP-1 (Lesson 7) resends it. But a satellite in low orbit
+can only be heard for ten minutes at a time, and one at Mars is forty minutes
+away. You would rather the receiver could **fix** the damage itself.
+
+That needs more than a checksum: enough extra information sent alongside
+that the receiver can work out what the damaged bytes *were*. It is called
+**forward error correction**.
+
+```bash
+python3 learn/toolbox/fec_playground.py
+```
+
+It starts with the simplest possible version: say every bit three times and
+take a vote. That works, and it triples the radio time. Then it shows the
+real one, **Reed–Solomon**, which this spacecraft uses on every frame it
+sends down:
+
+```
+  bytes wrecked    result
+  -------------    ------------------------------------------
+              1    repaired perfectly (1 byte fixed)
+              5    repaired perfectly (5 bytes fixed)
+             10    repaired perfectly (10 bytes fixed)
+             16    repaired perfectly (16 bytes fixed)
+             17    TOO DAMAGED -- and it knows it, so it says so
+             25    TOO DAMAGED -- and it knows it, so it says so
+```
+
+Thirty-two extra bytes per 223, and *any* sixteen of the 255 can be
+destroyed. Past that limit it gives up honestly, and the frame is thrown away
+like any failed checksum. (Strictly, there is a tiny chance, around one in
+twenty trillion, that it "repairs" a frame into the wrong message. That is
+why there is still a CRC inside, on every packet.)
+
 ## 🎓 Go deeper
 
 **What a checksum cannot do.** It detects *accidents*, not *attackers*. Anyone
@@ -203,12 +240,14 @@ mechanism does *not* protect you from is as important as knowing what it does.
 different messages must sometimes share one. That is fine here because the
 threat model is random noise, not an adversary searching for a collision.
 
-**Detecting versus correcting.** A CRC only detects. Real radio links also use
-**forward error correction** — Reed–Solomon coding — which adds enough
-redundancy to *repair* damage without asking for a retransmission. That matters
-when a round trip takes 45 minutes, or when the spacecraft is at Mars and a
-round trip takes 40 minutes. It is Phase 4 of this project; see
-[`../../docs/ROADMAP.md`](../../docs/ROADMAP.md).
+**Both, together.** This spacecraft uses Reed–Solomon on every downlink frame
+*and* a CRC on every packet inside. On the uplink it uses a smaller code
+(BCH, fixing one bit in every eight bytes), with COP-1 retransmitting whatever
+that cannot fix. Each layer catches what the one below misses.
+[docs/LINK.md](../../docs/LINK.md) has the whole stack, including how the
+Reed–Solomon code was checked against an outside reference: the classic bug
+is in a detail called the *dual basis*, and it is invisible unless you compare
+against someone else's implementation.
 
 ## ✅ Check yourself
 

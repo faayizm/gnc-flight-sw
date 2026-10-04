@@ -35,7 +35,11 @@ def _colour(name: str, text: str) -> str:
 
 def _show(tm) -> None:
     flag = " " if tm.crc_ok else "!"
-    line = (f"{flag} t={tm.time_s:10.3f}  apid=0x{tm.apid:03X} seq={tm.sequence_count:5d}  "
+    # Packets replayed from the on-board store (ST[15]) arrive on virtual
+    # channel 1 with their original timestamps; mark them so nobody mistakes
+    # an old reading for a live one.
+    replay = "[replay] " if tm.vcid == 1 else ""
+    line = (f"{flag} {replay}t={tm.time_s:10.3f}  apid=0x{tm.apid:03X} seq={tm.sequence_count:5d}  "
             f"{tm.summary()}")
     print(_colour(tm.name, line))
 

@@ -2,8 +2,9 @@
 
 🔧 **Builder** · 🎓 Engineer · about 25 minutes
 
-> **Phase 2 note.** Sensor models are built in Phase 2. The ideas here are what
-> the whole of estimation exists to deal with, so they come first.
+> **Built.** Every sensor in this lesson is modelled in the simulator, with the
+> imperfections described here. One of them caused a real design change, told
+> below.
 
 ---
 
@@ -78,8 +79,8 @@ matter how much you average. It is not noise — it is a floor.
 ## 🔍 In the code — modelling the imperfection is the point
 
 Here is the rule that
-[`sim/models/README.md`](../../sim/models/README.md) states for Phase 2, and it
-is the most important idea in this lesson:
+[`sim/models/README.md`](../../sim/models/README.md) states, and it is the
+most important idea in this lesson:
 
 > **Model the imperfections, not just the physics.** A gyroscope that returns
 > the true rate makes a complementary filter look brilliant and teaches
@@ -101,9 +102,42 @@ It really is tempting. The truth is right there in the simulator, one variable
 away, and using it makes every graph look wonderful. It also makes the whole
 exercise worthless.
 
+These are the imperfections HYPERSAT's simulated sensors actually have, from
+[`sim/models/sensors.py`](../../sim/models/sensors.py):
+
+| Sensor | Noise | Bias | Other |
+|---|---|---|---|
+| Gyroscope | 0.006 °/s per reading | up to 60 °/h at switch-on, then a random walk | quantised to 0.0006 °/s |
+| Magnetometer | 50 nT (about 0.1° of direction) | none modelled | quantised to 10 nT |
+| Coarse sun sensor | 1% per face | *see the next section* | blind in eclipse |
+| Star tracker | 10 arcsec across, 60 about its axis | none | blind near the Sun, the Earth, or above 1 °/s |
+| GPS | 10 m | none | one fix a second, and outages |
+
+## 🔍 What happened: a bias nobody put there on purpose
+
+The coarse sun sensor is six small solar cells, one on each face. Each
+reports how much sunlight it sees, and the sensor works out the Sun's
+direction from the differences. A cell facing away from the Sun sees nothing,
+and its reading is clipped at zero: a cell cannot report negative light.
+
+That clipping, plus the noise on top, means the shaded cells' readings are
+on average a hair *above* zero. That nudges every computed direction slightly
+the same way. Nobody wrote a bias into the model. The bias came out of the
+physics.
+
+When the project first tried to point the spacecraft with only the
+magnetometer and this sun sensor, the estimator said it was confident to
+0.03°. The truth was 0.1°–0.3° off. A filter that is that sure and that wrong
+is the signature of a bias: averaging more readings had only made the wrong
+answer more precise, exactly as in the experiment below.
+
+The fix is the one real spacecraft use: a **star tracker** for the fine
+attitude, keeping the sun sensor for the moments the tracker cannot see. The
+full story is in [docs/ATTITUDE.md](../../docs/ATTITUDE.md#why-there-is-a-star-tracker).
+
 ## 💡 Validity flags: admitting when you do not know
 
-Look at the telemetry this spacecraft already declares, in
+Look at the telemetry this spacecraft declares, in
 [`dictionary/mission.yaml`](../../dictionary/mission.yaml):
 
 ```yaml

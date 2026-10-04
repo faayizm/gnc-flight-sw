@@ -26,8 +26,12 @@ Lesson numbers point to where each idea is taught properly.
 
 | Term | Plain meaning |
 |---|---|
+| **ASM** | Attached Sync Marker. The four bytes `1A CF FC 1D` in front of every downlink frame, so a receiver can find where frames start. Lesson 5 |
 | **APID** | Application Process Identifier. 11 bits saying which part of the spacecraft a packet came from. Lesson 5 |
 | **CCSDS** | Consultative Committee for Space Data Systems. The body where the world's space agencies agree how spacecraft talk. Lesson 5 |
+| **CLCW** | Communications Link Control Word. Four bytes in every downlink frame telling the ground which command frame the spacecraft expects next. Lesson 7 |
+| **CLTU** | Communications Link Transmission Unit. How a command frame is wrapped for the uplink radio, with error-correcting codeblocks. Lesson 7 |
+| **COP-1** | Communications Operation Procedure. Guarantees commands arrive once each, in order, by numbering frames and resending lost ones. Lesson 7 |
 | **CRC** | Cyclic Redundancy Check. A short number that reveals whether a message was damaged. Lesson 4 |
 | **CUC** | CCSDS Unsegmented Code. The timestamp format: whole seconds plus a fraction in 1/65536ths. Lesson 6 |
 | **Downlink** | Spacecraft → ground |
@@ -35,14 +39,17 @@ Lesson numbers point to where each idea is taught properly.
 | **Endianness** | Which end of a multi-byte number goes first. Space uses big endian, always. Lesson 3 |
 | **Ground segment** | Everything on Earth: antennas, mission control, the software |
 | **ICD** | Interface Control Document. The formal list of every message. Ours is [`docs/ICD.md`](../docs/ICD.md), generated |
-| **Pass** | The few minutes a satellite is above the horizon and can be talked to |
+| **Pass** | The few minutes a satellite is above the horizon and can be talked to. Lesson 12 |
+| **Playback** | Sending down telemetry recorded on board while out of contact. PUS ST[15]. Lesson 8 |
 | **PUS** | Packet Utilisation Standard. Says what a message *means*, where CCSDS says how to wrap it. Lesson 6 |
-| **Reed–Solomon** | Error-correcting code that repairs damage rather than only detecting it. Phase 4 |
+| **Reed–Solomon** | Error-correcting code that repairs damage rather than only detecting it. Any 16 damaged bytes in 255. Lesson 4 |
 | **Space Packet** | The universal CCSDS message envelope: 6 bytes of header, then data. Lesson 5 |
 | **ST[a,b]** | PUS service `a`, subtype `b`. `ST[17,1]` is a connection test everywhere. Lesson 6 |
+| **Store and forward** | Load commands in one pass, let them run out of contact, collect the recorded results in the next. Lessons 6, 8 |
 | **Telecommand / TC** | A message from the ground asking the spacecraft to do something |
 | **Telemetry / TM** | A message from the spacecraft reporting on itself |
-| **Transfer frame** | The layer beneath Space Packets on a real radio link, carrying sync and error correction. Phase 4 |
+| **Transfer frame** | The fixed-size box Space Packets travel in over the radio, carrying sync and error correction. Lesson 5 |
+| **Time-tagged command** | A command stored on board to run at a given time. PUS ST[11]. Lesson 6 |
 | **Uplink** | Ground → spacecraft |
 
 ## Orbits
@@ -53,6 +60,7 @@ Lesson numbers point to where each idea is taught properly.
 | **ECEF** | Earth-Centred Earth-Fixed. Origin at Earth's centre, axes rotating with the ground |
 | **ECI** | Earth-Centred Inertial. Origin at Earth's centre, axes fixed to the stars. Lesson 12 |
 | **Eclipse** | The part of each orbit spent in Earth's shadow. Roughly a third. Lesson 17 |
+| **Elevation** | How high above the horizon the satellite appears from a ground station. Below about 5° it cannot be heard. Lesson 12 |
 | **Escape velocity** | Fast enough to never come back. √2 times circular speed. Lesson 12 |
 | **GEO** | Geostationary orbit, 35,786 km. One orbit takes exactly a day, so it hangs over one spot |
 | **Inclination** | The tilt of the orbit plane relative to the equator |
@@ -80,13 +88,16 @@ Lesson numbers point to where each idea is taught properly.
 | **Quaternion** | Four numbers describing a rotation without gimbal lock. Lesson 13 |
 | **Reaction wheel** | A heavy motorised wheel; spin it one way, the spacecraft turns the other. Lesson 16 |
 | **Saturation** | A reaction wheel at its maximum speed, unable to absorb more. Lesson 16 |
-| **Star tracker** | Photographs the sky and matches it to a catalogue. The most accurate attitude sensor |
+| **Star tracker** | Photographs the sky and matches it to a catalogue. The most accurate attitude sensor. Lesson 14 |
 | **TRIAD** | Attitude from two measured direction vectors. Simple, no tuning, no history. Lesson 15 |
 
 ## Sensors and estimation
 
 | Term | Plain meaning |
 |---|---|
+| **Hysteresis** | Different thresholds for switching on and switching off, so a value hovering near one cannot flip the state back and forth. Lessons 16, 17 |
+| **Load shedding** | Switching off loads in order of importance as the battery runs down. Lesson 17 |
+| **Safe mode** | The mode a spacecraft enters when it does not know what else to do. Entering is automatic; leaving needs a human. Lessons 17, 18 |
 | **Allan variance** | How gyroscope error is specified: error against averaging time. Lesson 14 |
 | **Bias** | A consistent offset. Averaging never removes it. Lesson 14 |
 | **Complementary filter** | Blends a fast-but-drifting sensor with a slow-but-honest one. Lesson 15 |

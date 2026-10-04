@@ -36,17 +36,17 @@ make monitor
 ```
 
 ```
-  t=  6.525  apid=0x001  SYS_HK   uptime_s=6  tick_count=326  mode=BOOT
-  t=  6.525  apid=0x002  ADCS_HK  est_state=INVALID  q_est_0=0
-  t=  6.525  apid=0x003  EPS_HK   power_state=UNKNOWN  batt_voltage=0
-  t=  7.621  apid=0x001  SYS_HK   uptime_s=7  tick_count=381  mode=BOOT
+  t=     1.023  apid=0x001 seq=    3  SYS_HK             uptime_s=1  tick_count=51  mode=BOOT  boot_count=0
+  t=     1.023  apid=0x002 seq=    1  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
+  t=     1.023  apid=0x003 seq=    1  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
+  t=     2.023  apid=0x001 seq=    4  SYS_HK             uptime_s=2  tick_count=101  mode=BOOT  boot_count=0
 ```
 
 Three reports, once a second, forever, without anyone asking. That is
 `ST[3,25]`, and it is the bulk of what any spacecraft downlinks.
 
-`SYS_HK` carries twelve fields about the flight software's own health. Look at
-the full list:
+`SYS_HK` carries 23 fields about the flight software's own health. The monitor
+shows only the first four of each report. The full list is in the dictionary:
 
 ```bash
 cd gnd && python3 -m pyground monitor
@@ -64,9 +64,16 @@ or read the definition in
 | `tm_sent` | Is the downlink flowing? |
 | `events_logged` | Has anything happened that I should look at? |
 
-**ADCS_HK and EPS_HK are all zeros.** That is honest, not broken — attitude and
-power are Phases 2 and 5. The packets arrive correctly formatted, which proves
-the whole telemetry chain works before there is anything real to put in it.
+The rest describe the radio link (frames sent, damaged frames refused, bits
+repaired: Lessons 4, 5 and 7), the clock and scheduled commands (Lesson 6),
+and the on-board recorder (below).
+
+**ADCS_HK and EPS_HK are all zeros.** That is honest, not broken. With only
+`make run`, no simulator is connected, so there are no sensors and no battery
+to report on. The packets still arrive correctly formatted, which proves the
+telemetry chain works before there is anything real to put in it. With a
+simulator connected (`make detumble-live`, Lesson 12) they fill with real
+numbers.
 
 ## 👀 See it — events
 
@@ -173,6 +180,52 @@ That behaviour exists because a software-in-the-loop test caught the original
 version doing the wrong thing. The test is still there, in
 [`tests/sil/test_endtoend.py`](../../tests/sil/test_endtoend.py).
 
+## 🧪 Try it — what happened while you weren't looking
+
+A real ground station can hear its satellite for ten minutes in every ninety.
+Housekeeping sent in the other eighty would be lost, so the spacecraft
+**records everything it says**, contact or not, into a 4-megabyte on-board
+store (PUS service ST[15]). Leave `make run` going for twenty seconds, then
+ask what is in it:
+
+```bash
+cd gnd
+python3 -m pyground send REPORT_STORE_SUMMARY store_id=1
+```
+
+```
+  t=    20.063  apid=0x001 seq=   22  STORE_SUMMARY      store_id=1  oldest_s=0  newest_s=20  packets=60
+```
+
+Sixty packets, from second 0 to second 20. Now ask for seconds 5 to 7 back:
+
+```bash
+python3 -m pyground send RETRIEVE_BY_TIME store_id=1 from_s=5 to_s=7
+```
+
+```
+  [replay] t=     5.323  apid=0x001 seq=    6  SYS_HK             uptime_s=5  tick_count=266  mode=BOOT  boot_count=0
+  [replay] t=     5.323  apid=0x002 seq=    5  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
+  ...
+  t=    21.123  apid=0x001 seq=   28  EVENT_INFO         PLAYBACK_STARTED aux=9
+  t=    21.123  apid=0x001 seq=   30  EVENT_INFO         PLAYBACK_DONE aux=9
+  ...
+  [replay] t=     7.423  apid=0x003 seq=    7  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
+```
+
+Nine packets from fifteen seconds ago, with their **original** timestamps and
+sequence numbers. That is how you can tell a replay from the live stream.
+They travel on a separate channel, marked `[replay]` here, so a long playback
+never holds up live telemetry.
+
+Notice that `PLAYBACK_DONE` can arrive *before* the last replayed packets.
+The two channels are independent, and the event took the faster one. A
+ground system has to cope with that, and so do you when reading the output.
+
+On a real mission the range would be "the ninety minutes since the last
+pass". `make store-forward` does exactly that, and checks that not a single
+packet from the dark part of the orbit was lost.
+
 ## ✅ Check yourself
 
 1. Why does a spacecraft need both housekeeping and events?
@@ -182,11 +235,6 @@ version doing the wrong thing. The test is still there, in
 4. Why does disabling a housekeeping report itself generate an event?
 
 ## 🎓 Go deeper
-
-**ST[15] storage and retrieval** (Phase 4) is what makes this work properly for
-a real mission: telemetry is recorded to mass memory while out of contact and
-played back during the next pass, so you get the full 90 minutes rather than
-just the eight you were watching.
 
 **ST[12] on-board monitoring** (Phase 6) lets the spacecraft check its own
 limits and raise an event when a value strays — so it notices a problem

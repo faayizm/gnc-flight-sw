@@ -2,8 +2,10 @@
 
 🔧 **Builder** · 🎓 Engineer · about 35 minutes
 
-> **Phase 3 note.** TRIAD, the complementary filter and the MEKF are built in
-> Phase 3. The ideas and the experiments here run today.
+> **Built.** The flight software starts with TRIAD and then runs a
+> multiplicative extended Kalman filter, flying in `make pointing`. This lesson
+> teaches the complementary filter too, as the step that makes the Kalman
+> filter make sense. The flight code went straight past it.
 
 ---
 
@@ -63,6 +65,13 @@ measurement older than the current one.
 But it needs no initial guess, no tuning, and no history — so it is what you
 use to *start*.
 
+In the flight code,
+[`fsw/apps/adcs/triad.hpp`](../../fsw/apps/adcs/triad.hpp), it is the
+**magnetometer** that goes first, not the Sun. On this spacecraft the
+magnetometer is the more accurate of the two (Lesson 14 tells why the sun
+sensor is not as good as it looks), so the flight code trusts it fully and
+uses the sun only to fix the spin about the field line.
+
 ## 💡 Step 2: the complementary filter
 
 Now combine the smooth-but-drifting gyroscope with the noisy-but-honest TRIAD
@@ -88,7 +97,7 @@ the average correction and you are *estimating the bias* — the thing Lesson 14
 showed you cannot average away. Subtract it, and the gyroscope becomes
 dramatically better.
 
-That is why the dictionary already has fields waiting:
+That is why `ADCS_HK` has fields for it:
 
 ```yaml
 - {name: gyro_bias_x, type: float32, units: rad/s, desc: Estimated gyro bias X}
@@ -97,7 +106,15 @@ That is why the dictionary already has fields waiting:
 ```
 
 Watching those converge on the simulator's true injected bias is the moment the
-filter proves it works.
+filter proves it works. `make pointing` checks it at the end of the flight:
+
+```
+  .  gyro bias learned to within 2.8 deg/h (true bias up to 75 deg/h)
+```
+
+(The first number can differ by a tenth between runs. The flight is
+identical every time, but the ground samples the estimate from telemetry a
+moment earlier or later.)
 
 ## 👀 See it — a filter in twenty lines
 
@@ -197,9 +214,20 @@ filter, and periodically fold the error into the quaternion and reset it to
 zero. The error stays small, so linearising around it is valid, and the
 quaternion stays normalised by construction.
 
-That is Phase 3, and [the roadmap](../../docs/ROADMAP.md) commits to writing the
-derivation down — because a filter you cannot derive is a filter you cannot
-debug at three in the morning when it has diverged.
+This spacecraft flies exactly that:
+[`fsw/apps/adcs/mekf.hpp`](../../fsw/apps/adcs/mekf.hpp). The derivation is
+written down in [docs/ATTITUDE.md](../../docs/ATTITUDE.md), because a filter
+you cannot derive is a filter you cannot debug at three in the morning when
+it has diverged.
+
+**The filter's own uncertainty is worth reading, and worth doubting.** It
+reports how sure it is (`att_sigma_deg` in `ADCS_HK`). The first time this
+spacecraft flew with only a magnetometer and a sun sensor, the filter said
+0.03° and the truth was 0.3° off. A Kalman filter's confidence is only as good
+as its model of the sensors. That sun sensor had a bias the model did not
+include, and no amount of averaging removes a bias (Lesson 14 again). The fix
+was a better sensor, a star tracker, not more filtering. `make pointing` then
+holds the true pointing error under 0.11° for two orbits, eclipses included.
 
 ## 💡 Convergence, and telling the ground about it
 
@@ -223,11 +251,21 @@ make monitor
 ```
 
 ```
-  ADCS_HK  est_state=INVALID  q_est_0=0  q_est_1=0  q_est_2=0
+  t=     1.023  apid=0x002 seq=    1  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
 ```
 
 `INVALID` when no simulator is connected, because then there is nothing to
-estimate from (`make pointing` shows it reach `CONVERGED`). The mode manager
+estimate from. With one, the states go by in seconds. These lines are from
+`make pointing`:
+
+```
+  t=      5 s  event ESTIMATOR_INIT
+  t=     75 s  event ESTIMATOR_CONVERGED
+```
+
+The filter starts from TRIAD 5 seconds in, while the spacecraft is still
+tumbling at 3 °/s, too fast for the star tracker to see stars. It declares
+itself converged 70 seconds later. The mode manager
 refuses to enter pointing mode unless this says `CONVERGED` —
 which is the whole reason the field exists rather than the software just
 assuming its own numbers are good.

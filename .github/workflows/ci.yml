@@ -161,6 +161,8 @@ jobs:
         run: make test-gnd
       - name: simulator physics
         run: make test-sim
+      - name: the lessons do what they say
+        run: make check-lessons
       - name: detumble
         run: make detumble
       - name: nadir pointing

@@ -49,9 +49,11 @@ You can do all of these with no programming.
 
 ### Part 3 — Physics and control 🔧🎓
 
-These teach the ideas behind Phase 2 and later. The maths is real and the
-experiments run today; the flight code that uses them is still being written,
-and each lesson says so plainly.
+The maths is real, the experiments run today, and so does the flight code
+that uses them: each lesson points to the file and to the flight (`make
+detumble`, `make pointing`, `make store-forward`, `make power`) where you can
+watch it work. Lesson 18 looks ahead to fault management, which is the next
+thing to be built, and says so plainly.
 
 | # | Lesson | The question it answers |
 |---|---|---|

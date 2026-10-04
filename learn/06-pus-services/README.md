@@ -52,10 +52,10 @@ the roadmap adds more:
 | **ST[08]** | Function management | Do a mission-specific thing | ✅ partly |
 | **ST[17]** | Test | A safe are-you-there check | ✅ |
 | **ST[20]** | Parameter management | Read and change settings | ✅ |
-| ST[09] | Time management | Sync the spacecraft clock | Phase 4 |
-| ST[11] | Time-based scheduling | "Do this at 14:32:07" | Phase 4 |
+| **ST[09]** | Time management | Sync the spacecraft clock | ✅ |
+| **ST[11]** | Time-based scheduling | "Do this at 14:32:07" | ✅ |
+| **ST[15]** | Storage and retrieval | Record telemetry, play it back later | ✅ |
 | ST[12] | On-board monitoring | Watch a value, alarm if it strays | Phase 6 |
-| ST[15] | Storage and retrieval | Record telemetry, play it back later | Phase 4 |
 | ST[06] | Memory management | Read and patch memory | — |
 | ST[13] | Large data transfer | Send something bigger than a packet | — |
 
@@ -150,16 +150,91 @@ Now notice something honest. In
 [`fsw/apps/ttc/pus.cpp`](../../fsw/apps/ttc/pus.cpp):
 
 ```cpp
-// Time reference status 0 means "not synchronised with a ground clock".
-secondary.time_status = 0;
+// Time reference status: 0 means "not synchronised with a ground clock",
+// 1 that ST[9] correlation has been applied.
+secondary.time_status   = time_status;
 ```
 
-The spacecraft is *telling you its clock has never been set*. It is not
-pretending. A ground system needs to know whether a timestamp can be trusted
-for correlating events across a mission, and quietly claiming accuracy you do
-not have is how two datasets end up impossible to line up years later.
+Every packet carries that small number, and until the ground sets the clock
+it is **0**. The spacecraft is *telling you its clock has never been set*. It
+is not pretending. A ground system needs to know whether a timestamp can be
+trusted for correlating events across a mission. Quietly claiming accuracy
+you do not have is how two datasets end up impossible to line up years
+later.
 
-Fixing that is ST[09], in Phase 4.
+## 🧪 Try it — set the spacecraft's clock
+
+The spacecraft woke up thinking it was the very start of its calendar: zero
+seconds since 1 January 2000. Ask it what time it thinks it is, every two
+seconds (2 to the power `rate_exp`):
+
+```bash
+python3 -m pyground send SET_TIME_REPORT_RATE rate_exp=1
+```
+
+```
+  t=     3.122  apid=0x001 seq=    7  TIME_REPORT        rate_exp=1  time_s=3.122
+  t=     5.222  apid=0x001 seq=   10  TIME_REPORT        rate_exp=1  time_s=5.222
+```
+
+About three seconds into the year 2000. Now tell it the truth. From 1
+January 2000 to 3 October 2026 is 844,300,800 seconds:
+
+```bash
+python3 -m pyground send ADJUST_TIME delta_s=844300800
+```
+
+```
+  t=844300805.622  apid=0x001 seq=   15  EVENT_INFO         TIME_ADJUSTED aux=844300800
+  t=844300805.622  apid=0x001 seq=   16  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
+```
+
+Watch the `t=` column jump 26.8 years in one packet. From that packet on,
+the hidden time-status number in every header reads **1**: "my clock has been
+set by the ground". (`ADJUST_TIME` is subtype 128. Numbers from 128 up are
+left free by the standard for each mission's own additions, and this is one.)
+
+## 🧪 Try it — tomorrow's work, today
+
+Now the clock means something, you can ask the spacecraft to do something
+*later*. Save this in `gnd/` as `later.py` (with `make run` still going, and
+after setting the clock as above):
+
+```python
+import sys; sys.path.insert(0, '.')
+from pyground import GroundClient
+from pyground.packets import build_tc, schedule_data
+
+with GroundClient() as g:
+    report = g.wait_for("TIME_REPORT", timeout=5)
+    now = report.fields["time_s"]
+    print(f"spacecraft time is {now:.1f}")
+    test = build_tc("TEST_CONNECTION", sequence_count=500)
+    g.send("INSERT_ACTIVITIES", data=schedule_data([(now + 10, test)]))
+    for tm in g.poll(timeout=13):
+        if tm.name in ("VERIF_COMPLETE_OK", "TEST_REPORT") or tm.name.startswith("EVENT"):
+            print(f"  t={tm.time_s - now:+6.2f} s  {tm.summary()}")
+```
+
+```
+spacecraft time is 844300809.7
+  t= +0.02 s  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
+  t=+10.10 s  EVENT_INFO         SCHED_RELEASED aux=500
+  t=+10.10 s  TEST_REPORT
+  t=+10.10 s  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=500)
+```
+
+The first line is the spacecraft accepting the *schedule*. Ten seconds later
+it runs the stored command, completely by itself: `SCHED_RELEASED` names the
+command by its sequence number (500), and then it executes exactly as if you
+had just sent it.
+
+Ten seconds is a toy. On a real mission it would be "switch the camera on as
+we fly over Kenya, 47 minutes from now, when nobody on the ground can see
+us". `make store-forward` does exactly that over two real passes of the
+orbit, with the results recorded on board (ST[15]) and played back during
+the next pass. [Lesson 12](../12-orbits/) explains where the passes come
+from.
 
 ## 🔍 In the code
 

@@ -356,7 +356,7 @@ events:
   - {name: ESTIMATOR_INIT,    id: 16, severity: INFO,   desc: "Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker"}
   - {name: ESTIMATOR_CONVERGED, id: 17, severity: INFO, desc: Attitude estimator uncertainty fell below the pointing threshold}
   - {name: ESTIMATOR_RESET,   id: 19, severity: MEDIUM, desc: Attitude estimator discarded after persistent large innovations}
-  - {name: TIME_ADJUSTED,     id: 20, severity: INFO,   desc: "On-board time corrected from the ground; aux = correction in ms, two's complement"}
+  - {name: TIME_ADJUSTED,     id: 20, severity: INFO,   desc: "On-board time corrected from the ground; aux = correction in whole seconds, two's complement"}
   - {name: SCHED_RELEASED,    id: 21, severity: INFO,   desc: A time-tagged telecommand was released; aux = its packet sequence count}
   - {name: PLAYBACK_STARTED,  id: 22, severity: INFO,   desc: Packet store retrieval began; aux = packets selected}
   - {name: PLAYBACK_DONE,     id: 23, severity: INFO,   desc: Packet store retrieval finished; aux = packets replayed}

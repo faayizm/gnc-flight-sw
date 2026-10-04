@@ -126,8 +126,14 @@ Then, with your spacecraft running (`make run` in another terminal):
 python3 learn/toolbox/packet_explorer.py --live
 ```
 
-Now it grabs a **real packet off the socket**, from the running flight
-software, and explains it the same way.
+Now it grabs a **real packet** from the running flight software and explains
+it the same way.
+
+What arrives over the wire is not the packet itself. Before reaching you it
+has been packed into a *transfer frame*, wrapped in error correction and
+scrambled. The ground station library undoes all of that and hands back the
+packet exactly as the spacecraft built it. The section below explains what
+it undid.
 
 ## 🧪 Try it — decode one by hand
 
@@ -175,16 +181,37 @@ corrupting the version field beside it.
 
 ## 🎓 Go deeper
 
-**This is not the whole story.** Over a real radio there is another layer
-underneath: **transfer frames** (CCSDS 132.0-B and 231.0-B), carrying a fixed
-sync marker, pseudo-randomisation, and Reed–Solomon error correction. The sync
-marker is what lets a receiver find where a frame *starts* after a burst of
-noise.
+**The envelope goes inside a box.** Packets are not sent over the radio
+directly. They are packed end to end into **transfer frames** (CCSDS
+132.0-B), fixed-size boxes of 223 bytes. A long packet simply carries on into
+the next box. Each frame then gets:
 
-This project sends Space Packets straight over TCP, which works only because
-TCP never loses or reorders bytes. That limitation is stated plainly in
-[`../../docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md#known-limitations-stated-rather-than-hidden)
-and is Phase 4 of [the roadmap](../../docs/ROADMAP.md).
+- **Reed–Solomon** repair information (Lesson 4), 32 bytes;
+- **scrambling** with a fixed pseudo-random pattern, so that a long run of
+  zeros cannot look to the radio like "no signal";
+- an **attached sync marker**, the four bytes `1A CF FC 1D`, in front.
+
+```
+  ┌──────────┬─────────────────────── 255 bytes, scrambled ────────────────────┐
+  │ 1ACFFC1D │ header │  packets ... packets, end to end  │ CLCW │ RS repair  │
+  └──────────┴────────┴───────────────────────────────────┴──────┴────────────┘
+     4 bytes    6 bytes              213 bytes               4      32 bytes
+```
+
+The sync marker is what lets a receiver that has lost its place find where
+the next frame *starts*, even after a burst of noise. The frame header
+contains a pointer to where the first packet *starting* in this box begins.
+A receiver that missed the previous box skips the leftover tail of a packet
+it can never complete, and picks up cleanly at the next one. (Before these
+frames existed, this project sent bare packets and relied on every length
+field being intact. One flipped bit in a length field and the receiver was
+lost.)
+
+The full picture, uplink included, is in
+[docs/LINK.md](../../docs/LINK.md). The flight code is
+[`tm_framer.cpp`](../../fsw/apps/ttc/tm_framer.cpp), and the ground
+station's independent version is
+[`gnd/pyground/link.py`](../../gnd/pyground/link.py).
 
 **Segmentation.** Sequence flags can also say "this is the first fragment of a
 big message", "middle", or "last" — for data too big for one packet. This

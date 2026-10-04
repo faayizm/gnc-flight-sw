@@ -125,6 +125,7 @@ gnc_flight_sw/
 │   │   ├── README.md
 │   │   └── test_endtoend.py
 │   ├── gnd/test_link.py         The ground station's link layer against libfec vectors
+│   ├── lessons/test_lessons.py  The lessons' own commands, run against a live spacecraft
 │   └── sim/test_models.py       The simulator's physics against conservation laws
 │
 ├── learn/                       ── THE 18-LESSON COURSE ──
@@ -134,6 +135,7 @@ gnc_flight_sw/
 │   │   ├── byte_order.py        Big vs little endian, and the disaster between
 │   │   ├── crc_playground.py    Damage a message, watch the checksum catch it
 │   │   ├── packet_explorer.py   A real packet, byte by byte (--live for a fresh one)
+│   │   ├── fec_playground.py    Wreck bytes, watch Reed–Solomon repair them
 │   │   ├── orbit_sandbox.py     Orbital speeds, and an orbit from Newton's law alone
 │   │   └── spin_sandbox.py      Euler's equation and B-dot detumble
 │   ├── 01-what-is-a-satellite/  ─┐

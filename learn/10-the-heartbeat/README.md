@@ -46,10 +46,18 @@ One thread. A steady tick. Each task declares how often it runs.
 
 ```
    tick:      0  1  2  3  4  5  6  7  8  9
-   ttc_rx:    X  X  X  X  X  X  X  X  X  X      every tick  = 50 Hz
-   ttc_tm:       X         X         X          every 5th   = 10 Hz
-   adcs:      X     X     X     X     X         (Phase 2)
+   ttc_rx:    X  X  X  X  X  X  X  X  X  X      every tick  = 50 Hz  (listen to the radio)
+   ttc_tm:       X              X               every 5th   = 10 Hz  (housekeeping due?)
+   ttc_dl:    X  X  X  X  X  X  X  X  X  X      every tick  = 50 Hz  (send frames)
+   io:        X  X  X  X  X  X  X  X  X  X      every tick  = 50 Hz  (sensors in, actuators out)
+   modes:              X              X         every 5th   = 10 Hz  (contact timeout)
 ```
+
+These are the five tasks HYPERSAT really registers, in
+[`fsw/main.cpp`](../../fsw/main.cpp). Notice what is *not* a task: attitude
+control and power management. They run when a sensor sample arrives (the
+`io` task hands each sample to them through the software bus). The section
+"A mistake this lesson's rule caught" below explains why that matters.
 
 The base tick here is **50 Hz** — every 20 milliseconds. Each task has a
 *divider* (run every N ticks) and an *offset* (which of those N).
@@ -173,6 +181,39 @@ each task. So a test of an hour of scheduling runs in microseconds, and a
 deadline overrun can be exercised without anything actually being slow.
 
 That is the payoff of `hal::IClock` — the subject of the next lesson.
+
+## 🔍 A mistake this lesson's rule caught
+
+"The same inputs produce the same outputs, every time" is easy to say. Here
+is how easy it is to break.
+
+The simulator checks it directly. `make detumble` flies the spacecraft twice,
+once at 100 times real speed and once at 137 times, and compares the final
+state bit for bit:
+
+```
+  .  identical final state at different time scales (06721ea6df543912)
+```
+
+When the mode manager was first written (Lesson 17), it ran as a 10 Hz task,
+like `ttc_tm`. That looks harmless. But the simulator runs in **lockstep**: it
+sends one sensor sample, waits for the answer, then moves on, as fast as the
+computer allows. A task driven by the *clock* fires after a different number
+of samples depending on how fast the host machine happens to be. So the
+mode changed on sample 51 in one run and sample 49 in another. The control
+law changed with the mode, and the two flights came out different. The check
+above failed.
+
+The fix was to make decisions about the physics happen **on each sensor
+sample**, not on the clock: the mode manager now decides when the power
+system reports each sample. Only things that must work even with no sensors
+at all (noticing that the sensors have gone silent, or that the ground has
+not been heard from in a day) still run on the clock.
+
+Two clocks, and every decision has to know which one it is on. The
+determinism check is what made the mistake visible. Without it, a scenario
+that failed once in a while would have been blamed on "flakiness", and
+flakiness is never a root cause.
 
 ## 🧪 Try it — make it miss a deadline
 

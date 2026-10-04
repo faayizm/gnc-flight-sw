@@ -241,7 +241,7 @@ inline constexpr EventInfo kEvents[] = {
     { EventId::ESTIMATOR_INIT, Severity::INFO, "ESTIMATOR_INIT", "Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker" },
     { EventId::ESTIMATOR_CONVERGED, Severity::INFO, "ESTIMATOR_CONVERGED", "Attitude estimator uncertainty fell below the pointing threshold" },
     { EventId::ESTIMATOR_RESET, Severity::MEDIUM, "ESTIMATOR_RESET", "Attitude estimator discarded after persistent large innovations" },
-    { EventId::TIME_ADJUSTED, Severity::INFO, "TIME_ADJUSTED", "On-board time corrected from the ground; aux = correction in ms, two's complement" },
+    { EventId::TIME_ADJUSTED, Severity::INFO, "TIME_ADJUSTED", "On-board time corrected from the ground; aux = correction in whole seconds, two's complement" },
     { EventId::SCHED_RELEASED, Severity::INFO, "SCHED_RELEASED", "A time-tagged telecommand was released; aux = its packet sequence count" },
     { EventId::PLAYBACK_STARTED, Severity::INFO, "PLAYBACK_STARTED", "Packet store retrieval began; aux = packets selected" },
     { EventId::PLAYBACK_DONE, Severity::INFO, "PLAYBACK_DONE", "Packet store retrieval finished; aux = packets replayed" },

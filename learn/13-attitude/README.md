@@ -2,9 +2,9 @@
 
 🔧 **Builder** · 🎓 Engineer · about 30 minutes
 
-> **Phase 2 note.** The physics and the experiments are real and run today. The
-> flight code is Phase 2 — which is why `ADCS_HK` currently reports
-> `est_state=INVALID` and a quaternion of all zeros.
+> **Built.** The attitude dynamics fly in the simulator and the flight software
+> estimates and controls attitude (`make pointing`). This lesson points to the
+> real code at each step.
 
 ---
 
@@ -100,9 +100,13 @@ You can see that decision in this repository's
 - {name: q_est_3, type: float32, units: "-", desc: Estimated attitude quaternion z}
 ```
 
-Four fields, downlinked every second. There is also `pointing_err_deg` — a
-single human-readable number — right next to them, for exactly the reason
+Four fields, downlinked every second. There is also `pointing_err_deg`, a
+single human-readable number, right next to them, for exactly the reason
 above.
+
+Run `make detumble-live` in one terminal and `make monitor` in another, and
+you can watch `q_est_0` to `q_est_3` change as the spacecraft turns. Square
+them and add them up: the answer is always 1.
 
 ## 💡 Rotation is stranger than you expect
 
@@ -137,7 +141,7 @@ python3 learn/toolbox/spin_sandbox.py
 
 That sandbox integrates Euler's equation for a real 6U CubeSat and shows the
 tumble being removed. Lesson 16 covers the control law; for now, look at how
-the physics is written:
+the physics is written there:
 
 ```python
 iw = (INERTIA[0]*omega[0], INERTIA[1]*omega[1], INERTIA[2]*omega[2])
@@ -147,6 +151,28 @@ omega = add(omega, scale(domega, dt))
 ```
 
 Four lines, and it is exactly the equation above.
+
+The real simulator,
+[`sim/models/dynamics.py`](../../sim/models/dynamics.py), has the same
+equation with one addition. Once the spacecraft carries **reaction wheels**,
+their stored spin `h_w` joins the gyroscopic term, and spinning a wheel up
+pushes the body the other way:
+
+```
+        I ω̇  =  τ  −  ω × (I ω + h_w)  −  ḣ_w
+```
+
+A good physics check follows from this. With no outside torque, the total
+spin of body plus wheels must never change, however hard the wheels work.
+`make test-sim` checks it every time the code changes:
+
+```
+[reaction wheels]
+  .  body + wheel momentum is conserved in inertial space (3.6e-06 relative)
+```
+
+That tiny residue is the integrator's error, not the physics. Halve the step
+and it shrinks sixteen-fold, exactly as Lesson 12 said RK4 should.
 
 ## 💡 Frames: the thing that actually catches people out
 
@@ -170,6 +196,23 @@ The only defence is being relentlessly explicit, everywhere, forever. That is
 why [`sim/models/README.md`](../../sim/models/README.md) makes it a rule:
 
 > Every model states its units and its reference frame in its docstring.
+
+And it is why the flight software's quaternion code opens with its convention
+written out, in
+[`fsw/apps/adcs/adcs_math.hpp`](../../fsw/apps/adcs/adcs_math.hpp):
+
+```cpp
+//    q = (w, x, y, z), scalar first, and q describes the body's attitude --
+//    it rotates a body-frame vector into the inertial frame:
+//
+//        v_inertial = q (x) v_body (x) q*            rotate(q, v)
+//        v_body     = q* (x) v_inertial (x) q        rotate_inv(q, v)
+```
+
+The Python simulator uses exactly the same convention, deliberately. Two
+conventions are in common use, and an estimator written in one feeding a
+controller written in the other produces a spacecraft that turns the wrong
+way, confidently.
 
 ## 🧪 Try it — feel gimbal lock
 
@@ -211,10 +254,12 @@ def orthonormalise(matrix):
     """
 ```
 
-**Where this goes.** Phase 2 builds the dynamics and B-dot detumble; Phase 3
-adds TRIAD, a complementary filter, and then a multiplicative extended Kalman
-filter — with the derivation written out, because a filter you cannot derive is
-a filter you cannot debug.
+**Where this went.** The simulator integrates these dynamics with RK4; the
+flight software estimates attitude with TRIAD and then a multiplicative
+extended Kalman filter, and controls it with B-dot and quaternion feedback.
+The filter's derivation is written out in
+[docs/ATTITUDE.md](../../docs/ATTITUDE.md), because a filter you cannot derive
+is a filter you cannot debug.
 
 ## ✅ Check yourself
 
