@@ -23,6 +23,14 @@ class IClock {
     // Monotonic time since boot. Must never decrease and must never jump.
     virtual core::Instant now() = 0;
 
+    // Host time, monotonic and never scaled. On flight hardware it is now().
+    // In an accelerated simulation it is the computer's own clock, for the one
+    // kind of check that is about the computer rather than the spacecraft: is
+    // the process on the other end of a link still alive? At 100x, a 20 ms
+    // pause of the host is two seconds of spacecraft time, and a watchdog on
+    // spacecraft time would see a dead link that is merely busy.
+    virtual core::Instant host_now() { return now(); }
+
     // Mission time, seconds since the mission epoch. May be steered by the
     // ground, so it MAY jump. Never use it to measure an interval.
     virtual double mission_time_s() = 0;

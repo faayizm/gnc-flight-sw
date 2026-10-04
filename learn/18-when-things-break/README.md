@@ -130,6 +130,16 @@ seconds, the spacecraft zeroes every actuator and raises `SENSOR_TIMEOUT`. A
 controller that keeps applying its last command to a spacecraft it can no
 longer see is how a small fault becomes a large one.
 
+> 🔍 **Two seconds of *which* clock?** The first version timed those two
+> seconds on the flight clock. The tests fly at 100 times real speed, so two
+> flight seconds were 20 real milliseconds. When the test computer got busy
+> and paused the simulator for that long, the spacecraft decided its sensors
+> were dead, threw away its filter history, and flew differently from the
+> same run on a quiet computer. The determinism check caught it. The fix is
+> to time this one check on the computer's own clock. It is watching the
+> simulator *program*, not the spacecraft, and a busy program is not a dead
+> sensor. On real hardware the two clocks are the same clock.
+
 **Reconfigure: the estimator loses track.** ✅ If the attitude filter disagrees
 with every measurement for ten seconds, it is thrown away and restarted from
 scratch, with an `ESTIMATOR_RESET` event. A confident filter that is wrong is

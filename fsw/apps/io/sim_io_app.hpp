@@ -52,7 +52,9 @@ class SimIoApp {
     static void on_power(void* ctx, core::Topic, const uint8_t* data, size_t length);
     void run();
 
-    static constexpr double kSensorTimeoutS = 2.0;
+    // Measured on the host clock: this watches the simulator process, and a
+    // busy host must not look like a dead sensor (see IClock::host_now).
+    static constexpr core::Duration kSensorTimeout = core::Duration::seconds(2);
 
     SimBridge       bridge_;
     hal::IClock&    clock_;
@@ -65,7 +67,7 @@ class SimIoApp {
 
     bool     sensors_ok_    = false;
     bool     ever_had_data_ = false;
-    double   last_rx_s_     = 0.0;
+    core::Instant last_rx_{};
     uint32_t samples_       = 0;
 };
 

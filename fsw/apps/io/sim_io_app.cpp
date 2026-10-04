@@ -30,7 +30,7 @@ void SimIoApp::task_run(void* context) { static_cast<SimIoApp*>(context)->run();
 void SimIoApp::run() {
     msg::SensorFrame s;
     if (bridge_.poll(s)) {
-        last_rx_s_ = clock_.mission_time_s();
+        last_rx_ = clock_.host_now();
         ever_had_data_ = true;
         if (!sensors_ok_) {
             sensors_ok_ = true;
@@ -55,7 +55,7 @@ void SimIoApp::run() {
         return;
     }
 
-    if (ever_had_data_ && sensors_ok_ && clock_.mission_time_s() - last_rx_s_ > kSensorTimeoutS) {
+    if (ever_had_data_ && sensors_ok_ && clock_.host_now() - last_rx_ > kSensorTimeout) {
         sensors_ok_ = false;
         events_.raise(dict::EventId::SENSOR_TIMEOUT);
         // Same time as the last real sample, every flag clear: consumers

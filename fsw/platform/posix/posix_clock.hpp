@@ -21,6 +21,7 @@ class PosixClock final : public hal::IClock {
     explicit PosixClock(double time_scale = 1.0);
 
     core::Instant now() override;
+    core::Instant host_now() override;
     double mission_time_s() override;
     void   set_mission_time_s(double seconds) override;
     void   sleep_until(core::Instant deadline) override;

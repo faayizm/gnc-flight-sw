@@ -28,6 +28,10 @@ core::Instant PosixClock::now() {
     return core::Instant::from_micros(scaled);
 }
 
+core::Instant PosixClock::host_now() {
+    return core::Instant::from_micros(raw_monotonic_us() - boot_raw_us_);
+}
+
 double PosixClock::mission_time_s() {
     return mission_epoch_offset_s_ +
            static_cast<double>(now().to_micros()) * 1e-6;

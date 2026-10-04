@@ -68,7 +68,7 @@ class ModeManager {
     msg::AdcsStatus    adcs_{};
     msg::PowerStatus   power_{};
     bool               have_adcs_ = false;
-    double             last_contact_s_ = 0.0;
+    core::Instant      last_contact_{};
     bool               started_ = false;
 };
 

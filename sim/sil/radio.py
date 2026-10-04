@@ -168,7 +168,16 @@ class Radio:
 
     def _run(self) -> None:
         ground, _ = self._srv.accept()
-        fsw = socket.create_connection(("127.0.0.1", self.fsw_port))
+        # The flight software may still be starting: retry like Bridge.connect.
+        for _ in range(100):
+            try:
+                fsw = socket.create_connection(("127.0.0.1", self.fsw_port))
+                break
+            except OSError:
+                time.sleep(0.05)
+        else:
+            ground.close()
+            return
         for s in (ground, fsw):
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         try:

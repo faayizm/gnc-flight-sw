@@ -41,7 +41,7 @@ void ModeManager::on_power(void* ctx, core::Topic, const uint8_t* data, size_t l
 
 void ModeManager::on_uplink(void* ctx, core::Topic, const uint8_t*, size_t) {
     auto* self = static_cast<ModeManager*>(ctx);
-    self->last_contact_s_ = self->clock_.mission_time_s();
+    self->last_contact_ = self->clock_.now();
 }
 
 Facts ModeManager::facts() {
@@ -53,7 +53,7 @@ Facts ModeManager::facts() {
     f.orbit_ok      = adcs_.orbit_valid;
     f.power         = power_.valid ? static_cast<dict::PowerState>(power_.power_state)
                                    : dict::PowerState::UNKNOWN;
-    f.since_contact_s = clock_.mission_time_s() - last_contact_s_;
+    f.since_contact_s = (clock_.now() - last_contact_).to_double_seconds();
     return f;
 }
 
@@ -85,7 +85,7 @@ void ModeManager::task_run(void* context) {
     auto* self = static_cast<ModeManager*>(context);
     self->start_contact_timer();
     if (self->mode_ != dict::SystemMode::SAFE &&
-        self->clock_.mission_time_s() - self->last_contact_s_ > self->limits().link_timeout_s) {
+        (self->clock_.now() - self->last_contact_).to_double_seconds() > self->limits().link_timeout_s) {
         self->change_to(dict::SystemMode::SAFE, dict::SafeReason::NO_CONTACT);
     }
 }
@@ -94,7 +94,7 @@ void ModeManager::start_contact_timer() {
     if (!started_) {
         // The contact timer starts at boot: a spacecraft that has never heard
         // the ground has, as far as autonomy is concerned, lost it.
-        last_contact_s_ = clock_.mission_time_s();
+        last_contact_ = clock_.now();
         started_ = true;
     }
 }
