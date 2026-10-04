@@ -117,13 +117,18 @@ the sensor samples' timestamps, as a real spacecraft would use GPS time. That
 covers ADCS's dynamics, EPS's charge counting, and the transmitter's
 10-minute hold after contact.
 
-The flight clock is kept for things that must work with no sensors at all:
-detecting a dead sensor stream, and the mode manager's day-long contact
-timeout.
+The mode manager's rules run once per sensor sample for the same reason, so a
+mode change always lands on the same sample. The flight clock is kept for
+things that must work with no sensors at all: detecting a dead sensor stream,
+and the mode manager's day-long contact timeout.
 
-The transmitter hold was first written on the flight clock. The power
-scenario caught it: at 50× the hold outlasted the gap between contacts and
-the transmitter was never shed.
+Both mistakes were made first and caught by the scenarios:
+
+- The transmitter hold was on the flight clock. At 50× it outlasted the gap
+  between contacts, and the transmitter was never shed.
+- The mode rules ran in a 10 Hz task on the flight clock. Mode changes then
+  landed on different samples at different time scales, and the detumble
+  scenario's determinism check failed.
 
 ## Simplifications
 

@@ -10,10 +10,15 @@
 //  modes -- the mode history is often the only record of what a spacecraft
 //  was thinking.
 //
-//  Autonomous rules are evaluated at 10 Hz in a task of their own. Ground
-//  requests are judged the moment they arrive, so the refusal (MODE_REFUSED,
-//  with the reason) reaches the ground in the same telemetry burst as the
-//  command's verification report.
+//  Autonomous rules are evaluated once per sensor sample, when EPS reports
+//  (EPS runs after ADCS, so both facts are fresh). Driving them from the
+//  sample rather than a clock means a mode change lands on the same sample in
+//  every run, however fast the host is -- the scenarios' determinism checks
+//  depend on it. Only the loss-of-contact timeout, which must work with no
+//  sensors at all, runs on the clock in a 10 Hz task. Ground requests are
+//  judged the moment they arrive, so the refusal (MODE_REFUSED, with the
+//  reason) reaches the ground in the same telemetry burst as the command's
+//  verification report.
 // ============================================================================
 #pragma once
 
@@ -49,6 +54,7 @@ class ModeManager {
     static void on_power(void* ctx, core::Topic, const uint8_t* data, size_t length);
     static void on_uplink(void* ctx, core::Topic, const uint8_t*, size_t);
 
+    void   start_contact_timer();
     Facts  facts();
     Limits limits() const;
     void   change_to(dict::SystemMode to, dict::SafeReason why);

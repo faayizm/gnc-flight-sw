@@ -25,12 +25,17 @@ void ModeManager::on_adcs(void* ctx, core::Topic, const uint8_t* data, size_t le
     if (length == sizeof(msg::AdcsStatus)) {
         std::memcpy(&self->adcs_, data, length);
         self->have_adcs_ = self->have_adcs_ || self->adcs_.rate_valid;
+        // EPS reports after ADCS for the same sample; wait for it, unless
+        // there is no EPS data to wait for.
+        if (!self->power_.valid) { self->evaluate(); }
     }
 }
 
 void ModeManager::on_power(void* ctx, core::Topic, const uint8_t* data, size_t length) {
+    auto* self = static_cast<ModeManager*>(ctx);
     if (length == sizeof(msg::PowerStatus)) {
-        std::memcpy(&static_cast<ModeManager*>(ctx)->power_, data, length);
+        std::memcpy(&self->power_, data, length);
+        self->evaluate();
     }
 }
 
@@ -73,15 +78,31 @@ void ModeManager::change_to(dict::SystemMode to, dict::SafeReason why) {
     bus_.publish_object(core::Topic::ModeChanged, m);
 }
 
-void ModeManager::task_run(void* context) { static_cast<ModeManager*>(context)->evaluate(); }
+void ModeManager::task_run(void* context) {
+    // Only the rule that must work with no sensors at all runs on the clock:
+    // a spacecraft that cannot hear the ground goes SAFE whether or not
+    // anything else is working.
+    auto* self = static_cast<ModeManager*>(context);
+    self->start_contact_timer();
+    if (self->mode_ != dict::SystemMode::SAFE &&
+        self->clock_.mission_time_s() - self->last_contact_s_ > self->limits().link_timeout_s) {
+        self->change_to(dict::SystemMode::SAFE, dict::SafeReason::NO_CONTACT);
+    }
+}
 
-void ModeManager::evaluate() {
+void ModeManager::start_contact_timer() {
     if (!started_) {
         // The contact timer starts at boot: a spacecraft that has never heard
         // the ground has, as far as autonomy is concerned, lost it.
         last_contact_s_ = clock_.mission_time_s();
         started_ = true;
     }
+}
+
+void ModeManager::evaluate() {
+    // Called once per sensor sample, so every decision lands on the same
+    // sample however fast the host runs -- which keeps scenarios reproducible.
+    start_contact_timer();
     const Decision d = autonomous(mode_, facts(), limits());
     change_to(d.mode, d.safe_reason);
 }
