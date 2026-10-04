@@ -74,7 +74,7 @@ class WheelCheck {
         if (t - window_t0_ >= c.window_s - 1e-9) {
             for (int i = 0; i < 3; ++i) {
                 residual_[i] = (h[i] - h0_[i]) - commanded_[i];
-                if ((ignore >> i) & 1u) { bad_[i] = 0; continue; }
+                if (((ignore >> i) & 1) != 0) { bad_[i] = 0; continue; }
                 if (excused_[i]) { continue; }
                 if (std::fabs(residual_[i]) > c.threshold_nms) {
                     ++bad_[i];
@@ -104,7 +104,7 @@ class WheelCheck {
     uint8_t failed_mask(uint8_t ignore, const WheelCheckConfig& c) const {
         uint8_t m = 0;
         for (int i = 0; i < 3; ++i) {
-            if (!((ignore >> i) & 1u) && bad_[i] >= c.fail_windows) { m |= static_cast<uint8_t>(1u << i); }
+            if (((ignore >> i) & 1) == 0 && bad_[i] >= c.fail_windows) { m |= static_cast<uint8_t>(1u << i); }
         }
         return m;
     }

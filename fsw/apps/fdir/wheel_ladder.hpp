@@ -118,7 +118,7 @@ class WheelLadder {
     void restore(uint8_t mask) {
         isolated_.set(static_cast<uint8_t>(isolated_.get() & ~mask));
         for (int i = 0; i < 3; ++i) {
-            if ((mask >> i) & 1u) { retries_[i] = 0; }
+            if (((mask >> i) & 1) != 0) { retries_[i] = 0; }
         }
     }
 
