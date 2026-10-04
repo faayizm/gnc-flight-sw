@@ -24,7 +24,7 @@ services.
 | ST[01] verification | 1, 2, 7, 8 | Acceptance and completion, success and failure. Without this the ground is commanding blind |
 | ST[03] housekeeping | 5, 6, 25 | Periodic parameter reports; enable and disable per structure |
 | ST[05] events | 1–4 | Severity-coded event reports. The subtype *is* the severity, which lets a ground system filter on urgency knowing nothing about this mission |
-| ST[08] functions | 1, 2 | Mode requests (for the Phase 5 mode manager) and counter reset |
+| ST[08] functions | 1, 2, 3 | Mode requests (judged by the mode manager), counter reset, power rail requests (applied by EPS) |
 | ST[09] time | 1, 2, 128 | Periodic CUC time reports; ADJUST_TIME (mission-specific) applies the ground's correlation and sets the time reference status to 1 |
 | ST[11] scheduling | 1, 2, 3, 4 | Time-tagged telecommands: enable, disable, reset, insert (all-or-nothing) |
 | ST[15] storage | 1, 2, 9, 11, 12, 13 | Record every packet; replay a time range on the playback channel; delete; summary |

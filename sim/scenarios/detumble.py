@@ -29,6 +29,7 @@ from sim.sil.simulation import Scenario, Simulation  # noqa: E402
 
 SCENARIO = Scenario(name="detumble", seed=1, duration_s=2.5 * 5677.0, tumble_dps=10.0)
 TARGET_DPS = 0.5
+DETUMBLE_DONE = "MODE_CHANGED:0203"     # DETUMBLE (2) -> STANDBY (3)
 
 
 def run(scenario: Scenario, time_scale: float, verbose: bool = True):
@@ -54,7 +55,10 @@ def run(scenario: Scenario, time_scale: float, verbose: bool = True):
                         if tm.name == "ADCS_HK":
                             adcs_hk = tm.fields
                         elif tm.name.startswith("EVENT"):
-                            events.append(tm.fields["event_name"])
+                            name = tm.fields["event_name"]
+                            if name == "MODE_CHANGED":
+                                name = f"MODE_CHANGED:{tm.fields['aux']:04x}"
+                            events.append(name)
                             if verbose:
                                 print(f"  t={sim.t:8.0f} s  event {events[-1]}")
                     if verbose and k % 6000 == 0:
@@ -65,7 +69,7 @@ def run(scenario: Scenario, time_scale: float, verbose: bool = True):
                     under_target_since = None
                 # Stop once the flight software has handed over and the rate has
                 # held below target for ten minutes of simulated time.
-                if (scenario.name == "detumble" and "DETUMBLE_COMPLETE" in events
+                if (scenario.name == "detumble" and DETUMBLE_DONE in events
                         and under_target_since and sim.t - under_target_since > 600):
                     break
         finally:
@@ -143,7 +147,7 @@ def main() -> int:
     if hk is not None:
         check(abs(hk["rate_norm"] - sim.rate_dps) < 0.3,
               f"downlinked rate ({hk['rate_norm']:.3f}) agrees with truth ({sim.rate_dps:.3f}) deg/s")
-    check("DETUMBLE_COMPLETE" in events, "the flight software announced DETUMBLE_COMPLETE")
+    check(DETUMBLE_DONE in events, "the mode manager left DETUMBLE for STANDBY by itself")
 
     if args.determinism:
         print("determinism: same seed, second run")

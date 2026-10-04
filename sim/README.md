@@ -13,6 +13,7 @@ make build
 make test-sim     # physics checks: conservation laws, IGRF vs a reference
 make detumble     # ~15 s: flies 10 deg/s down to ~0.4 deg/s within an orbit
 make pointing     # ~55 s: tumble to 0.2 deg nadir pointing, two orbits
+make power        # ~70 s: a stuck heater, load shedding, SAFE, recovery
 ```
 
 Pure Python, standard library only — no NumPy — so it runs anywhere the rest
@@ -83,6 +84,7 @@ is asserted. They run in `make check`.
 |---|---|---|
 | `detumble.py` | B-dot brings 10 °/s of tumble below 0.5 °/s, deterministically | ✅ |
 | `nadir_pointing.py` | Pointing settles below 0.2° and holds through eclipse and a GPS outage; the gyro bias is learned; momentum is dumped before the wheels fill | ✅ |
+| `power_and_modes.py` | A stuck heater drains the battery: load shed in order, SAFE at CRITICAL, no autonomous exit, recovery on ground request | ✅ |
 | `store_and_forward.py` | Over two real passes and a noisy channel: time correlation, commands scheduled in one pass run on time out of contact, and the gap is replayed from the store in the next | ✅ |
 | `sensor_dropout.py` | A failed magnetometer degrades cleanly instead of diverging | Phase 6 |
 | `wheel_failure.py` | A wheel failure mid-pointing is detected, isolated and recovered | Phase 6 |

@@ -6,11 +6,14 @@ or radios.
 
 ```
 apps/
-├── ttc/        telemetry, tracking and command      WORKING
-├── modemgr/    spacecraft mode arbitration          Phase 5
-├── adcs/       attitude determination and control   WORKING (see docs/ATTITUDE.md)
-├── eps/        electrical power                     Phase 5
+├── ttc/        telemetry, tracking and command      WORKING (docs/LINK.md)
+├── io/         the hardware boundary                WORKING
+├── adcs/       attitude determination and control   WORKING (docs/ATTITUDE.md)
+├── eps/        electrical power                     WORKING (docs/POWER_AND_MODES.md)
+├── modemgr/    spacecraft mode arbitration          WORKING (docs/POWER_AND_MODES.md)
 └── fdir/       fault detection, isolation, recovery Phase 6
+
+messages.hpp    every bus payload, with its publisher and subscribers
 ```
 
 ## How an application is built

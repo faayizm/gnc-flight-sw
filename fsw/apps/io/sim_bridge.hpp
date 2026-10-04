@@ -1,5 +1,5 @@
 // ============================================================================
-//  fsw/apps/adcs/sim_bridge.hpp -- the simulator bridge protocol.
+//  fsw/apps/io/sim_bridge.hpp -- the simulator bridge protocol.
 //
 //  The flight software never sees the simulator's truth. It receives exactly
 //  what sensors would produce, and returns exactly what the actuator drivers
@@ -28,17 +28,24 @@
 //        gps_pos    f64[3]    m, inertial frame
 //        gps_vel    f64[3]    m/s, inertial frame
 //        star_q     f32[4]    star tracker attitude, body -> inertial, w first
+//        batt_v     f32       V, battery terminal voltage
+//        batt_i     f32       A, battery current, positive when charging
+//        solar_w    f32       W, total solar array output
+//        load_w     f32       W, total bus load
+//        batt_temp  f32       deg C
+//        rails      u16       power switch states, bit per dict::PowerRail
 //        flags      u8        bit0 mag, bit1 gyro, bit2 sun, bit3 GPS,
-//                             bit4 wheels, bit5 star tracker -- each set when
-//                             that data is valid
+//                             bit4 wheels, bit5 star tracker, bit6 EPS --
+//                             each set when that data is valid
 //
 //    0x02 ACTUATOR  flight -> simulator
 //        seq        u32       echo of the sensor frame being answered
 //        dipole     f32[3]    A*m^2, body frame, magnetorquer demand
 //        wheel_trq  f32[3]    N*m, torque demanded of each wheel motor (the
 //                             body feels the opposite)
+//        rails      u16       power rails to switch on, bit per dict::PowerRail
 //        flags      u8        bit0 magnetorquers commanded, bit1 wheels
-//                             commanded
+//                             commanded, bit2 rails commanded
 //
 //  LOCKSTEP. The simulator sends one SENSOR frame and waits for the matching
 //  ACTUATOR frame before advancing time. That is what makes a run exactly
@@ -50,43 +57,30 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "apps/adcs/bdot.hpp"
+#include "apps/messages.hpp"
 #include "core/status.hpp"
 #include "hal/link.hpp"
 
-namespace fsw::adcs {
+namespace fsw::io {
+
+using msg::SensorFrame;
+using msg::Vec3f;
 
 constexpr uint8_t kFrameSensor   = 0x01;
 constexpr uint8_t kFrameActuator = 0x02;
-
-struct SensorFrame {
-    uint32_t seq        = 0;
-    double   time_s     = 0.0;
-    Vec3f    mag_t{};
-    Vec3f    gyro_rps{};
-    Vec3f    sun_b{};
-    Vec3f    wheel_h{};
-    double   gps_pos[3] = {0.0, 0.0, 0.0};
-    double   gps_vel[3] = {0.0, 0.0, 0.0};
-    bool     mag_valid   = false;
-    bool     gyro_valid  = false;
-    bool     sun_valid   = false;
-    bool     gps_valid   = false;
-    float    star_q[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-    bool     wheels_valid = false;
-    bool     star_valid  = false;
-};
 
 struct ActuatorFrame {
     uint32_t seq       = 0;
     Vec3f    dipole_a_m2{};
     Vec3f    wheel_torque_nm{};
+    uint16_t rails = 0;
     bool     commanded = false;
     bool     wheels_commanded = false;
+    bool     rails_commanded = false;
 };
 
-constexpr size_t kSensorFrameBytes   = 2 + 1 + 125 + 2;
-constexpr size_t kActuatorFrameBytes = 2 + 1 + 29 + 2;
+constexpr size_t kSensorFrameBytes   = 2 + 1 + 147 + 2;
+constexpr size_t kActuatorFrameBytes = 2 + 1 + 31 + 2;
 
 // Pure codecs, separated from the link so they can be tested byte for byte.
 size_t encode_actuator(const ActuatorFrame& f, uint8_t* out, size_t capacity);
@@ -120,4 +114,4 @@ class SimBridge {
     uint32_t    frames_dropped_ = 0;
 };
 
-}  // namespace fsw::adcs
+}  // namespace fsw::io

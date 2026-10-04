@@ -3,6 +3,7 @@ simulator and a ground client, and collect what comes down."""
 
 from __future__ import annotations
 
+import os
 import pathlib
 import socket
 import subprocess
@@ -12,6 +13,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "gnd"))
 
 from pyground.client import GroundClient          # noqa: E402
+from pyground.dictionary import ENUMS             # noqa: E402
+
+MODES = {v: k for k, v in ENUMS["SystemMode"].items()}
 
 FSW = ROOT / "build" / "fsw"
 
@@ -33,7 +37,9 @@ class Flight:
 
     def __enter__(self):
         self.nvm.unlink(missing_ok=True)
-        self.proc = subprocess.Popen(self.args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # FSW_STDERR=1 lets sanitizer reports from the flight binary through.
+        err = None if os.environ.get("FSW_STDERR") else subprocess.DEVNULL
+        self.proc = subprocess.Popen(self.args, stdout=subprocess.DEVNULL, stderr=err)
         return self
 
     def __exit__(self, *_):
@@ -59,6 +65,9 @@ class Downlink:
         for tm in self.client.poll_nowait():
             if tm.name.startswith("EVENT"):
                 name = tm.fields["event_name"]
+                if name == "MODE_CHANGED":
+                    aux = tm.fields["aux"]
+                    name = f"MODE {MODES.get(aux >> 8, '?')}->{MODES.get(aux & 0xFF, '?')}"
                 self.events.append((sim_t, name))
                 self.event_aux.setdefault(name, []).append(tm.fields.get("aux"))
                 if on_event:

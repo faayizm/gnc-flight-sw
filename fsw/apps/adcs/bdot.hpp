@@ -36,11 +36,11 @@
 
 #include <cmath>
 
+#include "apps/messages.hpp"
+
 namespace fsw::adcs {
 
-struct Vec3f {
-    float x = 0.0f, y = 0.0f, z = 0.0f;
-};
+using msg::Vec3f;
 
 struct BdotConfig {
     float gain_a_m2_per_t_s = 1.0e5f;  // k in m = -k * dB/dt

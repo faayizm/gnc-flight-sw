@@ -685,6 +685,26 @@ def gen_cosmos_link_screen(d: Dictionary) -> str:
     return "\n".join(o) + "\n"
 
 
+def gen_cosmos_power_screen(d: Dictionary) -> str:
+    """Battery, load shedding and the mode it all feeds into."""
+    o = [BANNER_HASH, "SCREEN AUTO AUTO 1.0", "",
+         'VERTICALBOX "Mode and power"',
+         "  LABELVALUE SAT SYS_HK MODE",
+         "  LABELVALUE SAT EPS_HK POWER_STATE",
+         "  LABELVALUE SAT EPS_HK SHED_LEVEL",
+         "  LABELVALUE SAT EPS_HK RAILS_ENABLED",
+         "  LABELVALUE SAT EPS_HK BATT_SOC_PCT WITH_UNITS",
+         "  LINEGRAPH SAT EPS_HK BATT_SOC_PCT",
+         "END", "",
+         'VERTICALBOX "Energy balance"',
+         "  LABELVALUE SAT EPS_HK BATT_VOLTAGE WITH_UNITS",
+         "  LABELVALUE SAT EPS_HK BATT_CURRENT WITH_UNITS",
+         "  LINEGRAPH SAT EPS_HK SOLAR_POWER_W",
+         "  LINEGRAPH SAT EPS_HK LOAD_POWER_W",
+         "END", ""]
+    return "\n".join(o) + "\n"
+
+
 def gen_cosmos_pointing_screen(d: Dictionary) -> str:
     """The screen to watch while the spacecraft acquires and holds nadir."""
     o = [BANNER_HASH, "SCREEN AUTO AUTO 1.0", "",
@@ -1002,6 +1022,7 @@ def main() -> int:
     write(ROOT / "gnd/openc3/targets/SAT/screens/detumble.txt", gen_cosmos_detumble_screen(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/screens/pointing.txt", gen_cosmos_pointing_screen(d), written)
     write(ROOT / "gnd/openc3/targets/SAT/screens/link.txt", gen_cosmos_link_screen(d), written)
+    write(ROOT / "gnd/openc3/targets/SAT/screens/power.txt", gen_cosmos_power_screen(d), written)
     write(ROOT / "gnd/pyground/dictionary.py", gen_pyground_dict(d), written)
     write(ROOT / "docs/ICD.md", gen_icd(d), written)
 

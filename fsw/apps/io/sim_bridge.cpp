@@ -1,14 +1,14 @@
 // ============================================================================
-//  fsw/apps/adcs/sim_bridge.cpp
+//  fsw/apps/io/sim_bridge.cpp
 // ============================================================================
-#include "apps/adcs/sim_bridge.hpp"
+#include "apps/io/sim_bridge.hpp"
 
 #include <cstring>
 
 #include "core/bytes.hpp"
 #include "core/crc.hpp"
 
-namespace fsw::adcs {
+namespace fsw::io {
 
 namespace {
 
@@ -40,7 +40,9 @@ size_t encode_actuator(const ActuatorFrame& f, uint8_t* out, size_t capacity) {
     w.write_uint32(f.seq);
     write_vec(w, f.dipole_a_m2);
     write_vec(w, f.wheel_torque_nm);
-    w.write_uint8(static_cast<uint8_t>((f.commanded ? 1 : 0) | (f.wheels_commanded ? 2 : 0)));
+    w.write_uint16(f.rails);
+    w.write_uint8(static_cast<uint8_t>((f.commanded ? 1 : 0) | (f.wheels_commanded ? 2 : 0) |
+                                       (f.rails_commanded ? 4 : 0)));
     size_t total = 0;
     return finish_frame(w, out, total) ? total : 0;
 }
@@ -58,9 +60,16 @@ size_t encode_sensor(const SensorFrame& f, uint8_t* out, size_t capacity) {
     for (double v : f.gps_pos) { w.write_float64(v); }
     for (double v : f.gps_vel) { w.write_float64(v); }
     for (float v : f.star_q) { w.write_float32(v); }
+    w.write_float32(f.batt_v);
+    w.write_float32(f.batt_i);
+    w.write_float32(f.solar_w);
+    w.write_float32(f.load_w);
+    w.write_float32(f.batt_temp_c);
+    w.write_uint16(f.rails_actual);
     w.write_uint8(static_cast<uint8_t>((f.mag_valid ? 1 : 0) | (f.gyro_valid ? 2 : 0) |
                                        (f.sun_valid ? 4 : 0) | (f.gps_valid ? 8 : 0) |
-                                       (f.wheels_valid ? 16 : 0) | (f.star_valid ? 32 : 0)));
+                                       (f.wheels_valid ? 16 : 0) | (f.star_valid ? 32 : 0) |
+                                       (f.eps_valid ? 64 : 0)));
     size_t total = 0;
     return finish_frame(w, out, total) ? total : 0;
 }
@@ -81,6 +90,9 @@ bool decode_sensor(const uint8_t* body, size_t length, SensorFrame& out) {
         !r.read_float64(f.gps_vel[1]) || !r.read_float64(f.gps_vel[2]) ||
         !r.read_float32(f.star_q[0]) || !r.read_float32(f.star_q[1]) ||
         !r.read_float32(f.star_q[2]) || !r.read_float32(f.star_q[3]) ||
+        !r.read_float32(f.batt_v) || !r.read_float32(f.batt_i) ||
+        !r.read_float32(f.solar_w) || !r.read_float32(f.load_w) ||
+        !r.read_float32(f.batt_temp_c) || !r.read_uint16(f.rails_actual) ||
         !r.read_uint8(flags)) {
         return false;
     }
@@ -91,6 +103,7 @@ bool decode_sensor(const uint8_t* body, size_t length, SensorFrame& out) {
     f.gps_valid  = (flags & 8) != 0;
     f.wheels_valid = (flags & 16) != 0;
     f.star_valid   = (flags & 32) != 0;
+    f.eps_valid    = (flags & 64) != 0;
     out = f;
     return true;
 }
@@ -141,4 +154,4 @@ core::Status SimBridge::send(const ActuatorFrame& f) {
     return link_.send(buf, n);
 }
 
-}  // namespace fsw::adcs
+}  // namespace fsw::io

@@ -21,6 +21,9 @@ ENUMS = {
     'AdcsEstState': {'INVALID': 0, 'INITIALISING': 1, 'CONVERGING': 2, 'CONVERGED': 3},
     'AdcsCtrlMode': {'IDLE': 0, 'DETUMBLE': 1, 'STANDBY': 2, 'POINTING': 3},
     'PowerState': {'UNKNOWN': 0, 'NOMINAL': 1, 'LOW': 2, 'CRITICAL': 3},
+    'PowerRail': {'OBC': 0, 'RX': 1, 'TX': 2, 'ADCS': 3, 'WHEELS': 4, 'PAYLOAD': 5, 'OPS_HEATERS': 6, 'SURVIVAL_HEATERS': 7},
+    'ModeRefusal': {'NONE': 0, 'RATES_HIGH': 1, 'ATTITUDE_UNKNOWN': 2, 'POWER': 3, 'NOT_FROM_MODE': 4, 'INVALID': 5},
+    'SafeReason': {'GROUND': 0, 'POWER_CRITICAL': 1, 'NO_CONTACT': 2},
     'Severity': {'INFO': 1, 'LOW': 2, 'MEDIUM': 3, 'HIGH': 4},
 }
 
@@ -39,6 +42,7 @@ COMMANDS = {
     'REPORT_PARAM': (20, 1, [('param_id', 'uint16', None)]),
     'SET_PARAM': (20, 3, [('param_id', 'uint16', None), ('value', 'float64', None)]),
     'SET_MODE': (8, 1, [('mode', 'uint8', 'SystemMode')]),
+    'SWITCH_RAIL': (8, 3, [('rail', 'uint8', 'PowerRail'), ('on', 'uint8', None)]),
     'RESET_COUNTERS': (8, 2, []),
     'SET_TIME_REPORT_RATE': (9, 1, [('rate_exp', 'uint8', None)]),
     'ADJUST_TIME': (9, 128, [('delta_s', 'float64', None)]),
@@ -59,7 +63,7 @@ VARIABLE_COMMANDS = ['INSERT_ACTIVITIES']
 # id -> (name, severity, description)
 EVENTS = {
     1: ('BOOT_COMPLETE', 'INFO', 'Flight software finished initialisation'),
-    2: ('MODE_CHANGED', 'INFO', 'Spacecraft mode transition executed'),
+    2: ('MODE_CHANGED', 'INFO', 'Spacecraft mode transition executed; aux = old mode << 8 | new mode'),
     3: ('LINK_CONNECTED', 'INFO', 'Ground link established'),
     4: ('LINK_LOST', 'LOW', 'Ground link dropped'),
     5: ('TC_REJECTED', 'LOW', 'Telecommand failed acceptance checks'),
@@ -67,20 +71,20 @@ EVENTS = {
     7: ('HK_DISABLED', 'INFO', 'Housekeeping structure generation disabled'),
     8: ('PARAM_SET', 'INFO', 'On-board parameter modified from ground'),
     9: ('SCHED_OVERRUN', 'MEDIUM', 'A rate group missed its deadline'),
-    10: ('MODE_REFUSED', 'LOW', 'Requested mode transition was refused'),
-    11: ('SAFE_MODE_ENTERED', 'HIGH', 'Spacecraft autonomously entered safe mode'),
-    12: ('DETUMBLE_STARTED', 'INFO', 'B-dot detumble control engaged'),
-    13: ('DETUMBLE_COMPLETE', 'INFO', 'Body rate fell below the hand-over threshold and detumble control stopped'),
+    10: ('MODE_REFUSED', 'LOW', 'Requested mode transition was refused; aux = requested mode << 8 | ModeRefusal'),
+    11: ('SAFE_MODE_ENTERED', 'HIGH', 'Spacecraft entered safe mode; aux = SafeReason'),
     14: ('SENSOR_TIMEOUT', 'MEDIUM', 'No sensor data from the simulator bridge; actuators commanded to zero'),
     16: ('ESTIMATOR_INIT', 'INFO', 'Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker'),
     17: ('ESTIMATOR_CONVERGED', 'INFO', 'Attitude estimator uncertainty fell below the pointing threshold'),
-    18: ('POINTING_STARTED', 'INFO', 'Nadir pointing control engaged'),
     19: ('ESTIMATOR_RESET', 'MEDIUM', 'Attitude estimator discarded after persistent large innovations'),
     20: ('TIME_ADJUSTED', 'INFO', "On-board time corrected from the ground; aux = correction in ms, two's complement"),
     21: ('SCHED_RELEASED', 'INFO', 'A time-tagged telecommand was released; aux = its packet sequence count'),
     22: ('PLAYBACK_STARTED', 'INFO', 'Packet store retrieval began; aux = packets selected'),
     23: ('PLAYBACK_DONE', 'INFO', 'Packet store retrieval finished; aux = packets replayed'),
     24: ('STORE_WRAPPED', 'LOW', 'The packet store filled and began overwriting its oldest packets'),
+    25: ('POWER_STATE_CHANGED', 'MEDIUM', 'Battery power state changed; aux = old << 8 | new (PowerState)'),
+    26: ('LOAD_SHED', 'MEDIUM', 'Load-shedding level changed; aux = new level (0 = everything restored)'),
+    27: ('RAIL_SWITCHED', 'INFO', 'A power rail was switched by ground command; aux = rail << 8 | on'),
     15: ('SENSOR_RESTORED', 'INFO', 'Sensor data resumed after a timeout'),
 }
 
@@ -93,13 +97,14 @@ PARAMS = {
     5: ('POINTING_RATE_DPS', 'float32', 0.5, 0.01, 10.0, 'deg/s', 'Rate threshold below which pointing is permitted'),
     6: ('BATT_LOW_SOC_PCT', 'float32', 40.0, 5.0, 90.0, '%', 'State of charge entering the LOW power state'),
     7: ('BATT_CRIT_SOC_PCT', 'float32', 20.0, 2.0, 80.0, '%', 'State of charge entering the CRITICAL power state'),
-    8: ('LINK_TIMEOUT_S', 'uint32', 300, 10, 86400, 's', 'Ground contact loss timeout before autonomy reacts'),
+    8: ('LINK_TIMEOUT_S', 'uint32', 86400, 600, 604800, 's', 'Time without hearing the ground before the spacecraft enters SAFE'),
     9: ('BDOT_GAIN', 'float32', 300000.0, 0.0, 10000000.0, 'A*m^2/(T/s)', 'B-dot proportional gain'),
     10: ('MTQ_MAX_DIPOLE', 'float32', 0.2, 0.0, 10.0, 'A*m^2', 'Largest magnetic dipole commanded on any axis'),
     11: ('BDOT_FILTER_TAU_S', 'float32', 3.0, 0.1, 60.0, 's', 'Time constant of the filter applied to the field derivative'),
     12: ('POINT_BANDWIDTH_RADPS', 'float32', 0.1, 0.005, 1.0, 'rad/s', 'Natural frequency of the pointing control loop'),
     13: ('POINT_MAX_SLEW_DPS', 'float32', 1.0, 0.05, 5.0, 'deg/s', 'Largest body rate the pointing controller will command while acquiring'),
     14: ('MOMENTUM_DUMP_GAIN', 'float32', 0.0005, 0.0, 0.1, '1/s', 'Magnetic momentum-unloading gain'),
+    15: ('BATT_CAPACITY_WH', 'float32', 30.0, 1.0, 1000.0, 'W*h', 'Usable battery energy at 100% state of charge'),
 }
 
 STRUCT_CODES = {

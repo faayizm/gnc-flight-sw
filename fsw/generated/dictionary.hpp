@@ -104,6 +104,67 @@ constexpr const char* to_string(PowerState v) {
     return "UNKNOWN";
 }
 
+// Switched power rails, by bit number in rails_enabled. OBC, RX and SURVIVAL_HEATERS can never be switched off.
+enum class PowerRail : uint8_t {
+    OBC = 0,
+    RX = 1,
+    TX = 2,
+    ADCS = 3,
+    WHEELS = 4,
+    PAYLOAD = 5,
+    OPS_HEATERS = 6,
+    SURVIVAL_HEATERS = 7,
+};
+constexpr const char* to_string(PowerRail v) {
+    switch (v) {
+        case PowerRail::OBC: return "OBC";
+        case PowerRail::RX: return "RX";
+        case PowerRail::TX: return "TX";
+        case PowerRail::ADCS: return "ADCS";
+        case PowerRail::WHEELS: return "WHEELS";
+        case PowerRail::PAYLOAD: return "PAYLOAD";
+        case PowerRail::OPS_HEATERS: return "OPS_HEATERS";
+        case PowerRail::SURVIVAL_HEATERS: return "SURVIVAL_HEATERS";
+    }
+    return "UNKNOWN";
+}
+
+// Why the mode manager refused a ground mode request (MODE_REFUSED aux, low byte).
+enum class ModeRefusal : uint8_t {
+    NONE = 0,
+    RATES_HIGH = 1,
+    ATTITUDE_UNKNOWN = 2,
+    POWER = 3,
+    NOT_FROM_MODE = 4,
+    INVALID = 5,
+};
+constexpr const char* to_string(ModeRefusal v) {
+    switch (v) {
+        case ModeRefusal::NONE: return "NONE";
+        case ModeRefusal::RATES_HIGH: return "RATES_HIGH";
+        case ModeRefusal::ATTITUDE_UNKNOWN: return "ATTITUDE_UNKNOWN";
+        case ModeRefusal::POWER: return "POWER";
+        case ModeRefusal::NOT_FROM_MODE: return "NOT_FROM_MODE";
+        case ModeRefusal::INVALID: return "INVALID";
+    }
+    return "UNKNOWN";
+}
+
+// Why the spacecraft entered SAFE (SAFE_MODE_ENTERED aux).
+enum class SafeReason : uint8_t {
+    GROUND = 0,
+    POWER_CRITICAL = 1,
+    NO_CONTACT = 2,
+};
+constexpr const char* to_string(SafeReason v) {
+    switch (v) {
+        case SafeReason::GROUND: return "GROUND";
+        case SafeReason::POWER_CRITICAL: return "POWER_CRITICAL";
+        case SafeReason::NO_CONTACT: return "NO_CONTACT";
+    }
+    return "UNKNOWN";
+}
+
 // PUS ST[05] event severity, mapped to subtypes 1..4.
 enum class Severity : uint8_t {
     INFO = 1,
@@ -125,7 +186,7 @@ constexpr const char* to_string(Severity v) {
 enum class HkSid : uint8_t {
     SYS_HK = 1,   // Core system health, scheduler timing and link statistics.
     ADCS_HK = 2,   // Attitude determination and control state.
-    EPS_HK = 3,   // Power subsystem state. Populated from Phase 5 onward.
+    EPS_HK = 3,   // Power subsystem state.
 };
 inline constexpr size_t kHkStructureCount = 3;
 
@@ -142,18 +203,18 @@ enum class EventId : uint16_t {
     SCHED_OVERRUN = 9,
     MODE_REFUSED = 10,
     SAFE_MODE_ENTERED = 11,
-    DETUMBLE_STARTED = 12,
-    DETUMBLE_COMPLETE = 13,
     SENSOR_TIMEOUT = 14,
     ESTIMATOR_INIT = 16,
     ESTIMATOR_CONVERGED = 17,
-    POINTING_STARTED = 18,
     ESTIMATOR_RESET = 19,
     TIME_ADJUSTED = 20,
     SCHED_RELEASED = 21,
     PLAYBACK_STARTED = 22,
     PLAYBACK_DONE = 23,
     STORE_WRAPPED = 24,
+    POWER_STATE_CHANGED = 25,
+    LOAD_SHED = 26,
+    RAIL_SWITCHED = 27,
     SENSOR_RESTORED = 15,
 };
 
@@ -166,7 +227,7 @@ struct EventInfo {
 
 inline constexpr EventInfo kEvents[] = {
     { EventId::BOOT_COMPLETE, Severity::INFO, "BOOT_COMPLETE", "Flight software finished initialisation" },
-    { EventId::MODE_CHANGED, Severity::INFO, "MODE_CHANGED", "Spacecraft mode transition executed" },
+    { EventId::MODE_CHANGED, Severity::INFO, "MODE_CHANGED", "Spacecraft mode transition executed; aux = old mode << 8 | new mode" },
     { EventId::LINK_CONNECTED, Severity::INFO, "LINK_CONNECTED", "Ground link established" },
     { EventId::LINK_LOST, Severity::LOW, "LINK_LOST", "Ground link dropped" },
     { EventId::TC_REJECTED, Severity::LOW, "TC_REJECTED", "Telecommand failed acceptance checks" },
@@ -174,20 +235,20 @@ inline constexpr EventInfo kEvents[] = {
     { EventId::HK_DISABLED, Severity::INFO, "HK_DISABLED", "Housekeeping structure generation disabled" },
     { EventId::PARAM_SET, Severity::INFO, "PARAM_SET", "On-board parameter modified from ground" },
     { EventId::SCHED_OVERRUN, Severity::MEDIUM, "SCHED_OVERRUN", "A rate group missed its deadline" },
-    { EventId::MODE_REFUSED, Severity::LOW, "MODE_REFUSED", "Requested mode transition was refused" },
-    { EventId::SAFE_MODE_ENTERED, Severity::HIGH, "SAFE_MODE_ENTERED", "Spacecraft autonomously entered safe mode" },
-    { EventId::DETUMBLE_STARTED, Severity::INFO, "DETUMBLE_STARTED", "B-dot detumble control engaged" },
-    { EventId::DETUMBLE_COMPLETE, Severity::INFO, "DETUMBLE_COMPLETE", "Body rate fell below the hand-over threshold and detumble control stopped" },
+    { EventId::MODE_REFUSED, Severity::LOW, "MODE_REFUSED", "Requested mode transition was refused; aux = requested mode << 8 | ModeRefusal" },
+    { EventId::SAFE_MODE_ENTERED, Severity::HIGH, "SAFE_MODE_ENTERED", "Spacecraft entered safe mode; aux = SafeReason" },
     { EventId::SENSOR_TIMEOUT, Severity::MEDIUM, "SENSOR_TIMEOUT", "No sensor data from the simulator bridge; actuators commanded to zero" },
     { EventId::ESTIMATOR_INIT, Severity::INFO, "ESTIMATOR_INIT", "Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker" },
     { EventId::ESTIMATOR_CONVERGED, Severity::INFO, "ESTIMATOR_CONVERGED", "Attitude estimator uncertainty fell below the pointing threshold" },
-    { EventId::POINTING_STARTED, Severity::INFO, "POINTING_STARTED", "Nadir pointing control engaged" },
     { EventId::ESTIMATOR_RESET, Severity::MEDIUM, "ESTIMATOR_RESET", "Attitude estimator discarded after persistent large innovations" },
     { EventId::TIME_ADJUSTED, Severity::INFO, "TIME_ADJUSTED", "On-board time corrected from the ground; aux = correction in ms, two's complement" },
     { EventId::SCHED_RELEASED, Severity::INFO, "SCHED_RELEASED", "A time-tagged telecommand was released; aux = its packet sequence count" },
     { EventId::PLAYBACK_STARTED, Severity::INFO, "PLAYBACK_STARTED", "Packet store retrieval began; aux = packets selected" },
     { EventId::PLAYBACK_DONE, Severity::INFO, "PLAYBACK_DONE", "Packet store retrieval finished; aux = packets replayed" },
     { EventId::STORE_WRAPPED, Severity::LOW, "STORE_WRAPPED", "The packet store filled and began overwriting its oldest packets" },
+    { EventId::POWER_STATE_CHANGED, Severity::MEDIUM, "POWER_STATE_CHANGED", "Battery power state changed; aux = old << 8 | new (PowerState)" },
+    { EventId::LOAD_SHED, Severity::MEDIUM, "LOAD_SHED", "Load-shedding level changed; aux = new level (0 = everything restored)" },
+    { EventId::RAIL_SWITCHED, Severity::INFO, "RAIL_SWITCHED", "A power rail was switched by ground command; aux = rail << 8 | on" },
     { EventId::SENSOR_RESTORED, Severity::INFO, "SENSOR_RESTORED", "Sensor data resumed after a timeout" },
 };
 inline constexpr size_t kEventCount = 24;
@@ -215,6 +276,7 @@ enum class ParamId : uint16_t {
     POINT_BANDWIDTH_RADPS = 12,
     POINT_MAX_SLEW_DPS = 13,
     MOMENTUM_DUMP_GAIN = 14,
+    BATT_CAPACITY_WH = 15,
 };
 
 enum class ParamType : uint8_t { U8, I8, U16, I16, U32, I32, U64, I64, F32, F64 };
@@ -238,15 +300,16 @@ inline constexpr ParamInfo kParams[] = {
     { ParamId::POINTING_RATE_DPS, ParamType::F32, "POINTING_RATE_DPS", 0.5, 0.01, 10.0, "deg/s", "Rate threshold below which pointing is permitted" },
     { ParamId::BATT_LOW_SOC_PCT, ParamType::F32, "BATT_LOW_SOC_PCT", 40.0, 5.0, 90.0, "%", "State of charge entering the LOW power state" },
     { ParamId::BATT_CRIT_SOC_PCT, ParamType::F32, "BATT_CRIT_SOC_PCT", 20.0, 2.0, 80.0, "%", "State of charge entering the CRITICAL power state" },
-    { ParamId::LINK_TIMEOUT_S, ParamType::U32, "LINK_TIMEOUT_S", 300.0, 10.0, 86400.0, "s", "Ground contact loss timeout before autonomy reacts" },
+    { ParamId::LINK_TIMEOUT_S, ParamType::U32, "LINK_TIMEOUT_S", 86400.0, 600.0, 604800.0, "s", "Time without hearing the ground before the spacecraft enters SAFE" },
     { ParamId::BDOT_GAIN, ParamType::F32, "BDOT_GAIN", 300000.0, 0.0, 10000000.0, "A*m^2/(T/s)", "B-dot proportional gain" },
     { ParamId::MTQ_MAX_DIPOLE, ParamType::F32, "MTQ_MAX_DIPOLE", 0.2, 0.0, 10.0, "A*m^2", "Largest magnetic dipole commanded on any axis" },
     { ParamId::BDOT_FILTER_TAU_S, ParamType::F32, "BDOT_FILTER_TAU_S", 3.0, 0.1, 60.0, "s", "Time constant of the filter applied to the field derivative" },
     { ParamId::POINT_BANDWIDTH_RADPS, ParamType::F32, "POINT_BANDWIDTH_RADPS", 0.1, 0.005, 1.0, "rad/s", "Natural frequency of the pointing control loop" },
     { ParamId::POINT_MAX_SLEW_DPS, ParamType::F32, "POINT_MAX_SLEW_DPS", 1.0, 0.05, 5.0, "deg/s", "Largest body rate the pointing controller will command while acquiring" },
     { ParamId::MOMENTUM_DUMP_GAIN, ParamType::F32, "MOMENTUM_DUMP_GAIN", 0.0005, 0.0, 0.1, "1/s", "Magnetic momentum-unloading gain" },
+    { ParamId::BATT_CAPACITY_WH, ParamType::F32, "BATT_CAPACITY_WH", 30.0, 1.0, 1000.0, "W*h", "Usable battery energy at 100% state of charge" },
 };
-inline constexpr size_t kParamCount = 14;
+inline constexpr size_t kParamCount = 15;
 
 inline const ParamInfo* find_param(ParamId id) {
     for (size_t i = 0; i < kParamCount; ++i) {

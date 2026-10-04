@@ -226,8 +226,9 @@ make monitor
   ADCS_HK  est_state=INVALID  q_est_0=0  q_est_1=0  q_est_2=0
 ```
 
-`INVALID`, honestly, because there is no estimator yet. The mode manager
-(Phase 5) will refuse to enter pointing mode unless this says `CONVERGED` —
+`INVALID` when no simulator is connected, because then there is nothing to
+estimate from (`make pointing` shows it reach `CONVERGED`). The mode manager
+refuses to enter pointing mode unless this says `CONVERGED` —
 which is the whole reason the field exists rather than the software just
 assuming its own numbers are good.
 

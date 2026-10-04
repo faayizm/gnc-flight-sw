@@ -325,6 +325,35 @@ def test_cop1_recovers_lost_frames() -> None:
               "the last value written is the one that stuck -- nothing executed twice out of order")
 
 
+def test_mode_requests_are_judged() -> None:
+    print("\n[modes]")
+    with Spacecraft() as sat, sat.client() as gnd:
+        hk = gnd.wait_for("SYS_HK", timeout=3.0)
+        check(hk is not None and hk.fields["mode"] == "BOOT",
+              "with no sensors yet, the spacecraft is still in BOOT")
+        gnd.send("SET_MODE", mode="POINTING")
+        refused = None
+        for tm in gnd.poll(timeout=2.0):
+            if tm.fields.get("event_name") == "MODE_REFUSED":
+                refused = tm
+        check(refused is not None and refused.fields["aux"] == (4 << 8) | 4,
+              "POINTING from BOOT is refused, with the reason NOT_FROM_MODE")
+        gnd.send("SET_MODE", mode="SAFE")
+        changed = gnd.wait_for("SYS_HK", timeout=3.0)
+        deadline = time.monotonic() + 3.0
+        while changed is not None and changed.fields["mode"] != "SAFE" and time.monotonic() < deadline:
+            changed = gnd.wait_for("SYS_HK", timeout=2.0)
+        check(changed is not None and changed.fields["mode"] == "SAFE",
+              "SAFE is always granted, and SYS_HK reports the real mode")
+        gnd.send("SWITCH_RAIL", rail="PAYLOAD", on=1)
+        ev = None
+        for tm in gnd.poll(timeout=2.0):
+            if tm.fields.get("event_name") == "RAIL_SWITCHED":
+                ev = tm
+        check(ev is not None and ev.fields["aux"] == (5 << 8) | 1,
+              "a rail request reaches EPS, which records it")
+
+
 def main() -> int:
     if not FSW_BINARY.exists():
         print(f"error: {FSW_BINARY} not found. Run `make build` first.", file=sys.stderr)
@@ -343,7 +372,8 @@ def main() -> int:
                  test_parameters_survive_a_restart,
                  test_reconnection,
                  test_uplink_coding_and_framing_recovery,
-                 test_cop1_recovers_lost_frames):
+                 test_cop1_recovers_lost_frames,
+                 test_mode_requests_are_judged):
         test()
 
     elapsed = time.monotonic() - started

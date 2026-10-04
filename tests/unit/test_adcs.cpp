@@ -5,11 +5,12 @@
 #include <cstring>
 
 #include "apps/adcs/bdot.hpp"
-#include "apps/adcs/sim_bridge.hpp"
+#include "apps/io/sim_bridge.hpp"
 #include "core/crc.hpp"
 #include "framework.hpp"
 
 using namespace fsw::adcs;
+using namespace fsw::io;
 
 TEST(bdot, first_sample_has_no_derivative_and_commands_nothing) {
     BdotController c;

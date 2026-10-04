@@ -3,7 +3,7 @@
 Seven phases. Each ends with something you can watch happen, because a phase
 that produces only internal machinery is a phase whose value cannot be checked.
 
-**Currently at the end of Phase 4.**
+**Currently at the end of Phase 5.**
 
 ---
 
@@ -130,22 +130,31 @@ Making the ground link resemble a radio rather than a socket. How it works:
 contact, with the results played back during the next. `make store-forward`
 does exactly that, through a noisy channel, and asserts on every step.
 
-## Phase 5 — Power and modes
+## Phase 5 — Power and modes ✅ done
 
-The spacecraft starts making its own decisions.
+The spacecraft starts making its own decisions. How it works:
+[POWER_AND_MODES.md](POWER_AND_MODES.md).
 
-- EPS model: solar array generation with sun angle and eclipse, battery
-  charge and discharge, bus loads
-- EPS application, `EPS_HK`, load shedding
-- The mode manager: BOOT, SAFE, DETUMBLE, STANDBY, POINTING, with hysteresis
-  on every threshold
-- Autonomous transitions driven by body rates, reference validity and battery
-  state
-- Ground mode requests via ST[8,1] — which the mode manager may refuse
+- ✅ EPS model: solar arrays (deployed zenith panel and body panels) with
+  sun angle and eclipse, a two-cell lithium-ion battery with an
+  open-circuit voltage curve and internal resistance, and loads per rail.
+  Wheels and magnetorquers draw more when they work harder.
+- ✅ EPS application: state of charge by counting, anchored to voltage;
+  power states with hysteresis; `EPS_HK`; load shedding in five levels;
+  rails switched by policy and by ground request (ST[8,3])
+- ✅ The mode manager: BOOT, SAFE, DETUMBLE, STANDBY, POINTING, with
+  hysteresis on every threshold
+- ✅ Autonomous transitions driven by body rates, estimator state, position,
+  battery state and ground contact
+- ✅ Ground mode requests via ST[8,1], judged and refused with a reason
+- ✅ An I/O application as the single hardware boundary: sensor data on the
+  bus, actuator and power-switch commands back out in one reply
+- ✅ Scenario `power_and_modes.py`, COSMOS `POWER` screen
 
 **Ends with:** an orbit simulated through eclipse cycles, the spacecraft
 managing its own modes, and a deliberately drained battery driving it into
-SAFE.
+SAFE. `make power` does this with a stuck heater: load shedding in order,
+SAFE at CRITICAL, and recovery only when the ground asks.
 
 ## Phase 6 — Fault handling and radiation
 

@@ -31,6 +31,7 @@ inline constexpr CommandInfo kCommands[] = {
     { 20, 1, 2, false, "REPORT_PARAM", "ST[20,1] request the value of one on-board parameter, answered by ST[20,2]." },
     { 20, 3, 10, false, "SET_PARAM", "ST[20,3] set one on-board parameter. Value is interpreted per the parameter type." },
     { 8, 1, 1, false, "SET_MODE", "ST[8,1] request a spacecraft mode transition. The mode manager may refuse." },
+    { 8, 3, 2, false, "SWITCH_RAIL", "ST[8,3] (mission-specific) enable or disable a power rail. The rail is on only if the ground enables it AND the power and mode policy allow it." },
     { 8, 2, 0, false, "RESET_COUNTERS", "ST[8,2] clear the housekeeping statistics counters." },
     { 9, 1, 1, false, "SET_TIME_REPORT_RATE", "ST[9,1] generate a CUC time report every 2^rate_exp seconds; 255 stops them." },
     { 9, 128, 8, false, "ADJUST_TIME", "ST[9,128] (mission-specific) shift the on-board clock by delta_s and mark time as correlated. The ground computes delta from a time report." },
@@ -44,7 +45,7 @@ inline constexpr CommandInfo kCommands[] = {
     { 15, 11, 5, false, "DELETE_STORE_UP_TO", "ST[15,11] delete stored packets older than to_s." },
     { 15, 12, 1, false, "REPORT_STORE_SUMMARY", "ST[15,12] request a packet store summary, answered by ST[15,13]." },
 };
-inline constexpr size_t kCommandCount = 18;
+inline constexpr size_t kCommandCount = 19;
 
 inline const CommandInfo* find_command(uint8_t service, uint8_t subtype) {
     for (size_t i = 0; i < kCommandCount; ++i) {
@@ -178,6 +179,30 @@ struct SetModeArgs {
     bool serialize(core::ByteWriter& w) const {
         return true
             && w.write_uint8(mode)
+            ;
+    }
+};
+
+// ST[8,3] (mission-specific) enable or disable a power rail. The rail is on only if the ground enables it AND the power and mode policy allow it.
+struct SwitchRailArgs {
+    uint8_t rail{};  // Rail to switch
+    uint8_t on{};  // 1 to enable
+
+    static constexpr uint8_t  kService   = 8;
+    static constexpr uint8_t  kSubtype   = 3;
+    static constexpr uint16_t kArgBytes  = 2;
+
+    bool deserialize(core::ByteReader& r) {
+        return true
+            && r.read_uint8(rail)
+            && r.read_uint8(on)
+            ;
+    }
+
+    bool serialize(core::ByteWriter& w) const {
+        return true
+            && w.write_uint8(rail)
+            && w.write_uint8(on)
             ;
     }
 };

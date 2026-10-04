@@ -16,6 +16,7 @@ from ..models.environment import (gravity_gradient_torque, in_eclipse, magnetic_
 from ..models.linalg import (Quat, Vec, add, cross, dot, norm, q_normalize, rotate,
                              rotate_inv, scale, unit)
 from ..models.orbit import Orbit
+from ..models.power import PowerSystem
 from ..models.sensors import Gps, Gyro, Magnetometer, StarTracker, SunSensor
 from .bridge import Bridge
 
@@ -34,6 +35,8 @@ class Scenario:
     dt: float = 0.1                          # sensor sample period
     gps_outages: list = field(default_factory=list)    # [(start, end), ...] seconds
     wheel_failures: dict = field(default_factory=dict)  # {axis: time}
+    initial_soc: float = 0.8
+    stuck_heater: tuple | None = None    # (start time, extra watts)
 
 
 class Simulation:
@@ -55,11 +58,13 @@ class Simulation:
         self.star_valid_samples = 0
         self.mtq = Magnetorquers()
         self.wheels = ReactionWheels()
+        self.power = PowerSystem(soc=sc.initial_soc)
         self.t = 0.0
         self.seq = 0
         self.dipole: Vec = (0.0, 0.0, 0.0)
         self.wheel_cmd: Vec = (0.0, 0.0, 0.0)
         self.flags = 0
+        self.rails_cmd = self.power.rails
         self.eclipsed = False
         self.samples = self.eclipse_samples = self.sun_valid_samples = self.blind_violations = 0
 
@@ -95,6 +100,11 @@ class Simulation:
         for axis, when in self.sc.wheel_failures.items():
             if self.t >= when:
                 self.wheels.failed[axis] = True
+        if self.sc.stuck_heater and self.t >= self.sc.stuck_heater[0]:
+            self.power.stuck_heater_w = self.sc.stuck_heater[1]
+        adcs_on = bool(self.power.rails & (1 << 3))
+        wheels_on = bool(self.power.rails & (1 << 4))
+        self.wheels.powered = wheels_on
 
         b_eci = magnetic_field_eci(self.orbit.r, self.t)
         b_body = rotate_inv(self.body.q, b_eci)
@@ -113,14 +123,25 @@ class Simulation:
         st_q, st_valid = self.star.read(self.body.q, self.body.omega, sun_body,
                                         rotate_inv(self.body.q, self.orbit.r), self.eclipsed, self.t)
         self.star_valid_samples += st_valid
-        self.dipole, self.wheel_cmd, self.flags = self.bridge.exchange(
-            self.seq, self.t, mag, gyro, sun=sun, sun_valid=sun_valid,
-            wheel_h=self.wheels.measured(), wheels_valid=True,
+        # An unpowered rail is not a sensor reporting zero: it is no report at all.
+        self.dipole, self.wheel_cmd, rails, self.flags = self.bridge.exchange(
+            self.seq, self.t, mag, gyro, sun=sun, sun_valid=sun_valid and adcs_on,
+            mag_valid=adcs_on, gyro_valid=adcs_on,
+            wheel_h=self.wheels.measured(), wheels_valid=wheels_on,
             gps_pos=gps_pos, gps_vel=gps_vel, gps_valid=gps_valid,
-            star_q=st_q, star_valid=st_valid)
+            star_q=st_q, star_valid=st_valid and adcs_on,
+            eps=self.power.telemetry(), rails=self.power.rails, eps_valid=True)
+        if self.flags & 4:
+            self.power.command_rails(rails)
+            self.rails_cmd = rails
+        if not adcs_on:
+            self.dipole = (0.0, 0.0, 0.0)
+        if not wheels_on:
+            self.wheel_cmd = (0.0, 0.0, 0.0)
 
         tau = add(self.mtq.torque(self.dipole, b_body),
                   gravity_gradient_torque(rotate_inv(self.body.q, self.orbit.r), self.sc.inertia))
+        self.power.step(sun_body, self.eclipsed, self.dipole, self.wheel_cmd, dt)
         hdot = self.wheels.momentum_rate(self.wheel_cmd)
         self.body.step(tau, dt, tuple(self.wheels.h), hdot)  # type: ignore[arg-type]
         self.wheels.advance(hdot, dt)

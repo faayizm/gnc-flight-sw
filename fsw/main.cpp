@@ -28,6 +28,9 @@
 #include <csignal>
 
 #include "apps/adcs/adcs_app.hpp"
+#include "apps/eps/eps_app.hpp"
+#include "apps/io/sim_io_app.hpp"
+#include "apps/modemgr/mode_manager.hpp"
 #include "apps/ttc/ttc_app.hpp"
 #include "core/bus.hpp"
 #include "core/event_log.hpp"
@@ -157,7 +160,18 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    static fsw::adcs::AdcsApp adcs(sim_link, clock, bus, events, params);
+    // Order of construction is order of bus subscription, which is order of
+    // delivery: on each sensor sample ADCS runs first, then EPS, then the
+    // I/O app sends the reply built from both.
+    static fsw::adcs::AdcsApp       adcs(bus, events, params);
+    static fsw::eps::EpsApp         eps(bus, events, params);
+    static fsw::io::SimIoApp        io(sim_link, clock, bus, events);
+    static fsw::modemgr::ModeManager modes(clock, bus, events, params);
+    if (!fsw::core::is_ok(adcs.init()) || !fsw::core::is_ok(eps.init()) ||
+        !fsw::core::is_ok(io.init()) || !fsw::core::is_ok(modes.init())) {
+        std::fprintf(stderr, "fatal: an application failed to initialise\n");
+        return 1;
+    }
 
     // ---- 4. parameters -----------------------------------------------------
     // Defaults first, unconditionally. Whatever happens next, the spacecraft is
@@ -184,7 +198,8 @@ int main(int argc, char** argv) {
     scheduler.add_task("ttc_tm",  &fsw::ttc::TtcApp::task_telemetry, &ttc, 5, 1);
     scheduler.add_task("ttc_dl",  &fsw::ttc::TtcApp::task_downlink,  &ttc, 1);
 
-    scheduler.add_task("adcs",    &fsw::adcs::AdcsApp::task_run,     &adcs, 1);
+    scheduler.add_task("io",      &fsw::io::SimIoApp::task_run,      &io, 1);
+    scheduler.add_task("modes",   &fsw::modemgr::ModeManager::task_run, &modes, 5, 3);
 
     // ---- 6. watchdog -------------------------------------------------------
     // Three tick periods. Long enough to tolerate one bad tick, short enough

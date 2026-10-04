@@ -44,6 +44,10 @@ core::Status TtcApp::init() {
     if (!core::is_ok(s)) { return s; }
     s = bus_.subscribe(core::Topic::EpsHk, &TtcApp::on_eps_hk, this);
     if (!core::is_ok(s)) { return s; }
+    s = bus_.subscribe(core::Topic::ModeChanged, &TtcApp::on_mode, this);
+    if (!core::is_ok(s)) { return s; }
+    s = bus_.subscribe(core::Topic::PowerStatus, &TtcApp::on_power, this);
+    if (!core::is_ok(s)) { return s; }
 
     return core::Status::Ok;
 }
@@ -84,6 +88,13 @@ void TtcApp::pump_link() {
         const size_t taken = link_.receive(rx_chunk_, sizeof rx_chunk_);
         if (taken == 0) { break; }
         tc_rx_.push(rx_chunk_, taken);
+    }
+
+    // The ground was heard. EPS keeps the transmitter on for a while after
+    // this even when shedding load; the mode manager resets its contact timer.
+    if (tc_rx_.frames_accepted() != frames_heard_) {
+        frames_heard_ = tc_rx_.frames_accepted();
+        bus_.publish(core::Topic::UplinkActivity, nullptr, 0);
     }
 }
 
@@ -251,6 +262,19 @@ core::FailureCode TtcApp::svc_function(const ReceivedTc& tc) {
         // business deciding whether a mode change is safe -- it only carries
         // the request. The refusal, if any, arrives back as an event.
         bus_.publish(mode_topic_, &args.mode, sizeof(args.mode));
+        return core::FailureCode::Ok;
+    }
+
+    if (tc.secondary.subtype == cmd::SwitchRailArgs::kSubtype) {
+        cmd::SwitchRailArgs args;
+        core::ByteReader r(tc.args, tc.args_size);
+        if (!args.deserialize(r)) { return core::FailureCode::BadLength; }
+        if (args.rail > static_cast<uint8_t>(dict::PowerRail::SURVIVAL_HEATERS) || args.on > 1) {
+            return core::FailureCode::IllegalArg;
+        }
+        // Like a mode request: carried to EPS, which owns the switches.
+        const msg::RailRequest req{args.rail, args.on != 0};
+        bus_.publish_object(core::Topic::RailRequest, req);
         return core::FailureCode::Ok;
     }
 
@@ -470,7 +494,7 @@ bool TtcApp::send_packet(size_t length) {
     // packet in tx_scratch_ while this one is still in it -- so it is flagged
     // and raised from the next telemetry task.
     if (store_.record(tx_scratch_, length)) { wrap_event_pending_ = true; }
-    if (!link_.connected()) { return false; }
+    if (!link_.connected() || !tx_on_) { return false; }
     if (!framer_.realtime().enqueue(tx_scratch_, length)) { return false; }
     ++tm_sent_;
     return true;
@@ -478,7 +502,8 @@ bool TtcApp::send_packet(size_t length) {
 
 void TtcApp::task_downlink(void* context) {
     auto* self = static_cast<TtcApp*>(context);
-    if (!self->link_.connected()) { return; }
+    // No transmitter, no downlink: the store keeps recording regardless.
+    if (!self->link_.connected() || !self->tx_on_) { return; }
     const uint32_t tick = self->scheduler_.tick_count();
     self->pump_playback();
 
@@ -588,7 +613,7 @@ void TtcApp::send_hk(dict::HkSid sid) {
             tlm::SysHk hk;
             hk.uptime_s       = scheduler_.uptime_s();
             hk.tick_count     = scheduler_.tick_count();
-            hk.mode           = static_cast<uint8_t>(dict::SystemMode::BOOT);
+            hk.mode           = mode_;
             hk.boot_count     = 0;
             hk.cpu_load_pct   = scheduler_.load_percent();
             hk.sched_overruns = static_cast<uint16_t>(scheduler_.overrun_count());
@@ -679,6 +704,23 @@ void TtcApp::on_adcs_hk(void* context, core::Topic, const uint8_t* data, size_t 
     auto* self = static_cast<TtcApp*>(context);
     if (length == sizeof(tlm::AdcsHk)) {
         std::memcpy(&self->adcs_hk_, data, sizeof(tlm::AdcsHk));
+    }
+}
+
+void TtcApp::on_mode(void* context, core::Topic, const uint8_t* data, size_t length) {
+    if (length == sizeof(msg::ModeChange)) {
+        msg::ModeChange m;
+        std::memcpy(&m, data, sizeof m);
+        static_cast<TtcApp*>(context)->mode_ = m.to;
+    }
+}
+
+void TtcApp::on_power(void* context, core::Topic, const uint8_t* data, size_t length) {
+    if (length == sizeof(msg::PowerStatus)) {
+        msg::PowerStatus p;
+        std::memcpy(&p, data, sizeof p);
+        const auto tx = static_cast<uint16_t>(1u << static_cast<unsigned>(dict::PowerRail::TX));
+        static_cast<TtcApp*>(context)->tx_on_ = !p.valid || (p.rails & tx) != 0;
     }
 }
 

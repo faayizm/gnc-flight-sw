@@ -55,6 +55,7 @@ class ReactionWheels:
         self.tach = tach_resolution
         self.h = [0.0, 0.0, 0.0]
         self.failed = [False, False, False]
+        self.powered = True       # the WHEELS power rail
 
     def friction(self, h: float) -> float:
         speed = h / self.j
@@ -65,8 +66,9 @@ class ReactionWheels:
         """dh/dt of each wheel over the next step, given the motor torque demand."""
         out = []
         for i in range(3):
-            if self.failed[i]:
-                # A dead drive: no motor torque, and no friction compensation.
+            if self.failed[i] or not self.powered:
+                # A dead or unpowered drive: no motor torque, and no friction
+                # compensation -- that needs the drive electronics.
                 speed = self.h[i] / self.j
                 sign = (speed > 0) - (speed < 0)
                 out.append(-(self.coulomb * sign + self.viscous * speed))

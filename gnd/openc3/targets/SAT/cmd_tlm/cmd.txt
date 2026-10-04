@@ -106,6 +106,31 @@ COMMAND SAT SET_MODE BIG_ENDIAN "ST[8,1] request a spacecraft mode transition. T
     STATE POINTING 4
   APPEND_PARAMETER    PACKET_CRC     16 UINT 0 65535 0 "CCSDS CRC-16, filled in by the CRC protocol"
 
+COMMAND SAT SWITCH_RAIL BIG_ENDIAN "ST[8,3] (mission-specific) enable or disable a power rail. The rail is on only if the ground enables it AND the power and mode policy allow it."
+  APPEND_PARAMETER    CCSDS_VERSION   3 UINT 0 0 0 "Packet version number"
+  APPEND_PARAMETER    CCSDS_TYPE      1 UINT 1 1 1 "Packet type, 1 = telecommand"
+  APPEND_PARAMETER    CCSDS_SECHDR    1 UINT 1 1 1 "Secondary header flag"
+  APPEND_PARAMETER    CCSDS_APID     11 UINT 10 10 10 "Ground segment APID"
+  APPEND_PARAMETER    CCSDS_SEQFLAGS  2 UINT 3 3 3 "Sequence flags, 3 = unsegmented"
+  APPEND_PARAMETER    CCSDS_SEQCNT   14 UINT 0 16383 0 "Packet sequence count"
+  APPEND_PARAMETER    CCSDS_LENGTH   16 UINT 0 65535 8 "Packet data length minus one"
+  APPEND_PARAMETER    PUS_VERSION     4 UINT 2 2 2 "PUS version number"
+  APPEND_PARAMETER    PUS_ACK         4 UINT 0 15 9 "Acknowledgement flags, 9 = acceptance and completion"
+  APPEND_ID_PARAMETER PUS_SERVICE     8 UINT 8 8 8 "PUS service type"
+  APPEND_ID_PARAMETER PUS_SUBTYPE     8 UINT 3 3 3 "PUS message subtype"
+  APPEND_PARAMETER    PUS_SOURCEID   16 UINT 0 65535 0 "Source identifier, echoed in verification reports"
+  APPEND_PARAMETER    RAIL            8 UINT 0 7 0 "Rail to switch"
+    STATE OBC 0
+    STATE RX 1
+    STATE TX 2
+    STATE ADCS 3
+    STATE WHEELS 4
+    STATE PAYLOAD 5
+    STATE OPS_HEATERS 6
+    STATE SURVIVAL_HEATERS 7
+  APPEND_PARAMETER    ON              8 UINT MIN MAX 0 "1 to enable"
+  APPEND_PARAMETER    PACKET_CRC     16 UINT 0 65535 0 "CCSDS CRC-16, filled in by the CRC protocol"
+
 COMMAND SAT RESET_COUNTERS BIG_ENDIAN "ST[8,2] clear the housekeeping statistics counters."
   APPEND_PARAMETER    CCSDS_VERSION   3 UINT 0 0 0 "Packet version number"
   APPEND_PARAMETER    CCSDS_TYPE      1 UINT 1 1 1 "Packet type, 1 = telecommand"

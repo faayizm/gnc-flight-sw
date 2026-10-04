@@ -42,6 +42,10 @@ enum class Topic : uint16_t {
     ModeChanged,      // announcement that a transition has actually happened
     SensorData,       // decoded sensor set from the simulator bridge
     ActuatorCommand,  // torque and dipole demands heading for the actuators
+    AdcsStatus,       // rates, estimator and orbit validity, for the mode manager
+    PowerStatus,      // battery state, shed level and rail policy, from EPS
+    UplinkActivity,   // the ground was heard: a TC frame was accepted
+    RailRequest,      // a ground request to switch a power rail, for EPS to apply
     kTopicCount
 };
 
@@ -54,6 +58,10 @@ constexpr const char* to_string(Topic t) {
         case Topic::ModeChanged:     return "MODE_CHANGED";
         case Topic::SensorData:      return "SENSOR_DATA";
         case Topic::ActuatorCommand: return "ACTUATOR_COMMAND";
+        case Topic::AdcsStatus:      return "ADCS_STATUS";
+        case Topic::PowerStatus:     return "POWER_STATUS";
+        case Topic::UplinkActivity:  return "UPLINK_ACTIVITY";
+        case Topic::RailRequest:     return "RAIL_REQUEST";
         case Topic::kTopicCount:     return "INVALID";
     }
     return "UNKNOWN";

@@ -1,0 +1,25 @@
+# ============================================================================
+#  GENERATED FILE -- DO NOT EDIT.
+#  Source:    dictionary/mission.yaml
+#  Generator: tools/gen.py
+#  Edit the dictionary and run `make gen` instead.
+# ============================================================================
+
+SCREEN AUTO AUTO 1.0
+
+VERTICALBOX "Mode and power"
+  LABELVALUE SAT SYS_HK MODE
+  LABELVALUE SAT EPS_HK POWER_STATE
+  LABELVALUE SAT EPS_HK SHED_LEVEL
+  LABELVALUE SAT EPS_HK RAILS_ENABLED
+  LABELVALUE SAT EPS_HK BATT_SOC_PCT WITH_UNITS
+  LINEGRAPH SAT EPS_HK BATT_SOC_PCT
+END
+
+VERTICALBOX "Energy balance"
+  LABELVALUE SAT EPS_HK BATT_VOLTAGE WITH_UNITS
+  LABELVALUE SAT EPS_HK BATT_CURRENT WITH_UNITS
+  LINEGRAPH SAT EPS_HK SOLAR_POWER_W
+  LINEGRAPH SAT EPS_HK LOAD_POWER_W
+END
+

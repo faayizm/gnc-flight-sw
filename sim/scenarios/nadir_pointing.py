@@ -92,11 +92,13 @@ def main() -> int:
     print(f"  ({time.time() - t0:.1f} s wall clock, {sim.t:.0f} s simulated)\n")
     hk = down.hk.get("ADCS_HK", {})
 
-    check(down.saw("DETUMBLE_COMPLETE"), "detumble completes")
+    check(down.saw("MODE DETUMBLE->STANDBY"), "detumble completes (mode DETUMBLE -> STANDBY)")
     check(down.event_aux.get("ESTIMATOR_INIT", [None])[0] == 1,
           "the estimator initialises from TRIAD (the tracker cannot see stars at 3 deg/s)")
     check(down.saw("ESTIMATOR_CONVERGED"), "the estimator reports convergence")
     check(not down.saw("ESTIMATOR_RESET"), "the estimator never loses track")
+    check(down.saw("MODE STANDBY->POINTING"),
+          "the mode manager moves to POINTING by itself once the attitude is known")
     check(pointing_since is not None and pointing_since < ORBIT,
           "nadir pointing engages within one orbit"
           + (f" (t = {pointing_since:.0f} s)" if pointing_since else ""))

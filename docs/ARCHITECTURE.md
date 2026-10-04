@@ -178,8 +178,11 @@ extending before such a parameter could be declared.
 **No radiation effects yet.** No SEU injection, no EDAC, no memory scrubbing,
 no redundancy on critical state. Phase 6.
 
-**The mode reported in `SYS_HK` is hard-coded to `BOOT`** until the mode
-manager exists in Phase 5.
+**SAFE mode damps rates; it does not point at the Sun.** In SAFE the wheels
+are unpowered and B-dot holds the body slowly turning. The arrays see the Sun
+on average, which is enough to recharge here. A proper sun-pointing safe
+mode, on magnetorquers and coarse sun sensors, is the more robust answer and
+has not been built.
 
 ## Where this goes
 

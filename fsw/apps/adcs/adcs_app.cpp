@@ -4,6 +4,7 @@
 #include "apps/adcs/adcs_app.hpp"
 
 #include <cmath>
+#include <cstring>
 
 #include "apps/adcs/ephemeris.hpp"
 #include "apps/adcs/triad.hpp"
@@ -21,34 +22,27 @@ Vec3f to_f(const Vec3& v) {
 }
 }  // namespace
 
-void AdcsApp::task_run(void* context) {
-    auto* self = static_cast<AdcsApp*>(context);
-
-    SensorFrame s;
-    if (self->bridge_.poll(s)) {
-        self->last_rx_s_ = self->clock_.mission_time_s();
-        self->ever_had_data_ = true;
-        if (!self->sensors_ok_) {
-            self->sensors_ok_ = true;
-            if (self->samples_ > 0) { self->events_.raise(dict::EventId::SENSOR_RESTORED); }
-        }
-        const ActuatorFrame reply = self->step(s);
-        self->bridge_.send(reply);
-        return;
-    }
-
-    if (self->ever_had_data_ && self->sensors_ok_ &&
-        self->clock_.mission_time_s() - self->last_rx_s_ > kSensorTimeoutS) {
-        self->sensors_ok_ = false;
-        self->bdot_.reset();
-        self->have_last_t_ = false;
-        self->hk_.mag_valid = 0;
-        self->events_.raise(dict::EventId::SENSOR_TIMEOUT);
-        self->publish(ActuatorFrame{}, Vec3{});
-    }
+core::Status AdcsApp::init() {
+    core::Status st = bus_.subscribe(core::Topic::SensorData, &AdcsApp::on_sensor, this);
+    if (!core::is_ok(st)) { return st; }
+    return bus_.subscribe(core::Topic::ModeChanged, &AdcsApp::on_mode, this);
 }
 
-void AdcsApp::run_orbit(const SensorFrame& s) {
+void AdcsApp::on_sensor(void* ctx, core::Topic, const uint8_t* data, size_t length) {
+    if (length != sizeof(msg::SensorFrame)) { return; }
+    msg::SensorFrame s;
+    std::memcpy(&s, data, sizeof s);
+    static_cast<AdcsApp*>(ctx)->step(s);
+}
+
+void AdcsApp::on_mode(void* ctx, core::Topic, const uint8_t* data, size_t length) {
+    if (length != sizeof(msg::ModeChange)) { return; }
+    msg::ModeChange m;
+    std::memcpy(&m, data, sizeof m);
+    static_cast<AdcsApp*>(ctx)->system_mode_ = static_cast<dict::SystemMode>(m.to);
+}
+
+void AdcsApp::run_orbit(const msg::SensorFrame& s) {
     if (s.gps_valid) {
         orbit_.set_state(Vec3{s.gps_pos[0], s.gps_pos[1], s.gps_pos[2]},
                          Vec3{s.gps_vel[0], s.gps_vel[1], s.gps_vel[2]}, s.time_s);
@@ -58,7 +52,7 @@ void AdcsApp::run_orbit(const SensorFrame& s) {
     }
 }
 
-void AdcsApp::run_estimator(const SensorFrame& s, double dt) {
+void AdcsApp::run_estimator(const msg::SensorFrame& s, double dt) {
     const Vec3 gyro = to_d(s.gyro_rps);
     if (mekf_.initialised() && s.gyro_valid && dt > 0.0) {
         mekf_.propagate(gyro, dt, mekf_cfg_);
@@ -141,40 +135,7 @@ void AdcsApp::run_estimator(const SensorFrame& s, double dt) {
     }
 }
 
-void AdcsApp::set_mode(dict::AdcsCtrlMode m) {
-    if (m == mode_) { return; }
-    if (mode_ == dict::AdcsCtrlMode::DETUMBLE) { events_.raise(dict::EventId::DETUMBLE_COMPLETE); }
-    if (m == dict::AdcsCtrlMode::DETUMBLE)     { events_.raise(dict::EventId::DETUMBLE_STARTED); }
-    if (m == dict::AdcsCtrlMode::POINTING)     { events_.raise(dict::EventId::POINTING_STARTED); }
-    mode_ = m;
-}
-
-void AdcsApp::run_modes(double rate_dps) {
-    const double engage  = params_.get_f64(dict::ParamId::DETUMBLE_RATE_DPS);
-    // Release with margin below the pointing threshold: the gyro carries bias
-    // and noise, so releasing at exactly 0.5 would hand over a body that is
-    // really turning at 0.52.
-    const double release = kReleaseMargin * params_.get_f64(dict::ParamId::POINTING_RATE_DPS);
-
-    if (rate_dps > engage) { set_mode(dict::AdcsCtrlMode::DETUMBLE); return; }
-
-    switch (mode_) {
-        case dict::AdcsCtrlMode::DETUMBLE:
-            if (rate_dps < release) { set_mode(dict::AdcsCtrlMode::STANDBY); }
-            break;
-        case dict::AdcsCtrlMode::STANDBY:
-        case dict::AdcsCtrlMode::IDLE:
-            if (est_state_ == dict::AdcsEstState::CONVERGED && orbit_.valid()) {
-                set_mode(dict::AdcsCtrlMode::POINTING);
-            }
-            break;
-        case dict::AdcsCtrlMode::POINTING:
-            if (!mekf_.initialised() || !orbit_.valid()) { set_mode(dict::AdcsCtrlMode::STANDBY); }
-            break;
-    }
-}
-
-ActuatorFrame AdcsApp::step(const SensorFrame& s) {
+msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
     ++samples_;
 
     double dt = 0.0;
@@ -190,9 +151,14 @@ ActuatorFrame AdcsApp::step(const SensorFrame& s) {
 
     const Vec3 gyro  = to_d(s.gyro_rps);
     const Vec3 omega = mekf_.initialised() ? mekf_.rate(gyro) : gyro;
-    if (s.gyro_valid) {
-        last_rate_dps_ = norm(omega) * kRadToDeg;
-        run_modes(last_rate_dps_);
+    if (s.gyro_valid) { last_rate_dps_ = norm(omega) * kRadToDeg; }
+
+    switch (system_mode_) {
+        case dict::SystemMode::DETUMBLE:
+        case dict::SystemMode::SAFE:     ctrl_mode_ = dict::AdcsCtrlMode::DETUMBLE; break;
+        case dict::SystemMode::POINTING: ctrl_mode_ = dict::AdcsCtrlMode::POINTING; break;
+        case dict::SystemMode::STANDBY:  ctrl_mode_ = dict::AdcsCtrlMode::STANDBY;  break;
+        case dict::SystemMode::BOOT:     ctrl_mode_ = dict::AdcsCtrlMode::IDLE;     break;
     }
 
     BdotConfig bcfg;
@@ -205,16 +171,16 @@ ActuatorFrame AdcsApp::step(const SensorFrame& s) {
     Vec3f bdot_m{};
     if (s.mag_valid) { bdot_m = bdot_.update(s.mag_t, s.time_s, bcfg); } else { bdot_.reset(); }
 
-    ActuatorFrame out;
-    out.seq = s.seq;
+    msg::ActuatorCommand out;
     Vec3 body_torque{};
     double err_rad = 0.0;
 
-    if (mode_ == dict::AdcsCtrlMode::DETUMBLE) {
+    if (ctrl_mode_ == dict::AdcsCtrlMode::DETUMBLE) {
         out.dipole_a_m2 = bdot_m;
-        out.commanded = true;
+        out.mtq_commanded = true;
         body_torque = cross(to_d(bdot_m), to_d(s.mag_t));
-    } else if (mode_ == dict::AdcsCtrlMode::POINTING && s.wheels_valid) {
+    } else if (ctrl_mode_ == dict::AdcsCtrlMode::POINTING && s.wheels_valid && mekf_.initialised() &&
+               orbit_.valid()) {
         PointingConfig pc;
         pc.bandwidth_rps = params_.get_f64(dict::ParamId::POINT_BANDWIDTH_RADPS);
         pc.max_slew_rps  = params_.get_f64(dict::ParamId::POINT_MAX_SLEW_DPS) / kRadToDeg;
@@ -225,7 +191,7 @@ ActuatorFrame AdcsApp::step(const SensorFrame& s) {
                                                 to_d(s.mag_t), s.mag_valid, pc);
         out.dipole_a_m2 = to_f(po.dipole);
         out.wheel_torque_nm = to_f(po.wheel_torque);
-        out.commanded = true;
+        out.mtq_commanded = true;
         out.wheels_commanded = true;
         body_torque = po.body_torque;
         err_rad = po.error_rad;
@@ -233,7 +199,7 @@ ActuatorFrame AdcsApp::step(const SensorFrame& s) {
 
     // ---- housekeeping ----------------------------------------------------
     hk_.est_state = static_cast<uint8_t>(est_state_);
-    hk_.ctrl_mode = static_cast<uint8_t>(mode_);
+    hk_.ctrl_mode = static_cast<uint8_t>(ctrl_mode_);
     const Quat q = mekf_.attitude();
     hk_.q_est_0 = static_cast<float>(q.w);
     hk_.q_est_1 = static_cast<float>(q.x);
@@ -260,10 +226,17 @@ ActuatorFrame AdcsApp::step(const SensorFrame& s) {
     hk_.wheel_h_y = s.wheel_h.y;
     hk_.wheel_h_z = s.wheel_h.z;
     publish(out, body_torque);
+
+    msg::AdcsStatus st;
+    st.rate_dps = static_cast<float>(last_rate_dps_);
+    st.rate_valid = s.gyro_valid;
+    st.est_state = static_cast<uint8_t>(est_state_);
+    st.orbit_valid = orbit_.valid();
+    bus_.publish_object(core::Topic::AdcsStatus, st);
     return out;
 }
 
-void AdcsApp::publish(const ActuatorFrame& out, const Vec3& body_torque) {
+void AdcsApp::publish(const msg::ActuatorCommand& out, const Vec3& body_torque) {
     hk_.torque_cmd_x = static_cast<float>(body_torque.x);
     hk_.torque_cmd_y = static_cast<float>(body_torque.y);
     hk_.torque_cmd_z = static_cast<float>(body_torque.z);
@@ -271,9 +244,7 @@ void AdcsApp::publish(const ActuatorFrame& out, const Vec3& body_torque) {
     hk_.dipole_cmd_y = out.dipole_a_m2.y;
     hk_.dipole_cmd_z = out.dipole_a_m2.z;
 
-    const ActuatorCommandMsg cmd{{out.dipole_a_m2.x, out.dipole_a_m2.y, out.dipole_a_m2.z},
-                                 {out.wheel_torque_nm.x, out.wheel_torque_nm.y, out.wheel_torque_nm.z}};
-    bus_.publish_object(core::Topic::ActuatorCommand, cmd);
+    bus_.publish_object(core::Topic::ActuatorCommand, out);
     bus_.publish_object(core::Topic::AdcsHk, hk_);
 }
 

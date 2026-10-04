@@ -17,6 +17,7 @@ software.
 | `orbit.py` | Two-body with J2 |
 | `environment.py` | IGRF magnetic field (and a dipole for comparison), solar vector, eclipse, gravity-gradient torque |
 | `sensors.py` | Gyroscope, magnetometer, coarse sun sensors, star tracker, GPS — with the noise, bias, quantisation and blind spots that make estimation necessary |
+| `power.py` | Solar arrays against sun angle and eclipse, a lithium-ion battery, loads per power rail, and a stuck-heater fault |
 | `actuators.py` | Reaction wheels (torque and momentum limits, friction) and magnetorquers, with their real limits |
 
 ## The rule that matters

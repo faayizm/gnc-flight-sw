@@ -24,6 +24,7 @@
 #include <cstdint>
 
 #include "apps/ttc/pus.hpp"
+#include "apps/messages.hpp"
 #include "apps/ttc/packet_store.hpp"
 #include "apps/ttc/schedule.hpp"
 #include "apps/ttc/space_packet.hpp"
@@ -126,6 +127,8 @@ class TtcApp {
                            const uint8_t* data, size_t length);
     static void on_eps_hk(void* context, core::Topic topic,
                           const uint8_t* data, size_t length);
+    static void on_mode(void* context, core::Topic topic, const uint8_t* data, size_t length);
+    static void on_power(void* context, core::Topic topic, const uint8_t* data, size_t length);
 
     // Message type counter, kept per (service, subtype) as PUS requires, so
     // the ground can detect a lost report of one specific kind rather than
@@ -151,6 +154,11 @@ class TtcApp {
     TmFramer   framer_;
     TcReceiver tc_rx_{&TtcApp::on_frame_data, this};
     uint32_t   last_frame_tick_ = 0;
+    uint32_t   frames_heard_ = 0;      // TC frames accepted, as of the last pump
+
+    // Facts other applications own, cached for SYS_HK and the downlink.
+    uint8_t    mode_ = 0;              // dict::SystemMode, from the mode manager
+    bool       tx_on_ = true;          // the transmitter rail, from EPS
 
     // ST[9]: time. 255 = time reports off.
     uint8_t  time_status_      = 0;

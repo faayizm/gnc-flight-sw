@@ -55,27 +55,52 @@ gnc_flight_sw/
 │   │
 │   ├── apps/                    The applications
 │   │   ├── README.md
-│   │   ├── ttc/                 Telemetry, tracking and command  ── WORKING
+│   │   ├── messages.hpp         Every software-bus payload, and who sends it to whom
+│   │   ├── ttc/                 Telemetry, tracking and command
 │   │   │   ├── README.md
 │   │   │   ├── space_packet.*   CCSDS 133.0-B primary header
 │   │   │   ├── pus.*            ECSS PUS headers, TC validation, TM assembly
-│   │   │   └── ttc_app.*        Reassembly, dispatch, verification, housekeeping
-│   │   └── modemgr/             Mode arbitration  ── Phase 5, design documented
-│   │       └── README.md
+│   │   │   ├── channel_coding.* Reed-Solomon, randomiser, ASM, BCH
+│   │   │   ├── tm_framer.*      TM transfer frames and virtual channels
+│   │   │   ├── tc_receiver.*    CLTU decoding, TC frames, FARM-1
+│   │   │   ├── schedule.hpp     ST[11] time-tagged commands
+│   │   │   ├── packet_store.hpp ST[15] on-board storage
+│   │   │   └── ttc_app.*        Dispatch, verification, housekeeping, time, playback
+│   │   ├── io/                  The hardware boundary (the simulator bridge)
+│   │   │   ├── sim_bridge.*     The bridge protocol: the specification of the wire
+│   │   │   └── sim_io_app.*     Sensors onto the bus, actuator replies back out
+│   │   ├── adcs/                Attitude determination and control
+│   │   │   ├── adcs_math.hpp    Vectors, quaternions, small matrices
+│   │   │   ├── ephemeris.*      Sun, IGRF, eclipse
+│   │   │   ├── orbit_prop.*     On-board orbit propagation
+│   │   │   ├── triad.hpp        TRIAD
+│   │   │   ├── mekf.*           Multiplicative extended Kalman filter
+│   │   │   ├── bdot.hpp         B-dot detumble
+│   │   │   ├── pointing.hpp     Nadir pointing and momentum dumping
+│   │   │   └── adcs_app.*       The chain, once per sample
+│   │   ├── eps/                 Electrical power
+│   │   │   ├── power_policy.hpp State of charge, power states, load shedding, rail policy
+│   │   │   └── eps_app.*        The policy wired to the bus
+│   │   └── modemgr/             The single authority on what the spacecraft is doing
+│   │       ├── mode_logic.hpp   Autonomous transitions and how ground requests are judged
+│   │       └── mode_manager.*   The rules wired to the bus
 │   │
 │   └── generated/               ── GENERATED. NEVER EDIT ──
 │       ├── README.md
-│       ├── dictionary.hpp       Ids, enums, event and parameter tables
+│       ├── dictionary.hpp       Ids, enums, link constants, event and parameter tables
 │       ├── telemetry.hpp        Packed HK structures with serialisers
-│       └── commands.hpp         Telecommand argument structures with parsers
+│       ├── commands.hpp         Telecommand argument structures with parsers
+│       └── igrf_coeffs.hpp      IGRF coefficients, from the simulator's table
 │
 ├── gnd/                         ── GROUND SEGMENT ──
 │   ├── README.md                Why there are two, and when to use which
 │   ├── pyground/                Dependency-free Python ground station
 │   │   ├── README.md
 │   │   ├── packets.py           Independent CCSDS/PUS implementation
-│   │   ├── client.py            GroundClient: connect, send, decode
-│   │   ├── __main__.py          CLI: monitor, send, params, commands, demo
+│   │   ├── link.py              Coding, frames, Reed-Solomon decoder, FOP-1
+│   │   ├── client.py            GroundClient: connect, send, decode, through the link
+│   │   ├── fep.py               Front-end processor: plain packets for COSMOS
+│   │   ├── __main__.py          CLI: monitor, send, params, commands, demo, fep
 │   │   └── dictionary.py        GENERATED
 │   └── openc3/                  OpenC3 COSMOS plugin. Configuration only
 │       ├── README.md
@@ -83,22 +108,24 @@ gnc_flight_sw/
 │       ├── plugin.txt           GENERATED
 │       └── targets/SAT/         GENERATED cmd/tlm definitions and screens
 │
-├── sim/                         ── SIMULATOR ── Phase 2
+├── sim/                         ── SIMULATOR ──
 │   ├── README.md                Design, and why the FSW never sees the truth
-│   ├── models/                  Orbit, attitude, environment, sensors, actuators
-│   ├── sil/                     The bridge on its own TCP port
-│   └── scenarios/               Reproducible, seeded test cases
+│   ├── models/                  Orbit, attitude, IGRF, sensors, actuators, power
+│   ├── sil/                     Bridge, simulation loop, radio channel, scenario harness
+│   └── scenarios/               detumble, nadir_pointing, store_and_forward, power_and_modes
 │
 ├── tests/
 │   ├── README.md
 │   ├── framework.hpp            ~100-line dependency-free C++ test framework
 │   ├── CMakeLists.txt
-│   ├── unit/                    72 fast hermetic tests
+│   ├── unit/                    118 fast hermetic tests
 │   │   ├── README.md
 │   │   └── test_*.cpp
-│   └── sil/                     35 checks against the real binary
-│       ├── README.md
-│       └── test_endtoend.py
+│   ├── sil/                     45 checks against the real binary
+│   │   ├── README.md
+│   │   └── test_endtoend.py
+│   ├── gnd/test_link.py         The ground station's link layer against libfec vectors
+│   └── sim/test_models.py       The simulator's physics against conservation laws
 │
 ├── learn/                       ── THE 18-LESSON COURSE ──
 │   ├── README.md                Curriculum map and the three difficulty tracks
@@ -133,9 +160,12 @@ gnc_flight_sw/
 │   ├── ARCHITECTURE.md          Decisions, and the alternatives rejected
 │   ├── ROADMAP.md               Seven phases; what exists and what does not
 │   ├── PATHS.md                 This file
+│   ├── ATTITUDE.md              Estimation and control, the MEKF derivation, results
+│   ├── LINK.md                  The space link: frames, coding, COP-1, storage
+│   ├── POWER_AND_MODES.md       Power policy, the mode manager, and the SAFE scenario
 │   └── ICD.md                   GENERATED interface control document
 │
-└── .github/workflows/ci.yml     Generate, build, unit, SIL, layering — on every push
+└── .github/workflows/ci.yml     Generate, build, unit, SIL, sanitisers, scenarios — on every push
 ```
 
 ## Generated paths
@@ -148,6 +178,7 @@ Never edit these; they are overwritten by `make gen`.
 | `gnd/pyground/dictionary.py` | `dictionary/mission.yaml` |
 | `gnd/openc3/plugin.txt` | `dictionary/mission.yaml` |
 | `gnd/openc3/targets/SAT/**` | `dictionary/mission.yaml` |
+| `fsw/generated/igrf_coeffs.hpp` | `sim/models/igrf_coeffs.py` |
 | `docs/ICD.md` | `dictionary/mission.yaml` |
 
 CI regenerates and fails if any of them differ from what is committed.

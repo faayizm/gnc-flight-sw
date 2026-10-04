@@ -222,7 +222,7 @@ struct AdcsHk {
 };
 static_assert(sizeof(AdcsHk) > 0, "AdcsHk must be instantiable");
 
-// Power subsystem state. Populated from Phase 5 onward.
+// Power subsystem state.
 // PUS ST[3,25] report, structure id 3, APID 0x003, nominal rate 1 Hz.
 struct EpsHk {
     uint8_t power_state{};  // Coarse battery state

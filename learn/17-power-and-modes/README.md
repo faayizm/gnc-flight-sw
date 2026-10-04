@@ -2,9 +2,10 @@
 
 🔧 **Builder** · about 25 minutes
 
-> **Phase 5 note.** EPS and the mode manager are Phase 5. The design is written
-> down and the interfaces already exist — `EPS_HK`, `SET_MODE`, and the
-> thresholds in the dictionary are all in place and reporting today.
+> **Built.** EPS and the mode manager exist and fly: `make power` drains the
+> battery with a stuck heater and watches the spacecraft put itself into SAFE.
+> The full engineering account is in
+> [docs/POWER_AND_MODES.md](../../docs/POWER_AND_MODES.md).
 
 ---
 
@@ -36,19 +37,14 @@ So the flight software is doing energy accounting continuously: how much is
 coming in, how much is going out, how long until sunrise, and what can be
 switched off if the sums do not work.
 
-`EPS_HK` already declares the numbers it will report:
-
-```bash
-make monitor
-```
-
-```
-  EPS_HK  power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
-```
-
-All zeros — Phase 5 — but the shape of the answer is already fixed:
+`EPS_HK` reports the numbers:
 `batt_soc_pct` (state of charge), `solar_power_w`, `load_power_w`,
 `rails_enabled` as a bitmask, and `shed_level`.
+
+With `make run` on its own, `EPS_HK` reads `power_state=UNKNOWN` and zeros:
+no battery is connected, because the battery lives in the simulator. `make
+power` flies with one, and prints the battery, load and solar power every ten
+minutes of the orbit.
 
 ## 💡 Load shedding
 
@@ -62,6 +58,10 @@ increasing desperation:
 | 2 | the transmitter between passes | it is the biggest single load |
 | 3 | non-essential heaters | tolerate the cold for a while |
 | 4 | everything except the computer, the receiver and survival heaters | stay alive |
+
+HYPERSAT follows this table, with one addition at level 4: it also keeps its
+attitude sensors and magnetorquers, because safe mode needs them to stop the
+spacecraft spinning.
 
 Level 4 is the floor. You always keep the **receiver** — because if the ground
 cannot command you, nobody can help. And you always keep **survival heaters**,
@@ -104,16 +104,18 @@ doing, called the **mode**.
 ```
 
 Those are the five modes in
-[`dictionary/mission.yaml`](../../dictionary/mission.yaml) today, and you can
-see the current one in telemetry right now — it reads `BOOT`, honestly, because
-the mode manager does not exist yet.
+[`dictionary/mission.yaml`](../../dictionary/mission.yaml), and `SYS_HK`
+reports the current one. With no simulator connected it stays `BOOT`, because
+there are no sensor readings to decide anything from.
 
 ## 💡 Safe mode: the one that saves missions
 
 **SAFE** is the mode a spacecraft enters when it does not know what else to do.
 It has one job: survive, and stay reachable, indefinitely.
 
-- point the solar panels at the Sun and nothing else
+- point the solar panels at the Sun and nothing else (HYPERSAT's safe mode
+  only stops the spinning, which keeps the panels seeing the Sun on average —
+  the simpler half of the job)
 - switch off everything non-essential
 - keep the receiver on
 - transmit a minimal beacon
@@ -202,17 +204,26 @@ cd gnd
 python3 -m pyground send SET_MODE mode=POINTING
 ```
 
+The command is accepted (`VERIF_ACCEPT_OK`, `VERIF_COMPLETE_OK`): TT&C has
+delivered it to the bus. Then the answer arrives as an event:
+
 ```
-  VERIF_ACCEPT_OK      tc(apid=0x00A, seq=0)
-  VERIF_COMPLETE_OK    tc(apid=0x00A, seq=0)
+  EVENT_LOW          MODE_REFUSED aux=1028
 ```
 
-The command was accepted and published to the bus — and nothing subscribed to
-it, because the mode manager does not exist yet. Watch `SYS_HK`: `mode=BOOT`,
-unchanged.
+`1028` is `0x0404`: the high byte is the mode asked for (4, `POINTING`), the
+low byte the reason (4, `NOT_FROM_MODE`). The spacecraft is in `BOOT`, and
+pointing is only allowed from `STANDBY`. Now ask for safe mode, which is
+always granted:
 
-That is worth noticing rather than glossing over. Publishing into the void is
-*not* an error in this design, and there is a test asserting it:
+```bash
+python3 -m pyground send SET_MODE mode=SAFE
+```
+
+Watch `SYS_HK` change to `mode=SAFE`, and try to get back out.
+
+Before the mode manager existed, this same request was published to a bus
+with nobody listening, which the design treats as normal, not an error:
 
 ```bash
 ./build/tests/fsw_tests 2>&1 | grep nobody
@@ -222,8 +233,11 @@ That is worth noticing rather than glossing over. Publishing into the void is
   .  publishing_to_a_topic_nobody_listens_to_is_not_an_error
 ```
 
-When the mode manager lands in Phase 5, it subscribes to that topic and starts
-answering. Not one line of the TT&C code changes.
+When the mode manager arrived, it subscribed to that topic and started
+answering. The request path in the TT&C code did not change at all. (TT&C
+did gain two subscriptions of its own: to the mode, so `SYS_HK` can report
+it, and to the transmitter's power rail, so it stops sending when load
+shedding switches the transmitter off.)
 
 ## ✅ Check yourself
 

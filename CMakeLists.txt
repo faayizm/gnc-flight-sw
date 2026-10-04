@@ -73,7 +73,10 @@ add_library(fsw_apps STATIC
   fsw/apps/ttc/channel_coding.cpp
   fsw/apps/ttc/tm_framer.cpp
   fsw/apps/ttc/tc_receiver.cpp
-  fsw/apps/adcs/sim_bridge.cpp
+  fsw/apps/io/sim_bridge.cpp
+  fsw/apps/io/sim_io_app.cpp
+  fsw/apps/eps/eps_app.cpp
+  fsw/apps/modemgr/mode_manager.cpp
   fsw/apps/adcs/adcs_app.cpp
   fsw/apps/adcs/ephemeris.cpp
   fsw/apps/adcs/mekf.cpp

@@ -139,3 +139,33 @@ jobs:
         run: python3 tests/sil/test_endtoend.py
         env:
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+
+  # ---------------------------------------------------------------------------
+  # The flights. Each scenario starts the real binary, connects the simulator
+  # (and for store-and-forward, a noisy radio channel) and asserts on truth.
+  # They are slower than everything above -- a few minutes together -- and
+  # they are the only tests that exercise ADCS, EPS and the mode manager
+  # closed-loop, so they run on every push.
+  # ---------------------------------------------------------------------------
+  scenarios:
+    name: flight scenarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - run: cmake --build build -j4
+      - name: ground link layer (Reed-Solomon against libfec vectors)
+        run: make test-gnd
+      - name: simulator physics
+        run: make test-sim
+      - name: detumble
+        run: make detumble
+      - name: nadir pointing
+        run: make pointing
+      - name: store and forward over a noisy channel
+        run: make store-forward
+      - name: power and modes
+        run: make power

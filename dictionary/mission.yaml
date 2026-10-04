@@ -74,6 +74,35 @@ enums:
       LOW:      2
       CRITICAL: 3
 
+  PowerRail:
+    desc: Switched power rails, by bit number in rails_enabled. OBC, RX and SURVIVAL_HEATERS can never be switched off.
+    values:
+      OBC:              0
+      RX:               1
+      TX:               2
+      ADCS:             3
+      WHEELS:           4
+      PAYLOAD:          5
+      OPS_HEATERS:      6
+      SURVIVAL_HEATERS: 7
+
+  ModeRefusal:
+    desc: Why the mode manager refused a ground mode request (MODE_REFUSED aux, low byte).
+    values:
+      NONE:           0
+      RATES_HIGH:     1
+      ATTITUDE_UNKNOWN: 2
+      POWER:          3
+      NOT_FROM_MODE:  4
+      INVALID:        5
+
+  SafeReason:
+    desc: Why the spacecraft entered SAFE (SAFE_MODE_ENTERED aux).
+    values:
+      GROUND:         0
+      POWER_CRITICAL: 1
+      NO_CONTACT:     2
+
   Severity:
     desc: PUS ST[05] event severity, mapped to subtypes 1..4.
     values:
@@ -159,7 +188,7 @@ telemetry:
     sid: 3
     apid: EPS
     rate_hz: 1
-    desc: Power subsystem state. Populated from Phase 5 onward.
+    desc: Power subsystem state.
     fields:
       - {name: power_state,      type: uint8,   enum: PowerState, desc: Coarse battery state}
       - {name: batt_voltage,     type: float32, units: V,   desc: Battery bus voltage}
@@ -216,6 +245,14 @@ commands:
     desc: ST[8,1] request a spacecraft mode transition. The mode manager may refuse.
     args:
       - {name: mode, type: uint8, enum: SystemMode, desc: Requested mode}
+
+  - name: SWITCH_RAIL
+    service: 8
+    subtype: 3
+    desc: "ST[8,3] (mission-specific) enable or disable a power rail. The rail is on only if the ground enables it AND the power and mode policy allow it."
+    args:
+      - {name: rail, type: uint8, enum: PowerRail, desc: Rail to switch}
+      - {name: "on", type: uint8, desc: 1 to enable, 0 to disable}
 
   - name: RESET_COUNTERS
     service: 8
@@ -305,7 +342,7 @@ commands:
 # -----------------------------------------------------------------------------
 events:
   - {name: BOOT_COMPLETE,     id: 1,  severity: INFO,   desc: Flight software finished initialisation}
-  - {name: MODE_CHANGED,      id: 2,  severity: INFO,   desc: Spacecraft mode transition executed}
+  - {name: MODE_CHANGED,      id: 2,  severity: INFO,   desc: "Spacecraft mode transition executed; aux = old mode << 8 | new mode"}
   - {name: LINK_CONNECTED,    id: 3,  severity: INFO,   desc: Ground link established}
   - {name: LINK_LOST,         id: 4,  severity: LOW,    desc: Ground link dropped}
   - {name: TC_REJECTED,       id: 5,  severity: LOW,    desc: Telecommand failed acceptance checks}
@@ -313,20 +350,20 @@ events:
   - {name: HK_DISABLED,       id: 7,  severity: INFO,   desc: Housekeeping structure generation disabled}
   - {name: PARAM_SET,         id: 8,  severity: INFO,   desc: On-board parameter modified from ground}
   - {name: SCHED_OVERRUN,     id: 9,  severity: MEDIUM, desc: A rate group missed its deadline}
-  - {name: MODE_REFUSED,      id: 10, severity: LOW,    desc: Requested mode transition was refused}
-  - {name: SAFE_MODE_ENTERED, id: 11, severity: HIGH,   desc: Spacecraft autonomously entered safe mode}
-  - {name: DETUMBLE_STARTED,  id: 12, severity: INFO,   desc: B-dot detumble control engaged}
-  - {name: DETUMBLE_COMPLETE, id: 13, severity: INFO,   desc: Body rate fell below the hand-over threshold and detumble control stopped}
+  - {name: MODE_REFUSED,      id: 10, severity: LOW,    desc: "Requested mode transition was refused; aux = requested mode << 8 | ModeRefusal"}
+  - {name: SAFE_MODE_ENTERED, id: 11, severity: HIGH,   desc: "Spacecraft entered safe mode; aux = SafeReason"}
   - {name: SENSOR_TIMEOUT,    id: 14, severity: MEDIUM, desc: No sensor data from the simulator bridge; actuators commanded to zero}
   - {name: ESTIMATOR_INIT,    id: 16, severity: INFO,   desc: "Attitude estimator initialised; aux 1 = from TRIAD, 2 = from the star tracker"}
   - {name: ESTIMATOR_CONVERGED, id: 17, severity: INFO, desc: Attitude estimator uncertainty fell below the pointing threshold}
-  - {name: POINTING_STARTED,  id: 18, severity: INFO,   desc: Nadir pointing control engaged}
   - {name: ESTIMATOR_RESET,   id: 19, severity: MEDIUM, desc: Attitude estimator discarded after persistent large innovations}
   - {name: TIME_ADJUSTED,     id: 20, severity: INFO,   desc: "On-board time corrected from the ground; aux = correction in ms, two's complement"}
   - {name: SCHED_RELEASED,    id: 21, severity: INFO,   desc: A time-tagged telecommand was released; aux = its packet sequence count}
   - {name: PLAYBACK_STARTED,  id: 22, severity: INFO,   desc: Packet store retrieval began; aux = packets selected}
   - {name: PLAYBACK_DONE,     id: 23, severity: INFO,   desc: Packet store retrieval finished; aux = packets replayed}
   - {name: STORE_WRAPPED,     id: 24, severity: LOW,    desc: The packet store filled and began overwriting its oldest packets}
+  - {name: POWER_STATE_CHANGED, id: 25, severity: MEDIUM, desc: "Battery power state changed; aux = old << 8 | new (PowerState)"}
+  - {name: LOAD_SHED,         id: 26, severity: MEDIUM, desc: "Load-shedding level changed; aux = new level (0 = everything restored)"}
+  - {name: RAIL_SWITCHED,     id: 27, severity: INFO,   desc: "A power rail was switched by ground command; aux = rail << 8 | on"}
   - {name: SENSOR_RESTORED,   id: 15, severity: INFO,   desc: Sensor data resumed after a timeout}
 
 # -----------------------------------------------------------------------------
@@ -340,10 +377,11 @@ params:
   - {name: POINTING_RATE_DPS,  id: 5, type: float32, default: 0.5,  min: 0.01, max: 10.0,  units: deg/s, desc: Rate threshold below which pointing is permitted}
   - {name: BATT_LOW_SOC_PCT,   id: 6, type: float32, default: 40.0, min: 5.0,  max: 90.0,  units: "%",   desc: State of charge entering the LOW power state}
   - {name: BATT_CRIT_SOC_PCT,  id: 7, type: float32, default: 20.0, min: 2.0,  max: 80.0,  units: "%",   desc: State of charge entering the CRITICAL power state}
-  - {name: LINK_TIMEOUT_S,     id: 8, type: uint32,  default: 300,  min: 10,   max: 86400, units: s,     desc: Ground contact loss timeout before autonomy reacts}
+  - {name: LINK_TIMEOUT_S,     id: 8, type: uint32,  default: 86400, min: 600, max: 604800, units: s,    desc: Time without hearing the ground before the spacecraft enters SAFE}
   - {name: BDOT_GAIN,          id: 9,  type: float32, default: 300000.0, min: 0.0, max: 10000000.0, units: "A*m^2/(T/s)", desc: B-dot proportional gain}
   - {name: MTQ_MAX_DIPOLE,     id: 10, type: float32, default: 0.2,  min: 0.0,  max: 10.0,  units: "A*m^2", desc: Largest magnetic dipole commanded on any axis}
   - {name: BDOT_FILTER_TAU_S,  id: 11, type: float32, default: 3.0,  min: 0.1,  max: 60.0,  units: s,     desc: Time constant of the filter applied to the field derivative}
   - {name: POINT_BANDWIDTH_RADPS, id: 12, type: float32, default: 0.1, min: 0.005, max: 1.0, units: rad/s, desc: Natural frequency of the pointing control loop}
   - {name: POINT_MAX_SLEW_DPS,  id: 13, type: float32, default: 1.0,  min: 0.05, max: 5.0,   units: deg/s, desc: Largest body rate the pointing controller will command while acquiring}
   - {name: MOMENTUM_DUMP_GAIN,  id: 14, type: float32, default: 0.0005, min: 0.0, max: 0.1, units: 1/s,  desc: Magnetic momentum-unloading gain}
+  - {name: BATT_CAPACITY_WH,    id: 15, type: float32, default: 30.0, min: 1.0, max: 1000.0, units: W*h, desc: Usable battery energy at 100% state of charge}
