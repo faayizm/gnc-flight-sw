@@ -74,9 +74,9 @@ Limits ModeManager::limits() const {
 }
 
 void ModeManager::change_to(dict::SystemMode to, dict::SafeReason why) {
-    if (to == mode_) { return; }
-    const dict::SystemMode from = mode_;
-    mode_ = to;
+    const dict::SystemMode from = mode_.get();
+    if (to == from) { return; }
+    mode_.set(to);
     events_.raise(dict::EventId::MODE_CHANGED,
                   static_cast<uint32_t>((static_cast<unsigned>(from) << 8) | static_cast<unsigned>(to)));
     if (to == dict::SystemMode::SAFE) {
@@ -92,7 +92,7 @@ void ModeManager::task_run(void* context) {
     // anything else is working.
     auto* self = static_cast<ModeManager*>(context);
     self->start_contact_timer();
-    if (self->mode_ != dict::SystemMode::SAFE &&
+    if (self->mode_.get() != dict::SystemMode::SAFE &&
         (self->clock_.now() - self->last_contact_).to_double_seconds() > self->limits().link_timeout_s) {
         self->change_to(dict::SystemMode::SAFE, dict::SafeReason::NO_CONTACT);
     }
@@ -111,7 +111,7 @@ void ModeManager::evaluate() {
     // Called once per sensor sample, so every decision lands on the same
     // sample however fast the host runs -- which keeps scenarios reproducible.
     start_contact_timer();
-    const Decision d = autonomous(mode_, facts(), limits());
+    const Decision d = autonomous(mode_.get(), facts(), limits());
     change_to(d.mode, d.safe_reason);
 }
 
@@ -122,7 +122,7 @@ void ModeManager::request(dict::SystemMode to) {
                                             static_cast<unsigned>(dict::ModeRefusal::INVALID)));
         return;
     }
-    const dict::ModeRefusal why = judge_request(mode_, to, facts(), limits());
+    const dict::ModeRefusal why = judge_request(mode_.get(), to, facts(), limits());
     if (why != dict::ModeRefusal::NONE) {
         events_.raise(dict::EventId::MODE_REFUSED,
                       static_cast<uint32_t>((static_cast<unsigned>(to) << 8) | static_cast<unsigned>(why)));

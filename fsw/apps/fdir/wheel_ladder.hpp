@@ -35,6 +35,7 @@
 
 #include <cstdint>
 
+#include "core/tmr.hpp"
 #include "generated/dictionary.hpp"
 
 namespace fsw::fdir {
@@ -66,7 +67,7 @@ class WheelLadder {
     // passing windows each axis has had since the check was last reset.
     LadderOutput step(double t, uint8_t failing, const uint32_t good[3]) {
         LadderOutput out;
-        failing = static_cast<uint8_t>(failing & ~isolated_);
+        failing = static_cast<uint8_t>(failing & ~isolated_.get());
         switch (state_) {
             case dict::FdirWheelState::MONITOR:
                 if (failing != 0) { begin(t, failing, out); }
@@ -108,22 +109,23 @@ class WheelLadder {
     }
 
     dict::FdirWheelState state() const { return state_; }
-    uint8_t isolated() const { return isolated_; }
-    uint8_t usable()   const { return static_cast<uint8_t>(~isolated_ & 0x7u); }
+    uint8_t isolated() const { return isolated_.vote(); }
+    uint8_t usable()   const { return static_cast<uint8_t>(~isolated_.vote() & 0x7u); }
     uint8_t retries(int axis) const { return retries_[axis]; }
 
     // The ground's override: put an isolated wheel back into service (after,
     // say, diagnosing it from telemetry). Its retry budget is restored too.
     void restore(uint8_t mask) {
-        isolated_ = static_cast<uint8_t>(isolated_ & ~mask);
+        isolated_.set(static_cast<uint8_t>(isolated_.get() & ~mask));
         for (int i = 0; i < 3; ++i) {
             if ((mask >> i) & 1u) { retries_[i] = 0; }
         }
     }
 
-    // Single-event upsets can reach this state too: see fdir_app.hpp, which
-    // keeps the isolation mask under triple redundancy and writes it back here.
-    void set_isolated(uint8_t mask) { isolated_ = static_cast<uint8_t>(mask & 0x7u); }
+    // Which wheels are out of service is kept in triplicate (core/tmr.hpp):
+    // an upset that "repaired" a dead wheel would hand it back to the
+    // controller, and one that "killed" a good wheel would throw it away.
+    core::Tmr<uint8_t>& isolation_store() { return isolated_; }
 
  private:
     void begin(double t, uint8_t failing, LadderOutput& out) {
@@ -152,7 +154,7 @@ class WheelLadder {
 
     void isolate(uint8_t mask, LadderOutput& out) {
         if (mask == 0) { return; }
-        isolated_ = static_cast<uint8_t>(isolated_ | mask);
+        isolated_.set(static_cast<uint8_t>(isolated_.get() | mask));
         suspects_ = static_cast<uint8_t>(suspects_ & ~mask);
         out.raise(dict::EventId::WHEEL_ISOLATED, mask);
     }
@@ -160,7 +162,7 @@ class WheelLadder {
     dict::FdirWheelState state_ = dict::FdirWheelState::MONITOR;
     double  since_    = 0.0;
     uint8_t suspects_ = 0;
-    uint8_t isolated_ = 0;
+    core::Tmr<uint8_t> isolated_{0};
     uint8_t retries_[3]{};
 };
 

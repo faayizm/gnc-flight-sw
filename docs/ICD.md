@@ -72,7 +72,7 @@ Every packet ends with a 2-byte packet error control field: CCSDS CRC-16, polyno
 
 ### SYS_HK — structure id 1, APID `0x001`
 
-Core system health, scheduler timing and link statistics. Nominal generation rate 1 Hz. Total packet size 82 bytes.
+Core system health, scheduler timing and link statistics. Nominal generation rate 1 Hz. Total packet size 83 bytes.
 
 | Offset | Field | Type | Units | Description |
 |---:|---|---|---|---|
@@ -99,6 +99,7 @@ Core system health, scheduler timing and link statistics. Nominal generation rat
 | 54 | `sched_enabled` | uint8 | bool | Time-based release is enabled |
 | 55 | `store_packets` | uint32 | count | Packets held in the packet store |
 | 59 | `store_used_pct` | uint8 | % | Packet store fill level |
+| 60 | `last_reset` | uint8 |  | Why the flight computer last started (POWER_ON=0, WATCHDOG=1) |
 
 ### ADCS_HK — structure id 2, APID `0x002`
 
@@ -156,7 +157,7 @@ Power subsystem state. Nominal generation rate 1 Hz. Total packet size 50 bytes.
 
 ### FDIR_HK — structure id 4, APID `0x004`
 
-Fault management state. Nominal generation rate 1 Hz. Total packet size 39 bytes.
+Fault management state. Nominal generation rate 1 Hz. Total packet size 47 bytes.
 
 | Offset | Field | Type | Units | Description |
 |---:|---|---|---|---|
@@ -166,14 +167,18 @@ Fault management state. Nominal generation rate 1 Hz. Total packet size 39 bytes
 | 3 | `wheel_resid_x` | float32 | N*m*s | Wheel X momentum not explained by its commands |
 | 7 | `wheel_resid_y` | float32 | N*m*s | Wheel Y momentum not explained by its commands |
 | 11 | `wheel_resid_z` | float32 | N*m*s | Wheel Z momentum not explained by its commands |
-| 15 | `monitors_enabled` | uint8 | count | ST[12] parameter monitors enabled |
-| 16 | `monitors_alarm` | uint8 | count | ST[12] monitors currently out of limits |
+| 15 | `edac_corrected` | uint32 | count | Single-bit upsets corrected in the parameter table since boot |
+| 19 | `edac_uncorrectable` | uint16 | count | Parameter words found damaged beyond repair since boot |
+| 21 | `tmr_repairs` | uint16 | count | Triplicated values repaired by voting since boot |
+| 23 | `monitors_enabled` | uint8 | count | ST[12] parameter monitors enabled |
+| 24 | `monitors_alarm` | uint8 | count | ST[12] monitors currently out of limits |
 
 ## Telecommands
 
 | Service | Subtype | Name | Args | Description |
 |---:|---:|---|---:|---|
 | 17 | 1 | `TEST_CONNECTION` | 0 B | ST[17,1] connection test. Flight software answers with ST[17,2]. |
+| 17 | 128 | `TEST_WATCHDOG` | 0 B | ST[17,128] (mission-specific) stop servicing the watchdog, to prove that it resets the computer. Nothing else stops: the reset comes from the watchdog alone. |
 | 3 | 5 | `ENABLE_HK` | 1 B | ST[3,5] enable periodic generation of a housekeeping structure. |
 | 3 | 6 | `DISABLE_HK` | 1 B | ST[3,6] disable periodic generation of a housekeeping structure. |
 | 20 | 1 | `REPORT_PARAM` | 2 B | ST[20,1] request the value of one on-board parameter, answered by ST[20,2]. |
@@ -338,7 +343,7 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 
 | ID | Name | Severity | Description |
 |---:|---|---|---|
-| 1 | `BOOT_COMPLETE` | INFO | Flight software finished initialisation |
+| 1 | `BOOT_COMPLETE` | INFO | Flight software finished initialisation; aux = ResetCause |
 | 2 | `MODE_CHANGED` | INFO | Spacecraft mode transition executed; aux = old mode << 8 | new mode |
 | 3 | `LINK_CONNECTED` | INFO | Ground link established |
 | 4 | `LINK_LOST` | LOW | Ground link dropped |
@@ -373,6 +378,8 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 35 | `POINTING_LOST` | HIGH | Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus |
 | 36 | `WHEEL_MOMENTUM_HIGH` | MEDIUM | A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus |
 | 37 | `EVENT_ACTION` | INFO | An on-board action ran in response to an event; aux = the triggering event id |
+| 38 | `EDAC_UNCORRECTABLE` | HIGH | A parameter word has two flipped bits and cannot be corrected; it reads as its default until reloaded; aux = parameter id |
+| 39 | `PARAMS_RELOADED` | MEDIUM | The parameter table was reloaded after an uncorrectable error; aux = 1 from non-volatile storage, 0 kept the defaults |
 | 18 | `SENSOR_GAP` | MEDIUM | Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds |
 | 13 | `SENSOR_READMITTED` | INFO | A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId |
 

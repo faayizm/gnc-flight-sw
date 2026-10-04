@@ -28,21 +28,23 @@ ENUMS = {
     'SensorId': {'MAG': 0, 'GYRO': 1, 'SUN': 2, 'STAR': 3, 'GPS': 4},
     'SensorFault': {'NONE': 0, 'RANGE': 1, 'FROZEN': 2},
     'FdirWheelState': {'MONITOR': 0, 'CYCLE_OFF': 1, 'VERIFY': 2},
+    'ResetCause': {'POWER_ON': 0, 'WATCHDOG': 1},
     'MonitorStatus': {'UNCHECKED': 0, 'WITHIN': 1, 'BELOW': 2, 'ABOVE': 3},
     'Severity': {'INFO': 1, 'LOW': 2, 'MEDIUM': 3, 'HIGH': 4},
 }
 
 # name -> (sid, apid, [(field, type, units, enum_or_None), ...])
 TELEMETRY = {
-    'SYS_HK': (1, 0x001, [('uptime_s', 'uint32', 's', None), ('tick_count', 'uint32', 'ticks', None), ('mode', 'uint8', '', 'SystemMode'), ('boot_count', 'uint16', 'count', None), ('cpu_load_pct', 'uint8', '%', None), ('sched_overruns', 'uint16', 'count', None), ('tc_received', 'uint32', 'count', None), ('tc_rejected', 'uint32', 'count', None), ('tm_sent', 'uint32', 'count', None), ('link_up', 'uint8', 'bool', None), ('events_logged', 'uint32', 'count', None), ('last_event_id', 'uint16', 'id', None), ('tm_frames_sent', 'uint32', 'count', None), ('tc_frames_ok', 'uint32', 'count', None), ('tc_frames_bad', 'uint32', 'count', None), ('cltu_corrected', 'uint32', 'count', None), ('farm_vr', 'uint8', '-', None), ('farm_lockout', 'uint8', 'bool', None), ('time_status', 'uint8', '-', None), ('sched_pending', 'uint16', 'count', None), ('sched_enabled', 'uint8', 'bool', None), ('store_packets', 'uint32', 'count', None), ('store_used_pct', 'uint8', '%', None)]),
+    'SYS_HK': (1, 0x001, [('uptime_s', 'uint32', 's', None), ('tick_count', 'uint32', 'ticks', None), ('mode', 'uint8', '', 'SystemMode'), ('boot_count', 'uint16', 'count', None), ('cpu_load_pct', 'uint8', '%', None), ('sched_overruns', 'uint16', 'count', None), ('tc_received', 'uint32', 'count', None), ('tc_rejected', 'uint32', 'count', None), ('tm_sent', 'uint32', 'count', None), ('link_up', 'uint8', 'bool', None), ('events_logged', 'uint32', 'count', None), ('last_event_id', 'uint16', 'id', None), ('tm_frames_sent', 'uint32', 'count', None), ('tc_frames_ok', 'uint32', 'count', None), ('tc_frames_bad', 'uint32', 'count', None), ('cltu_corrected', 'uint32', 'count', None), ('farm_vr', 'uint8', '-', None), ('farm_lockout', 'uint8', 'bool', None), ('time_status', 'uint8', '-', None), ('sched_pending', 'uint16', 'count', None), ('sched_enabled', 'uint8', 'bool', None), ('store_packets', 'uint32', 'count', None), ('store_used_pct', 'uint8', '%', None), ('last_reset', 'uint8', '', 'ResetCause')]),
     'ADCS_HK': (2, 0x002, [('est_state', 'uint8', '', 'AdcsEstState'), ('ctrl_mode', 'uint8', '', 'AdcsCtrlMode'), ('q_est_0', 'float32', '-', None), ('q_est_1', 'float32', '-', None), ('q_est_2', 'float32', '-', None), ('q_est_3', 'float32', '-', None), ('omega_x', 'float32', 'rad/s', None), ('omega_y', 'float32', 'rad/s', None), ('omega_z', 'float32', 'rad/s', None), ('gyro_bias_x', 'float32', 'rad/s', None), ('gyro_bias_y', 'float32', 'rad/s', None), ('gyro_bias_z', 'float32', 'rad/s', None), ('pointing_err_deg', 'float32', 'deg', None), ('rate_norm', 'float32', 'deg/s', None), ('sun_valid', 'uint8', 'bool', None), ('mag_valid', 'uint8', 'bool', None), ('eclipse', 'uint8', 'bool', None), ('torque_cmd_x', 'float32', 'N*m', None), ('torque_cmd_y', 'float32', 'N*m', None), ('torque_cmd_z', 'float32', 'N*m', None), ('pos_eci_x', 'float64', 'm', None), ('pos_eci_y', 'float64', 'm', None), ('pos_eci_z', 'float64', 'm', None), ('att_sigma_deg', 'float32', 'deg', None), ('wheel_h_x', 'float32', 'N*m*s', None), ('wheel_h_y', 'float32', 'N*m*s', None), ('wheel_h_z', 'float32', 'N*m*s', None), ('dipole_cmd_x', 'float32', 'A*m^2', None), ('dipole_cmd_y', 'float32', 'A*m^2', None), ('dipole_cmd_z', 'float32', 'A*m^2', None), ('gps_valid', 'uint8', 'bool', None)]),
     'EPS_HK': (3, 0x003, [('power_state', 'uint8', '', 'PowerState'), ('batt_voltage', 'float32', 'V', None), ('batt_current', 'float32', 'A', None), ('batt_soc_pct', 'float32', '%', None), ('batt_temp_c', 'float32', 'degC', None), ('solar_power_w', 'float32', 'W', None), ('load_power_w', 'float32', 'W', None), ('rails_enabled', 'uint16', 'mask', None), ('shed_level', 'uint8', 'level', None)]),
-    'FDIR_HK': (4, 0x004, [('wheel_state', 'uint8', '', 'FdirWheelState'), ('wheels_usable', 'uint8', 'mask', None), ('wheel_retries', 'uint8', 'count', None), ('wheel_resid_x', 'float32', 'N*m*s', None), ('wheel_resid_y', 'float32', 'N*m*s', None), ('wheel_resid_z', 'float32', 'N*m*s', None), ('monitors_enabled', 'uint8', 'count', None), ('monitors_alarm', 'uint8', 'count', None)]),
+    'FDIR_HK': (4, 0x004, [('wheel_state', 'uint8', '', 'FdirWheelState'), ('wheels_usable', 'uint8', 'mask', None), ('wheel_retries', 'uint8', 'count', None), ('wheel_resid_x', 'float32', 'N*m*s', None), ('wheel_resid_y', 'float32', 'N*m*s', None), ('wheel_resid_z', 'float32', 'N*m*s', None), ('edac_corrected', 'uint32', 'count', None), ('edac_uncorrectable', 'uint16', 'count', None), ('tmr_repairs', 'uint16', 'count', None), ('monitors_enabled', 'uint8', 'count', None), ('monitors_alarm', 'uint8', 'count', None)]),
 }
 
 # name -> (service, subtype, [(arg, type, enum_or_None), ...])
 COMMANDS = {
     'TEST_CONNECTION': (17, 1, []),
+    'TEST_WATCHDOG': (17, 128, []),
     'ENABLE_HK': (3, 5, [('sid', 'uint8', None)]),
     'DISABLE_HK': (3, 6, [('sid', 'uint8', None)]),
     'REPORT_PARAM': (20, 1, [('param_id', 'uint16', None)]),
@@ -73,7 +75,7 @@ VARIABLE_COMMANDS = ['INSERT_ACTIVITIES']
 
 # id -> (name, severity, description)
 EVENTS = {
-    1: ('BOOT_COMPLETE', 'INFO', 'Flight software finished initialisation'),
+    1: ('BOOT_COMPLETE', 'INFO', 'Flight software finished initialisation; aux = ResetCause'),
     2: ('MODE_CHANGED', 'INFO', 'Spacecraft mode transition executed; aux = old mode << 8 | new mode'),
     3: ('LINK_CONNECTED', 'INFO', 'Ground link established'),
     4: ('LINK_LOST', 'LOW', 'Ground link dropped'),
@@ -108,6 +110,8 @@ EVENTS = {
     35: ('POINTING_LOST', 'HIGH', 'Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus'),
     36: ('WHEEL_MOMENTUM_HIGH', 'MEDIUM', 'A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus'),
     37: ('EVENT_ACTION', 'INFO', 'An on-board action ran in response to an event; aux = the triggering event id'),
+    38: ('EDAC_UNCORRECTABLE', 'HIGH', 'A parameter word has two flipped bits and cannot be corrected; it reads as its default until reloaded; aux = parameter id'),
+    39: ('PARAMS_RELOADED', 'MEDIUM', 'The parameter table was reloaded after an uncorrectable error; aux = 1 from non-volatile storage, 0 kept the defaults'),
     18: ('SENSOR_GAP', 'MEDIUM', 'Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds'),
     13: ('SENSOR_READMITTED', 'INFO', 'A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId'),
 }

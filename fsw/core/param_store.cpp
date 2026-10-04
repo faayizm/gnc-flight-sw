@@ -16,7 +16,7 @@ Status ParamStore::save(uint8_t* buffer, size_t capacity, size_t& written) const
     w.write_uint16(kMagic);
     w.write_uint16(static_cast<uint16_t>(dict::kParamCount));
     for (size_t i = 0; i < dict::kParamCount; ++i) {
-        w.write_float64(values_[i]);
+        w.write_float64(value(i));
     }
     if (!w.ok()) { return Status::NoSpace; }
 
@@ -70,7 +70,7 @@ Status ParamStore::load(const uint8_t* buffer, size_t length) {
     }
 
     for (size_t i = 0; i < dict::kParamCount; ++i) {
-        values_[i] = quantise(dict::kParams[i].type, staged[i]);
+        store(i, quantise(dict::kParams[i].type, staged[i]));
     }
     dirty_ = false;
     return Status::Ok;

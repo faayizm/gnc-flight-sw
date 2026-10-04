@@ -37,6 +37,7 @@ class Scenario:
     gps_outages: list = field(default_factory=list)    # [(start, end), ...] seconds
     wheel_failures: dict = field(default_factory=dict)  # {axis: time}
     faults: list = field(default_factory=list)          # [faults.Fault, ...]
+    radiation: object = None                            # faults.Radiation, or None
     initial_soc: float = 0.8
     stuck_heater: tuple | None = None    # (start time, extra watts)
 
@@ -71,7 +72,8 @@ class Simulation:
         self.samples = self.eclipse_samples = self.sun_valid_samples = self.blind_violations = 0
         names = ("wheel_x", "wheel_y", "wheel_z")
         self.faults = Injector(list(sc.faults) + [Fault("dead", names[a], when)
-                                                  for a, when in sc.wheel_failures.items()], sc.seed)
+                                                  for a, when in sc.wheel_failures.items()], sc.seed,
+                              sc.radiation)  # type: ignore[arg-type]
         self.last_answer_t = 0.0       # when the flight software last commanded the actuators
 
     # -- truth, for assertions only; never sent to the flight software --------
@@ -148,7 +150,7 @@ class Simulation:
                 gps_pos=gps_pos, gps_vel=gps_vel, gps_valid=gps_valid,
                 star_q=st_q, star_valid=st_valid and adcs_on,
                 eps=self.power.telemetry(), rails=self.power.rails, eps_valid=True,
-                corrupt_bit=f.corrupt(self.t))
+                seu=f.upset(self.t, dt, self.orbit.r), corrupt_bit=f.corrupt(self.t))
         if answer is not None:
             self.dipole, self.wheel_cmd, rails, self.flags = answer
             self.last_answer_t = self.t

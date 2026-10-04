@@ -219,6 +219,19 @@ constexpr const char* to_string(FdirWheelState v) {
     return "UNKNOWN";
 }
 
+// Why the flight computer last started (BOOT_COMPLETE aux, SYS_HK last_reset).
+enum class ResetCause : uint8_t {
+    POWER_ON = 0,
+    WATCHDOG = 1,
+};
+constexpr const char* to_string(ResetCause v) {
+    switch (v) {
+        case ResetCause::POWER_ON: return "POWER_ON";
+        case ResetCause::WATCHDOG: return "WATCHDOG";
+    }
+    return "UNKNOWN";
+}
+
 // PUS ST[12] checking status of one monitored parameter.
 enum class MonitorStatus : uint8_t {
     UNCHECKED = 0,
@@ -299,6 +312,8 @@ enum class EventId : uint16_t {
     POINTING_LOST = 35,
     WHEEL_MOMENTUM_HIGH = 36,
     EVENT_ACTION = 37,
+    EDAC_UNCORRECTABLE = 38,
+    PARAMS_RELOADED = 39,
     SENSOR_GAP = 18,
     SENSOR_READMITTED = 13,
 };
@@ -311,7 +326,7 @@ struct EventInfo {
 };
 
 inline constexpr EventInfo kEvents[] = {
-    { EventId::BOOT_COMPLETE, Severity::INFO, "BOOT_COMPLETE", "Flight software finished initialisation" },
+    { EventId::BOOT_COMPLETE, Severity::INFO, "BOOT_COMPLETE", "Flight software finished initialisation; aux = ResetCause" },
     { EventId::MODE_CHANGED, Severity::INFO, "MODE_CHANGED", "Spacecraft mode transition executed; aux = old mode << 8 | new mode" },
     { EventId::LINK_CONNECTED, Severity::INFO, "LINK_CONNECTED", "Ground link established" },
     { EventId::LINK_LOST, Severity::LOW, "LINK_LOST", "Ground link dropped" },
@@ -346,10 +361,12 @@ inline constexpr EventInfo kEvents[] = {
     { EventId::POINTING_LOST, Severity::HIGH, "POINTING_LOST", "Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus" },
     { EventId::WHEEL_MOMENTUM_HIGH, Severity::MEDIUM, "WHEEL_MOMENTUM_HIGH", "A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus" },
     { EventId::EVENT_ACTION, Severity::INFO, "EVENT_ACTION", "An on-board action ran in response to an event; aux = the triggering event id" },
+    { EventId::EDAC_UNCORRECTABLE, Severity::HIGH, "EDAC_UNCORRECTABLE", "A parameter word has two flipped bits and cannot be corrected; it reads as its default until reloaded; aux = parameter id" },
+    { EventId::PARAMS_RELOADED, Severity::MEDIUM, "PARAMS_RELOADED", "The parameter table was reloaded after an uncorrectable error; aux = 1 from non-volatile storage, 0 kept the defaults" },
     { EventId::SENSOR_GAP, Severity::MEDIUM, "SENSOR_GAP", "Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds" },
     { EventId::SENSOR_READMITTED, Severity::INFO, "SENSOR_READMITTED", "A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId" },
 };
-inline constexpr size_t kEventCount = 37;
+inline constexpr size_t kEventCount = 39;
 
 inline const EventInfo* find_event(EventId id) {
     for (size_t i = 0; i < kEventCount; ++i) {

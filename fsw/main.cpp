@@ -59,6 +59,7 @@ struct Options {
     const char* nvm_path   = "hypersat_nvm.bin";
     uint32_t    max_ticks  = 0;   // 0 = run until interrupted
     bool        verbose    = false;
+    uint32_t    watchdog_ms = 5000;
 };
 
 void print_usage(const char* argv0) {
@@ -71,6 +72,7 @@ void print_usage(const char* argv0) {
         "  --time-scale F   simulation speed, 1.0 = real time    (default 1.0)\n"
         "  --nvm PATH       non-volatile storage file            (default hypersat_nvm.bin)\n"
         "  --max-ticks N    stop after N scheduler ticks, for tests\n"
+        "  --watchdog-ms N  host watchdog: reset if the loop stalls N ms (default 5000, 0 = off)\n"
         "  --verbose        print a status line once per second\n"
         "  --help           this message\n",
         argv0);
@@ -91,6 +93,8 @@ bool parse_args(int argc, char** argv, Options& opt) {
             opt.time_scale = std::atof(argv[++i]);
         } else if (std::strcmp(a, "--nvm") == 0 && has_value) {
             opt.nvm_path = argv[++i];
+        } else if (std::strcmp(a, "--watchdog-ms") == 0 && has_value) {
+            opt.watchdog_ms = static_cast<uint32_t>(std::atol(argv[++i]));
         } else if (std::strcmp(a, "--max-ticks") == 0 && has_value) {
             opt.max_ticks = static_cast<uint32_t>(std::atol(argv[++i]));
         } else {
@@ -102,9 +106,52 @@ bool parse_args(int argc, char** argv, Options& opt) {
     return true;
 }
 
-// Block in non-volatile storage holding the parameter table. Block 0 is used
-// because nothing else claims it yet; a later phase will define a proper map.
-constexpr size_t kParamBlock = 0;
+// Non-volatile storage map.
+constexpr size_t kParamBlock = 0;     // the parameter table, as ParamStore::save writes it
+constexpr size_t kBootBlock  = 1;     // the boot record: magic, boot count, CRC
+
+fsw::platform::PosixFileStorage* g_storage = nullptr;
+fsw::core::ParamStore*           g_params  = nullptr;
+
+void save_params_if_dirty() {
+    if (!g_params->dirty()) { return; }
+    size_t  written = 0;
+    uint8_t block[fsw::platform::PosixFileStorage::kBlockSize];
+    std::memset(block, 0, sizeof block);
+    if (fsw::core::is_ok(g_params->save(block, sizeof block, written)) &&
+        fsw::core::is_ok(g_storage->write(kParamBlock, block, sizeof block))) {
+        g_params->clear_dirty();
+    }
+}
+
+// FDIR's recovery for a parameter word damaged beyond repair.
+bool reload_params(void*) {
+    uint8_t block[fsw::platform::PosixFileStorage::kBlockSize];
+    return fsw::core::is_ok(g_storage->read(kParamBlock, block, sizeof block)) &&
+           fsw::core::is_ok(g_params->load(block, sizeof block));
+}
+
+// Count this boot. The count survives every kind of reset, so a rising number
+// on the ground is the clearest sign something keeps going wrong.
+uint16_t count_boot(fsw::platform::PosixFileStorage& storage) {
+    uint8_t b[fsw::platform::PosixFileStorage::kBlockSize];
+    std::memset(b, 0, sizeof b);
+    uint16_t count = 0;
+    if (fsw::core::is_ok(storage.read(kBootBlock, b, sizeof b)) && b[0] == 'B' && b[1] == 'R' &&
+        fsw::core::crc16_check(b, 6)) {
+        count = static_cast<uint16_t>((b[2] << 8) | b[3]);
+    }
+    ++count;
+    std::memset(b, 0, sizeof b);
+    b[0] = 'B'; b[1] = 'R';
+    b[2] = static_cast<uint8_t>(count >> 8);
+    b[3] = static_cast<uint8_t>(count & 0xFF);
+    const uint16_t crc = fsw::core::crc16(b, 4);
+    b[4] = static_cast<uint8_t>(crc >> 8);
+    b[5] = static_cast<uint8_t>(crc & 0xFF);
+    storage.write(kBootBlock, b, sizeof b);
+    return count;
+}
 
 // Bridges a scheduler overrun into an event report. The scheduler cannot call
 // the event log directly without core/ acquiring a dependency it does not need.
@@ -146,10 +193,22 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    g_storage = &storage;
+
+    // The hosted stand-in for a reset-cause register: a marker file the
+    // watchdog leaves behind when it fires (platform/posix/posix_watchdog.hpp).
+    static char marker[1024];
+    std::snprintf(marker, sizeof marker, "%s.reset", opt.nvm_path);
+    const fsw::dict::ResetCause cause = fsw::platform::PosixWatchdog::consume_reset_marker(marker)
+                                            ? fsw::dict::ResetCause::WATCHDOG
+                                            : fsw::dict::ResetCause::POWER_ON;
+    const uint16_t boots = count_boot(storage);
+
     // ---- 2. core -----------------------------------------------------------
     static fsw::core::Bus        bus;
     static fsw::core::EventLog   events;
     static fsw::core::ParamStore params;
+    g_params = &params;
     static fsw::core::Scheduler  scheduler(clock);
 
     scheduler.set_overrun_handler(&on_scheduler_overrun, &events);
@@ -160,6 +219,7 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "fatal: TT&C application failed to initialise\n");
         return 1;
     }
+    ttc.set_boot_info(boots, cause);
 
     // Order of construction is order of bus subscription, which is order of
     // delivery: on each sensor sample ADCS runs first, then EPS, then the
@@ -170,6 +230,11 @@ int main(int argc, char** argv) {
     static fsw::modemgr::ModeManager modes(clock, bus, events, params);
     // Last: FDIR judges each sample after ADCS, EPS and I/O have answered it.
     static fsw::fdir::FdirApp       fdir(bus, events);
+    fdir.protect(params, modes.mode_store());
+    fdir.set_param_reload(&reload_params, nullptr);
+    io.set_upset_handler([](void* ctx, uint8_t target, uint32_t bit) {
+        static_cast<fsw::fdir::FdirApp*>(ctx)->upset(target, bit);
+    }, &fdir);
     if (!fsw::core::is_ok(adcs.init()) || !fsw::core::is_ok(eps.init()) ||
         !fsw::core::is_ok(io.init()) || !fsw::core::is_ok(modes.init()) ||
         !fsw::core::is_ok(fdir.init())) {
@@ -209,6 +274,7 @@ int main(int argc, char** argv) {
     // Three tick periods. Long enough to tolerate one bad tick, short enough
     // that a genuinely wedged loop is caught in under a tenth of a second.
     watchdog.enable(3 * 1000 / fsw::core::Scheduler::kBaseRateHz);
+    if (opt.watchdog_ms > 0) { watchdog.arm_host(opt.watchdog_ms, marker); }
 
     // ---- 7. run ------------------------------------------------------------
     std::printf("HYPERSAT flight software up.\n");
@@ -218,17 +284,28 @@ int main(int argc, char** argv) {
     std::printf("  time scale  : %.2fx\n", opt.time_scale);
     std::printf("  tasks       : %zu registered\n", scheduler.tasks().size());
     std::printf("  parameters  : %zu\n", fsw::dict::kParamCount);
+    std::printf("  boot        : #%u, after %s\n", boots, fsw::dict::to_string(cause));
     std::fflush(stdout);
 
-    events.raise(fsw::dict::EventId::BOOT_COMPLETE);
+    events.raise(fsw::dict::EventId::BOOT_COMPLETE, static_cast<uint32_t>(cause));
     scheduler.start();
 
     uint32_t last_report_s = 0;
+    uint32_t last_save_s = 0;
     while (g_stop == 0) {
         scheduler.run_tick_realtime();
-        watchdog.kick();
+        // The ONE place the watchdog is serviced -- unless the ground has
+        // asked to prove that it works (ST[17,128]).
+        if (!ttc.watchdog_test()) { watchdog.kick(); }
 
         if (opt.max_ticks > 0 && scheduler.tick_count() >= opt.max_ticks) { break; }
+
+        // Parameters reach non-volatile storage within a second of changing:
+        // a reset does not run the shutdown code below.
+        if (scheduler.uptime_s() != last_save_s) {
+            last_save_s = scheduler.uptime_s();
+            save_params_if_dirty();
+        }
 
         if (opt.verbose && scheduler.uptime_s() != last_report_s) {
             last_report_s = scheduler.uptime_s();
@@ -241,16 +318,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Persist parameters on the way out. In flight this would also happen
-    // periodically, because an unplanned reset does not run this code.
-    if (params.dirty()) {
-        size_t  written = 0;
-        uint8_t out_block[fsw::platform::PosixFileStorage::kBlockSize];
-        std::memset(out_block, 0, sizeof out_block);
-        if (fsw::core::is_ok(params.save(out_block, sizeof out_block, written))) {
-            storage.write(kParamBlock, out_block, sizeof out_block);
-        }
-    }
+    // Persist parameters on the way out, as well as once a second above.
+    save_params_if_dirty();
 
     std::printf("\nshutting down after %u ticks (%u s)\n"
                 "  telecommands : %u accepted, %u rejected\n"

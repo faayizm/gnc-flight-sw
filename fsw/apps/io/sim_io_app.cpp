@@ -46,6 +46,11 @@ void SimIoApp::run() {
         }
         ++samples_;
 
+        // The particle arrives with the sample, before anyone reads memory.
+        if (bridge_.seu().target != 0xFF && upset_fn_ != nullptr) {
+            upset_fn_(upset_ctx_, bridge_.seu().target, bridge_.seu().bit);
+        }
+
         // Distrust before anything else sees the data.
         ScreenChange changes[SensorScreen::kSensors];
         const int n = screen_.screen(s, changes);

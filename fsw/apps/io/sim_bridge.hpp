@@ -37,6 +37,12 @@
 //        flags      u8        bit0 mag, bit1 gyro, bit2 sun, bit3 GPS,
 //                             bit4 wheels, bit5 star tracker, bit6 EPS --
 //                             each set when that data is valid
+//        seu_target u8        SIL ONLY: a single-event upset to apply to
+//        seu_bit    u32       on-board memory with this sample; 0xFF = none.
+//                             Real hardware has no such field -- radiation
+//                             does not ask -- but a simulator has no other way
+//                             to reach the flight computer's memory. Targets
+//                             are listed in fdir/fdir_app.hpp.
 //
 //    0x02 ACTUATOR  flight -> simulator
 //        seq        u32       echo of the sensor frame being answered
@@ -79,13 +85,20 @@ struct ActuatorFrame {
     bool     rails_commanded = false;
 };
 
-constexpr size_t kSensorFrameBytes   = 2 + 1 + 147 + 2;
+// SIL only: where a simulated particle strikes. See the frame layout above.
+struct SeuHit {
+    uint8_t  target = 0xFF;          // 0xFF: no upset this sample
+    uint32_t bit    = 0;
+};
+
+constexpr size_t kSensorFrameBytes   = 2 + 1 + 152 + 2;
 constexpr size_t kActuatorFrameBytes = 2 + 1 + 31 + 2;
 
 // Pure codecs, separated from the link so they can be tested byte for byte.
 size_t encode_actuator(const ActuatorFrame& f, uint8_t* out, size_t capacity);
-size_t encode_sensor(const SensorFrame& f, uint8_t* out, size_t capacity);  // used by tests
-bool   decode_sensor(const uint8_t* body, size_t length, SensorFrame& out);
+size_t encode_sensor(const SensorFrame& f, uint8_t* out, size_t capacity,
+                     const SeuHit& seu = SeuHit{});                         // used by tests
+bool   decode_sensor(const uint8_t* body, size_t length, SensorFrame& out, SeuHit* seu = nullptr);
 
 class SimBridge {
  public:
@@ -95,6 +108,9 @@ class SimBridge {
     // frame arrived; `out` then holds the newest one. Older frames in the same
     // call are counted as dropped -- under lockstep there should never be any.
     bool poll(SensorFrame& out);
+
+    // The upset carried by the newest frame poll() returned, if any.
+    const SeuHit& seu() const { return seu_; }
 
     core::Status send(const ActuatorFrame& f);
 
@@ -112,6 +128,7 @@ class SimBridge {
     uint32_t    frames_ok_ = 0;
     uint32_t    frames_bad_ = 0;
     uint32_t    frames_dropped_ = 0;
+    SeuHit      seu_{};
 };
 
 }  // namespace fsw::io

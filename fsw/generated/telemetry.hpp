@@ -40,11 +40,12 @@ struct SysHk {
     uint8_t sched_enabled{};  // Time-based release is enabled [bool]
     uint32_t store_packets{};  // Packets held in the packet store [count]
     uint8_t store_used_pct{};  // Packet store fill level [%]
+    uint8_t last_reset{};  // Why the flight computer last started
 
     static constexpr dict::HkSid kSid  = dict::HkSid::SYS_HK;
     static constexpr dict::Apid  kApid = dict::Apid::TTC;
-    static constexpr uint16_t kPayloadBytes = 60;
-    static constexpr uint16_t kPacketBytes  = 82;
+    static constexpr uint16_t kPayloadBytes = 61;
+    static constexpr uint16_t kPacketBytes  = 83;
 
     // Serialises the field block only. The ST[3,25] structure id and the
     // packet headers are written by the telemetry builder.
@@ -73,6 +74,7 @@ struct SysHk {
             && w.write_uint8(sched_enabled)
             && w.write_uint32(store_packets)
             && w.write_uint8(store_used_pct)
+            && w.write_uint8(last_reset)
             ;
     }
 
@@ -101,6 +103,7 @@ struct SysHk {
             && r.read_uint8(sched_enabled)
             && r.read_uint32(store_packets)
             && r.read_uint8(store_used_pct)
+            && r.read_uint8(last_reset)
             ;
     }
 };
@@ -281,13 +284,16 @@ struct FdirHk {
     float wheel_resid_x{};  // Wheel X momentum not explained by its commands [N*m*s]
     float wheel_resid_y{};  // Wheel Y momentum not explained by its commands [N*m*s]
     float wheel_resid_z{};  // Wheel Z momentum not explained by its commands [N*m*s]
+    uint32_t edac_corrected{};  // Single-bit upsets corrected in the parameter table since boot [count]
+    uint16_t edac_uncorrectable{};  // Parameter words found damaged beyond repair since boot [count]
+    uint16_t tmr_repairs{};  // Triplicated values repaired by voting since boot [count]
     uint8_t monitors_enabled{};  // ST[12] parameter monitors enabled [count]
     uint8_t monitors_alarm{};  // ST[12] monitors currently out of limits [count]
 
     static constexpr dict::HkSid kSid  = dict::HkSid::FDIR_HK;
     static constexpr dict::Apid  kApid = dict::Apid::FDIR;
-    static constexpr uint16_t kPayloadBytes = 17;
-    static constexpr uint16_t kPacketBytes  = 39;
+    static constexpr uint16_t kPayloadBytes = 25;
+    static constexpr uint16_t kPacketBytes  = 47;
 
     // Serialises the field block only. The ST[3,25] structure id and the
     // packet headers are written by the telemetry builder.
@@ -299,6 +305,9 @@ struct FdirHk {
             && w.write_float32(wheel_resid_x)
             && w.write_float32(wheel_resid_y)
             && w.write_float32(wheel_resid_z)
+            && w.write_uint32(edac_corrected)
+            && w.write_uint16(edac_uncorrectable)
+            && w.write_uint16(tmr_repairs)
             && w.write_uint8(monitors_enabled)
             && w.write_uint8(monitors_alarm)
             ;
@@ -312,6 +321,9 @@ struct FdirHk {
             && r.read_float32(wheel_resid_x)
             && r.read_float32(wheel_resid_y)
             && r.read_float32(wheel_resid_z)
+            && r.read_uint32(edac_corrected)
+            && r.read_uint16(edac_uncorrectable)
+            && r.read_uint16(tmr_repairs)
             && r.read_uint8(monitors_enabled)
             && r.read_uint8(monitors_alarm)
             ;

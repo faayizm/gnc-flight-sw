@@ -22,6 +22,14 @@ data alone, exactly as it would in orbit.
                  again clears it. Telling the two apart is the point of the
                  "retry" step in a recovery ladder.
 
+    MEMORY FAULTS (target: params, mode, wheel_isolation)
+      upset      a single-event upset: one bit of the flight computer's
+                 memory flips. `bit` picks which, within the target. The
+                 targets are the flight software's protected memories (see
+                 fdir/fdir_app.hpp): the parameter table, under EDAC, and the
+                 spacecraft mode and wheel-isolation mask, each kept in
+                 triplicate. Radiation(rate) below scatters them at random.
+
     BUS FAULTS (target: bus)
       drop       the data bus goes quiet: no sensor frames reach the flight
                  computer and no commands come back. The actuators hold their
@@ -44,6 +52,17 @@ from dataclasses import dataclass
 SENSORS = ("mag", "gyro", "sun", "star", "gps")
 WHEELS = {"wheel_x": 0, "wheel_y": 1, "wheel_z": 2}
 
+# The flight computer's protected memories, as (bridge target id, size in
+# bits). Sizes weight where random upsets land: a big memory is a big target.
+# The parameter table is 16 words of 72 bits; each TMR value is 3 x 8 bits.
+MEMORY = {"params": (0, 16 * 72), "mode": (1, 24), "wheel_isolation": (2, 24)}
+
+# The South Atlantic Anomaly, roughly: where the inner radiation belt dips
+# lowest, and where most upsets in low orbit happen.
+SAA_LAT = (-50.0, 0.0)
+SAA_LON = (-90.0, 40.0)
+EARTH_RATE = 7.2921159e-5
+
 # What a sensor reads when its converter is stuck at full scale.
 OUT_OF_RANGE = {
     "mag": (2.0e-3, 2.0e-3, 2.0e-3),          # tesla; Earth's field in LEO is < 6e-5
@@ -61,13 +80,15 @@ class Fault:
     start: float
     end: float = math.inf
     rate: float = 0.1          # corrupt only: fraction of frames hit
+    bit: int = 0               # upset only: which bit of the target
 
     def active(self, t: float) -> bool:
         return self.start <= t < self.end
 
     def __post_init__(self):
         ok = {"frozen": SENSORS, "range": SENSORS, "dead": tuple(WHEELS),
-              "latched": tuple(WHEELS), "drop": ("bus",), "corrupt": ("bus",)}
+              "latched": tuple(WHEELS), "drop": ("bus",), "corrupt": ("bus",),
+              "upset": tuple(MEMORY)}
         if self.kind not in ok or self.target not in ok[self.kind]:
             raise ValueError(f"no such fault: {self.kind} on {self.target}")
 
@@ -76,12 +97,35 @@ class Fault:
         return f"{self.kind} {self.target} @ {self.start:.0f}{end} s"
 
 
+@dataclass
+class Radiation:
+    """A random upset environment: `rate` upsets per second on average,
+    `saa_factor` times that inside the South Atlantic Anomaly. Real rates for
+    a small spacecraft's memory are nearer one a day; a test turns them up
+    a thousandfold so an hour of flight shows a year's worth of trouble."""
+    rate: float
+    saa_factor: float = 10.0
+
+
+def in_saa(r_eci, t: float) -> bool:
+    x, y, z = r_eci
+    lat = math.degrees(math.atan2(z, math.hypot(x, y)))
+    lon = math.degrees(math.atan2(y, x) - EARTH_RATE * t)
+    lon = (lon + 180.0) % 360.0 - 180.0
+    return SAA_LAT[0] <= lat <= SAA_LAT[1] and SAA_LON[0] <= lon <= SAA_LON[1]
+
+
 class Injector:
     """Applies a list of faults to sensor readings, actuators and the bus."""
 
-    def __init__(self, faults: list[Fault], seed: int):
+    def __init__(self, faults: list[Fault], seed: int, radiation: Radiation | None = None):
         self.faults = list(faults)
         self.rng = random.Random(seed ^ 0x5EEDFA17)
+        self.rad_rng = random.Random(seed ^ 0x5EE0)
+        self.radiation = radiation
+        self.upsets: dict[str, int] = {name: 0 for name in MEMORY}
+        self.upsets_in_saa = 0
+        self.fired: set[int] = set()
         self.held: dict[str, object] = {}     # sensor -> value captured when frozen
         self.latched: dict[int, bool] = {}    # fault index -> latch still holding
         self.frames_corrupted = 0
@@ -127,5 +171,30 @@ class Injector:
         for f in self.faults:
             if f.kind == "corrupt" and f.active(t) and self.rng.random() < f.rate:
                 self.frames_corrupted += 1
-                return self.rng.randrange(8, 8 * 150)
+                return self.rng.randrange(8, 8 * 155)
         return None
+
+    def upset(self, t: float, dt: float, r_eci) -> tuple[int, int]:
+        """The single-event upset to deliver with this sensor frame, as
+        (target id, bit), or (0xFF, 0) for none. Scheduled upsets first;
+        otherwise the random environment, at most one per frame."""
+        for i, f in enumerate(self.faults):
+            if f.kind == "upset" and t >= f.start and i not in self.fired:
+                self.fired.add(i)
+                self.upsets[f.target] += 1
+                return MEMORY[f.target][0], f.bit
+        if self.radiation is None:
+            return 0xFF, 0
+        saa = in_saa(r_eci, t)
+        rate = self.radiation.rate * (self.radiation.saa_factor if saa else 1.0)
+        if self.rad_rng.random() >= rate * dt:
+            return 0xFF, 0
+        total = sum(bits for _, bits in MEMORY.values())
+        pick = self.rad_rng.randrange(total)
+        for name, (target, bits) in MEMORY.items():
+            if pick < bits:
+                self.upsets[name] += 1
+                self.upsets_in_saa += saa
+                return target, pick
+            pick -= bits
+        return 0xFF, 0

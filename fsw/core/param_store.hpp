@@ -19,6 +19,14 @@
 //    the compiled-in defaults are used and an event is raised. The system never
 //    boots on a value it cannot vouch for.
 //
+//    EDAC IN MEMORY. A gain that a particle has silently changed is as bad as
+//    one an operator mistyped, and there is no check on the way in to catch
+//    it. Every value lives in an EDAC-protected word (core/edac.hpp): a single
+//    flipped bit is corrected on every read, and scrub() repairs it in place.
+//    A word damaged beyond repair reads back as the parameter's DEFAULT --
+//    never as the garbage -- and scrub() reports which one, so the owner can
+//    reload the stored table.
+//
 //    ONE STORAGE TYPE. Values are held as double and converted on access.
 //    A double represents every integer up to 2^53 exactly, which covers every
 //    parameter type in the dictionary except a 64-bit integer above that
@@ -30,12 +38,21 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "core/crc.hpp"
+#include "core/edac.hpp"
 #include "core/status.hpp"
 #include "generated/dictionary.hpp"
 
 namespace fsw::core {
+
+// What one scrubbing pass found.
+struct ScrubReport {
+    uint32_t      corrected     = 0;
+    uint32_t      uncorrectable = 0;
+    dict::ParamId first_bad     = static_cast<dict::ParamId>(0);
+};
 
 class ParamStore {
  public:
@@ -43,7 +60,7 @@ class ParamStore {
     // always the fallback when stored values cannot be trusted.
     void reset_to_defaults() {
         for (size_t i = 0; i < dict::kParamCount; ++i) {
-            values_[i] = dict::kParams[i].default_value;
+            store(i, dict::kParams[i].default_value);
         }
         dirty_ = false;
     }
@@ -51,7 +68,7 @@ class ParamStore {
     Status get(dict::ParamId id, double& out) const {
         const size_t index = index_of(id);
         if (index >= dict::kParamCount) { return Status::NotFound; }
-        out = values_[index];
+        out = value(index);
         return Status::Ok;
     }
 
@@ -60,7 +77,7 @@ class ParamStore {
     // and returning the default is the safe behaviour if one ever slips through.
     double   get_f64(dict::ParamId id) const {
         const size_t i = index_of(id);
-        return (i < dict::kParamCount) ? values_[i] : 0.0;
+        return (i < dict::kParamCount) ? value(i) : 0.0;
     }
     float    get_f32(dict::ParamId id) const { return static_cast<float>(get_f64(id)); }
     uint32_t get_u32(dict::ParamId id) const { return static_cast<uint32_t>(get_f64(id)); }
@@ -78,10 +95,35 @@ class ParamStore {
         // otherwise slip through the check above.
         if (!(value == value)) { return Status::Invalid; }
 
-        values_[index] = quantise(info.type, value);
+        store(index, quantise(info.type, value));
         dirty_ = true;
         return Status::Ok;
     }
+
+    // ---- radiation -------------------------------------------------------
+
+    // One pass over the whole table: correct what can be corrected, and put a
+    // word that cannot be back to its default so it stops failing.
+    ScrubReport scrub() {
+        ScrubReport r;
+        for (size_t i = 0; i < dict::kParamCount; ++i) {
+            const EdacResult e = values_.scrub(i);
+            if (e == EdacResult::Corrected) { ++r.corrected; }
+            if (e == EdacResult::Uncorrectable) {
+                if (r.uncorrectable++ == 0) { r.first_bad = dict::kParams[i].id; }
+                store(i, dict::kParams[i].default_value);
+            }
+        }
+        return r;
+    }
+
+    // Where a particle strikes. Exposed for software-in-the-loop radiation
+    // testing only; nothing in flight code calls it.
+    static constexpr size_t kBits = EdacArray<dict::kParamCount>::kBits;
+    void flip(size_t bit) { values_.flip(bit); }
+
+    uint32_t edac_corrected()     const { return values_.corrected(); }
+    uint32_t edac_uncorrectable() const { return values_.uncorrectable(); }
 
     // ---- non-volatile storage ------------------------------------------
     // Serialised layout: a 16-bit magic, a 16-bit parameter count, the values
@@ -123,7 +165,23 @@ class ParamStore {
         return dict::kParamCount;  // sentinel meaning "not found"
     }
 
-    double values_[dict::kParamCount]{};
+    // Doubles travel through the EDAC words as their bit patterns.
+    double value(size_t i) const {
+        uint64_t bits = 0;
+        if (values_.read(i, bits) == EdacResult::Uncorrectable) {
+            return dict::kParams[i].default_value;
+        }
+        double v = 0.0;
+        std::memcpy(&v, &bits, sizeof v);
+        return v;
+    }
+    void store(size_t i, double v) {
+        uint64_t bits = 0;
+        std::memcpy(&bits, &v, sizeof bits);
+        values_.write(i, bits);
+    }
+
+    EdacArray<dict::kParamCount> values_;
     bool   dirty_ = false;
 };
 

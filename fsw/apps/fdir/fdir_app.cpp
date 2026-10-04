@@ -90,7 +90,32 @@ void FdirApp::monitor(dict::HkSid sid, const void* hk) {
     }
 }
 
+void FdirApp::upset(uint8_t target, uint32_t bit) {
+    switch (target) {
+        case 0: if (params_ != nullptr) { params_->flip(bit); } break;
+        case 1: if (mode_ != nullptr) { mode_->flip(bit); } break;
+        case 2: ladder_.isolation_store().flip(bit); break;
+        default: break;
+    }
+}
+
+void FdirApp::scrub() {
+    if (params_ == nullptr) { return; }
+    const core::ScrubReport r = params_->scrub();
+    if (r.uncorrectable == 0) { return; }
+    // The word now holds its default, which is safe but may not be what the
+    // ground chose. The last saved table is the better answer, if it is good.
+    events_.raise(dict::EventId::EDAC_UNCORRECTABLE, static_cast<uint32_t>(r.first_bad));
+    const bool reloaded = reload_fn_ != nullptr && reload_fn_(reload_ctx_);
+    events_.raise(dict::EventId::PARAMS_RELOADED, reloaded ? 1u : 0u);
+}
+
 void FdirApp::step(const msg::SensorFrame& s) {
+    // Scrub on the sensor clock, not a timer, so a run is reproducible:
+    // whether a second upset finds the first one still there must not depend
+    // on how busy the host was.
+    if (++samples_ % kScrubEverySamples == 0) { scrub(); }
+
     // Judge the period that has just ended against what was commanded for it...
     const double h[3] = {static_cast<double>(s.wheel_h.x), static_cast<double>(s.wheel_h.y),
                          static_cast<double>(s.wheel_h.z)};
@@ -125,6 +150,10 @@ void FdirApp::step(const msg::SensorFrame& s) {
     hk_.wheel_resid_x = static_cast<float>(check_.residual(0));
     hk_.wheel_resid_y = static_cast<float>(check_.residual(1));
     hk_.wheel_resid_z = static_cast<float>(check_.residual(2));
+    hk_.edac_corrected     = params_ != nullptr ? params_->edac_corrected() : 0;
+    hk_.edac_uncorrectable = static_cast<uint16_t>(params_ != nullptr ? params_->edac_uncorrectable() : 0);
+    hk_.tmr_repairs = static_cast<uint16_t>((mode_ != nullptr ? mode_->repairs() : 0) +
+                                            ladder_.isolation_store().repairs());
     hk_.monitors_enabled = monitoring_.enabled_count();
     hk_.monitors_alarm   = monitoring_.alarm_count();
     monitor(dict::HkSid::FDIR_HK, &hk_);

@@ -30,6 +30,7 @@
 #include "core/bus.hpp"
 #include "core/event_log.hpp"
 #include "core/param_store.hpp"
+#include "core/tmr.hpp"
 #include "hal/clock.hpp"
 
 namespace fsw::modemgr {
@@ -42,7 +43,10 @@ class ModeManager {
     core::Status init();
     static void task_run(void* context);
 
-    dict::SystemMode mode() const { return mode_; }
+    dict::SystemMode mode() const { return mode_.vote(); }
+
+    // The mode is kept in triplicate (core/tmr.hpp): one upset cannot change it.
+    core::Tmr<dict::SystemMode>& mode_store() { return mode_; }
 
     // Exposed for tests.
     void evaluate();
@@ -65,7 +69,7 @@ class ModeManager {
     core::EventLog&         events_;
     const core::ParamStore& params_;
 
-    dict::SystemMode   mode_ = dict::SystemMode::BOOT;
+    core::Tmr<dict::SystemMode> mode_{dict::SystemMode::BOOT};
     msg::AdcsStatus    adcs_{};
     msg::PowerStatus   power_{};
     msg::WheelHealth   wheels_{};

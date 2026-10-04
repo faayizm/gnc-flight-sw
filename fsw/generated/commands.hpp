@@ -26,6 +26,7 @@ struct CommandInfo {
 
 inline constexpr CommandInfo kCommands[] = {
     { 17, 1, 0, false, "TEST_CONNECTION", "ST[17,1] connection test. Flight software answers with ST[17,2]." },
+    { 17, 128, 0, false, "TEST_WATCHDOG", "ST[17,128] (mission-specific) stop servicing the watchdog, to prove that it resets the computer. Nothing else stops: the reset comes from the watchdog alone." },
     { 3, 5, 1, false, "ENABLE_HK", "ST[3,5] enable periodic generation of a housekeeping structure." },
     { 3, 6, 1, false, "DISABLE_HK", "ST[3,6] disable periodic generation of a housekeeping structure." },
     { 20, 1, 2, false, "REPORT_PARAM", "ST[20,1] request the value of one on-board parameter, answered by ST[20,2]." },
@@ -50,7 +51,7 @@ inline constexpr CommandInfo kCommands[] = {
     { 15, 11, 5, false, "DELETE_STORE_UP_TO", "ST[15,11] delete stored packets older than to_s." },
     { 15, 12, 1, false, "REPORT_STORE_SUMMARY", "ST[15,12] request a packet store summary, answered by ST[15,13]." },
 };
-inline constexpr size_t kCommandCount = 24;
+inline constexpr size_t kCommandCount = 25;
 
 inline const CommandInfo* find_command(uint8_t service, uint8_t subtype) {
     for (size_t i = 0; i < kCommandCount; ++i) {
@@ -67,6 +68,25 @@ struct TestConnectionArgs {
 
     static constexpr uint8_t  kService   = 17;
     static constexpr uint8_t  kSubtype   = 1;
+    static constexpr uint16_t kArgBytes  = 0;
+
+    bool deserialize(core::ByteReader& r) {
+        (void)r;
+        return true;
+    }
+
+    bool serialize(core::ByteWriter& w) const {
+        (void)w;
+        return true;
+    }
+};
+
+// ST[17,128] (mission-specific) stop servicing the watchdog, to prove that it resets the computer. Nothing else stops: the reset comes from the watchdog alone.
+struct TestWatchdogArgs {
+    // no arguments
+
+    static constexpr uint8_t  kService   = 17;
+    static constexpr uint8_t  kSubtype   = 128;
     static constexpr uint16_t kArgBytes  = 0;
 
     bool deserialize(core::ByteReader& r) {

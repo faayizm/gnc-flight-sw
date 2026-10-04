@@ -200,6 +200,12 @@ core::FailureCode TtcApp::svc_test(const ReceivedTc& tc) {
     // ST[17,1] connection test. Changes no state whatsoever, which is what
     // makes it safe to send at any time, in any mode, as a first action of a
     // pass to prove the uplink, the flight software and the downlink all work.
+    if (tc.secondary.subtype == cmd::TestWatchdogArgs::kSubtype) {
+        // The main loop reads this and stops kicking. Reported as complete:
+        // the command did all it does. The proof arrives as the next boot.
+        watchdog_test_ = true;
+        return core::FailureCode::Ok;
+    }
     if (tc.secondary.subtype != cmd::TestConnectionArgs::kSubtype) {
         return core::FailureCode::UnknownService;
     }
@@ -727,7 +733,7 @@ void TtcApp::send_hk(dict::HkSid sid) {
             hk.uptime_s       = scheduler_.uptime_s();
             hk.tick_count     = scheduler_.tick_count();
             hk.mode           = mode_;
-            hk.boot_count     = 0;
+            hk.boot_count     = boot_count_;
             hk.cpu_load_pct   = scheduler_.load_percent();
             hk.sched_overruns = static_cast<uint16_t>(scheduler_.overrun_count());
             hk.tc_received    = tc_received_;
@@ -747,6 +753,7 @@ void TtcApp::send_hk(dict::HkSid sid) {
             hk.sched_enabled  = schedule_.enabled() ? 1 : 0;
             hk.store_packets  = store_.count();
             hk.store_used_pct = store_.used_pct();
+            hk.last_reset     = last_reset_;
             hk.serialize(b.payload());
             break;
         }

@@ -49,6 +49,7 @@ class Flight:
         except subprocess.TimeoutExpired:
             self.proc.kill()
         self.nvm.unlink(missing_ok=True)
+        pathlib.Path(f"{self.nvm}.reset").unlink(missing_ok=True)
 
 
 class Downlink:

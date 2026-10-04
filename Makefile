@@ -103,6 +103,10 @@ power: build  ## Fly the power scenario: a stuck heater drains the battery into 
 fdir: build  ## Fly the fault-recovery scenario: lying sensors, a latch-up, a dead wheel, then SAFE
 	@$(SYS_PYTHON) -m sim.scenarios.fault_recovery
 
+.PHONY: radiation
+radiation: build  ## Fly an orbit of single-event upsets: EDAC, scrubbing and TMR make them invisible
+	@$(SYS_PYTHON) -m sim.scenarios.radiation
+
 .PHONY: detumble-live
 detumble-live: build  ## Fly a detumble for a viewer on the TT&C port (COSMOS DETUMBLE screen)
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --live --ttc-port $(TTC_PORT)
@@ -169,7 +173,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test test-gnd test-sim sil detumble pointing store-forward power check-layering check-links check-toolbox check-lessons  ## Everything CI runs
+check: check-gen build test test-gnd test-sim sil detumble pointing store-forward power fdir radiation check-layering check-links check-toolbox check-lessons  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 

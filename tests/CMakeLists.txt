@@ -24,6 +24,7 @@ set(FSW_TEST_SOURCES
   unit/test_storage.cpp
   unit/test_power_modes.cpp
   unit/test_fdir.cpp
+  unit/test_radiation.cpp
 )
 
 add_executable(fsw_tests unit/main.cpp ${FSW_TEST_SOURCES})

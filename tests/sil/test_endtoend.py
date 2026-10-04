@@ -81,6 +81,7 @@ class Spacecraft:
             except subprocess.TimeoutExpired:
                 self.process.kill()
         self.nvm.unlink(missing_ok=True)
+        pathlib.Path(f"{self.nvm}.reset").unlink(missing_ok=True)
 
     def client(self) -> GroundClient:
         return GroundClient(port=self.port)
@@ -254,6 +255,47 @@ def test_parameters_survive_a_restart() -> None:
             restarted.wait(timeout=5)
 
 
+def test_watchdog_resets_and_the_spacecraft_recovers() -> None:
+    print("\n[watchdog]")
+    sat = Spacecraft(extra=["--watchdog-ms", "1000"])
+    with sat:
+        with sat.client() as gnd:
+            hk = gnd.wait_for("SYS_HK", timeout=3.0)
+            check(hk is not None and hk.fields["boot_count"] == 1 and hk.fields["last_reset"] == "POWER_ON",
+                  "first boot: boot count 1, started by power-on")
+            gnd.send("SET_PARAM", param_id=4, value=7.5)
+            gnd.wait_for("VERIF_COMPLETE_OK", timeout=2.0)
+            time.sleep(1.5)                     # parameters reach storage within a second
+            gnd.send("TEST_WATCHDOG")
+            check(gnd.wait_for("VERIF_COMPLETE_OK", timeout=2.0) is not None,
+                  "ST[17,128] is accepted: the main loop stops servicing the watchdog")
+            stopped = time.monotonic()
+            try:
+                code = sat.process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                code = None
+            gone = time.monotonic() - stopped
+        check(code == 86, f"the watchdog reset the computer {gone:.1f} s later (host timeout 1 s)")
+
+        # Play the hardware: a reset is followed by a boot.
+        restarted = subprocess.Popen(
+            [str(FSW_BINARY), "--ttc-port", str(sat.port), "--sim-port", str(free_port()),
+             "--nvm", str(sat.nvm)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        try:
+            with GroundClient(port=sat.port) as gnd:
+                hk = gnd.wait_for("SYS_HK", timeout=3.0)
+                check(hk is not None and hk.fields["last_reset"] == "WATCHDOG",
+                      "the next boot knows why it happened: last_reset = WATCHDOG")
+                check(hk is not None and hk.fields["boot_count"] == 2, "and counts it: boot count 2")
+                gnd.send("REPORT_PARAM", param_id=4)
+                report = gnd.wait_for("PARAM_REPORT", timeout=3.0)
+                check(report is not None and abs(report.fields["value"] - 7.5) < 1e-6,
+                      "a parameter set before the crash survived it (no clean shutdown ran)")
+        finally:
+            restarted.terminate()
+            restarted.wait(timeout=5)
+
+
 def test_reconnection() -> None:
     print("\n[reconnection]")
     with Spacecraft() as sat:
@@ -370,6 +412,7 @@ def main() -> int:
                  test_corrupted_telecommand_is_dropped_silently,
                  test_housekeeping_can_be_silenced_and_restored,
                  test_parameters_survive_a_restart,
+                 test_watchdog_resets_and_the_spacecraft_recovers,
                  test_reconnection,
                  test_uplink_coding_and_framing_recovery,
                  test_cop1_recovers_lost_frames,

@@ -47,7 +47,7 @@ size_t encode_actuator(const ActuatorFrame& f, uint8_t* out, size_t capacity) {
     return finish_frame(w, out, total) ? total : 0;
 }
 
-size_t encode_sensor(const SensorFrame& f, uint8_t* out, size_t capacity) {
+size_t encode_sensor(const SensorFrame& f, uint8_t* out, size_t capacity, const SeuHit& seu) {
     core::ByteWriter w(out, capacity);
     w.write_uint16(0);
     w.write_uint8(kFrameSensor);
@@ -70,11 +70,13 @@ size_t encode_sensor(const SensorFrame& f, uint8_t* out, size_t capacity) {
                                        (f.sun_valid ? 4 : 0) | (f.gps_valid ? 8 : 0) |
                                        (f.wheels_valid ? 16 : 0) | (f.star_valid ? 32 : 0) |
                                        (f.eps_valid ? 64 : 0)));
+    w.write_uint8(seu.target);
+    w.write_uint32(seu.bit);
     size_t total = 0;
     return finish_frame(w, out, total) ? total : 0;
 }
 
-bool decode_sensor(const uint8_t* body, size_t length, SensorFrame& out) {
+bool decode_sensor(const uint8_t* body, size_t length, SensorFrame& out, SeuHit* seu) {
     // body = type + payload + CRC
     if (length < 3 || !core::crc16_check(body, length)) { return false; }
     core::ByteReader r(body, length - 2);
@@ -96,6 +98,8 @@ bool decode_sensor(const uint8_t* body, size_t length, SensorFrame& out) {
         !r.read_uint8(flags)) {
         return false;
     }
+    SeuHit hit;
+    if (!r.read_uint8(hit.target) || !r.read_uint32(hit.bit)) { return false; }
     if (!r.exhausted()) { return false; }
     f.mag_valid  = (flags & 1) != 0;
     f.gyro_valid = (flags & 2) != 0;
@@ -105,6 +109,7 @@ bool decode_sensor(const uint8_t* body, size_t length, SensorFrame& out) {
     f.star_valid   = (flags & 32) != 0;
     f.eps_valid    = (flags & 64) != 0;
     out = f;
+    if (seu != nullptr) { *seu = hit; }
     return true;
 }
 
@@ -129,9 +134,11 @@ bool SimBridge::poll(SensorFrame& out) {
         if (used_ - pos < length + 2) { break; }  // wait for the rest
 
         SensorFrame f;
-        if (decode_sensor(rx_ + pos + 2, length, f)) {
+        SeuHit hit;
+        if (decode_sensor(rx_ + pos + 2, length, f, &hit)) {
             if (got) { ++frames_dropped_; }
             out = f;
+            seu_ = hit;
             got = true;
             ++frames_ok_;
         } else {

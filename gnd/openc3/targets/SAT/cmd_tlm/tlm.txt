@@ -59,6 +59,9 @@ TELEMETRY SAT SYS_HK BIG_ENDIAN "Core system health, scheduler timing and link s
   APPEND_ITEM    STORE_PACKETS  32 UINT  "Packets held in the packet store"
   APPEND_ITEM    STORE_USED_PCT  8 UINT  "Packet store fill level"
     UNITS % %
+  APPEND_ITEM    LAST_RESET      8 UINT  "Why the flight computer last started"
+    STATE POWER_ON 0
+    STATE WATCHDOG 1
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
 TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state."
@@ -215,6 +218,9 @@ TELEMETRY SAT FDIR_HK BIG_ENDIAN "Fault management state."
     UNITS N*m*s N*m*s
   APPEND_ITEM    WHEEL_RESID_Z  32 FLOAT "Wheel Z momentum not explained by its commands"
     UNITS N*m*s N*m*s
+  APPEND_ITEM    EDAC_CORRECTED 32 UINT  "Single-bit upsets corrected in the parameter table since boot"
+  APPEND_ITEM    EDAC_UNCORRECTABLE 16 UINT  "Parameter words found damaged beyond repair since boot"
+  APPEND_ITEM    TMR_REPAIRS    16 UINT  "Triplicated values repaired by voting since boot"
   APPEND_ITEM    MONITORS_ENABLED  8 UINT  "ST[12] parameter monitors enabled"
   APPEND_ITEM    MONITORS_ALARM  8 UINT  "ST[12] monitors currently out of limits"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
@@ -271,6 +277,8 @@ TELEMETRY SAT EVENT_INFO BIG_ENDIAN "PUS ST[5,1] info event report"
     STATE POINTING_LOST 35
     STATE WHEEL_MOMENTUM_HIGH 36
     STATE EVENT_ACTION 37
+    STATE EDAC_UNCORRECTABLE 38
+    STATE PARAMS_RELOADED 39
     STATE SENSOR_GAP 18
     STATE SENSOR_READMITTED 13
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
@@ -328,6 +336,8 @@ TELEMETRY SAT EVENT_LOW BIG_ENDIAN "PUS ST[5,2] low event report"
     STATE POINTING_LOST 35
     STATE WHEEL_MOMENTUM_HIGH 36
     STATE EVENT_ACTION 37
+    STATE EDAC_UNCORRECTABLE 38
+    STATE PARAMS_RELOADED 39
     STATE SENSOR_GAP 18
     STATE SENSOR_READMITTED 13
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
@@ -385,6 +395,8 @@ TELEMETRY SAT EVENT_MEDIUM BIG_ENDIAN "PUS ST[5,3] medium event report"
     STATE POINTING_LOST 35
     STATE WHEEL_MOMENTUM_HIGH 36
     STATE EVENT_ACTION 37
+    STATE EDAC_UNCORRECTABLE 38
+    STATE PARAMS_RELOADED 39
     STATE SENSOR_GAP 18
     STATE SENSOR_READMITTED 13
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
@@ -442,6 +454,8 @@ TELEMETRY SAT EVENT_HIGH BIG_ENDIAN "PUS ST[5,4] high event report"
     STATE POINTING_LOST 35
     STATE WHEEL_MOMENTUM_HIGH 36
     STATE EVENT_ACTION 37
+    STATE EDAC_UNCORRECTABLE 38
+    STATE PARAMS_RELOADED 39
     STATE SENSOR_GAP 18
     STATE SENSOR_READMITTED 13
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"

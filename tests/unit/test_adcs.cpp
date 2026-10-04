@@ -53,11 +53,17 @@ TEST(bridge, sensor_frame_round_trips_through_the_codec) {
     in.mag_valid = true; in.gyro_valid = false; in.sun_valid = true;
 
     uint8_t buf[256];
-    const size_t n = encode_sensor(in, buf, sizeof buf);
+    SeuHit hit;
+    hit.target = 1;
+    hit.bit = 70000;
+    const size_t n = encode_sensor(in, buf, sizeof buf, hit);
     CHECK_EQ(n, kSensorFrameBytes);
 
     SensorFrame out;
-    CHECK(decode_sensor(buf + 2, n - 2, out));
+    SeuHit got;
+    CHECK(decode_sensor(buf + 2, n - 2, out, &got));
+    CHECK_EQ(got.target, 1);
+    CHECK_EQ(got.bit, 70000u);
     CHECK_EQ(out.seq, 42u);
     CHECK_NEAR(out.time_s, 12.5, 1e-12);
     CHECK_NEAR(out.mag_t.z, 3e-5f, 1e-12f);

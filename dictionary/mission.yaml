@@ -129,6 +129,12 @@ enums:
       CYCLE_OFF: 1   # drives switched off for a power-cycle retry
       VERIFY:    2   # drives back on, waiting to see whether the retry worked
 
+  ResetCause:
+    desc: Why the flight computer last started (BOOT_COMPLETE aux, SYS_HK last_reset).
+    values:
+      POWER_ON: 0
+      WATCHDOG: 1   # the software stopped making progress and the watchdog reset it
+
   MonitorStatus:
     desc: PUS ST[12] checking status of one monitored parameter.
     values:
@@ -179,6 +185,7 @@ telemetry:
       - {name: sched_enabled,    type: uint8,  units: bool,  desc: Time-based release is enabled}
       - {name: store_packets,    type: uint32, units: count, desc: Packets held in the packet store}
       - {name: store_used_pct,   type: uint8,  units: "%",   desc: Packet store fill level}
+      - {name: last_reset,       type: uint8,  enum: ResetCause, desc: Why the flight computer last started}
 
   - name: ADCS_HK
     sid: 2
@@ -246,6 +253,9 @@ telemetry:
       - {name: wheel_resid_x,    type: float32, units: N*m*s, desc: Wheel X momentum not explained by its commands, last 5 s window}
       - {name: wheel_resid_y,    type: float32, units: N*m*s, desc: Wheel Y momentum not explained by its commands, last 5 s window}
       - {name: wheel_resid_z,    type: float32, units: N*m*s, desc: Wheel Z momentum not explained by its commands, last 5 s window}
+      - {name: edac_corrected,   type: uint32,  units: count, desc: Single-bit upsets corrected in the parameter table since boot}
+      - {name: edac_uncorrectable, type: uint16, units: count, desc: Parameter words found damaged beyond repair since boot}
+      - {name: tmr_repairs,      type: uint16,  units: count, desc: Triplicated values repaired by voting since boot}
       - {name: monitors_enabled, type: uint8,   units: count, desc: "ST[12] parameter monitors enabled"}
       - {name: monitors_alarm,   type: uint8,   units: count, desc: "ST[12] monitors currently out of limits"}
 
@@ -257,6 +267,12 @@ commands:
     service: 17
     subtype: 1
     desc: ST[17,1] connection test. Flight software answers with ST[17,2].
+    args: []
+
+  - name: TEST_WATCHDOG
+    service: 17
+    subtype: 128
+    desc: "ST[17,128] (mission-specific) stop servicing the watchdog, to prove that it resets the computer. Nothing else stops: the reset comes from the watchdog alone."
     args: []
 
   - name: ENABLE_HK
@@ -425,7 +441,7 @@ commands:
 # On-board events, downlinked as PUS ST[05] reports. Subtype = severity.
 # -----------------------------------------------------------------------------
 events:
-  - {name: BOOT_COMPLETE,     id: 1,  severity: INFO,   desc: Flight software finished initialisation}
+  - {name: BOOT_COMPLETE,     id: 1,  severity: INFO,   desc: "Flight software finished initialisation; aux = ResetCause"}
   - {name: MODE_CHANGED,      id: 2,  severity: INFO,   desc: "Spacecraft mode transition executed; aux = old mode << 8 | new mode"}
   - {name: LINK_CONNECTED,    id: 3,  severity: INFO,   desc: Ground link established}
   - {name: LINK_LOST,         id: 4,  severity: LOW,    desc: Ground link dropped}
@@ -460,6 +476,8 @@ events:
   - {name: POINTING_LOST,     id: 35, severity: HIGH,   desc: "Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus"}
   - {name: WHEEL_MOMENTUM_HIGH, id: 36, severity: MEDIUM, desc: "A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus"}
   - {name: EVENT_ACTION,      id: 37, severity: INFO,   desc: "An on-board action ran in response to an event; aux = the triggering event id"}
+  - {name: EDAC_UNCORRECTABLE, id: 38, severity: HIGH, desc: "A parameter word has two flipped bits and cannot be corrected; it reads as its default until reloaded; aux = parameter id"}
+  - {name: PARAMS_RELOADED,   id: 39, severity: MEDIUM, desc: "The parameter table was reloaded after an uncorrectable error; aux = 1 from non-volatile storage, 0 kept the defaults"}
   - {name: SENSOR_GAP,        id: 18, severity: MEDIUM, desc: "Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds"}
   - {name: SENSOR_READMITTED, id: 13, severity: INFO,   desc: "A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId"}
 

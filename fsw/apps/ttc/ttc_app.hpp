@@ -82,6 +82,14 @@ class TtcApp {
     uint32_t tm_sent()     const { return tm_sent_; }
     bool     link_up()     const { return link_.connected(); }
 
+    // From the boot record, for SYS_HK.
+    void set_boot_info(uint16_t boot_count, dict::ResetCause cause) {
+        boot_count_ = boot_count;
+        last_reset_ = static_cast<uint8_t>(cause);
+    }
+    // ST[17,128] asked the main loop to stop servicing the watchdog.
+    bool watchdog_test() const { return watchdog_test_; }
+
     // Exposed so the mode manager can be told about a ground request without
     // TtcApp needing to know the mode manager exists.
     void set_mode_request_topic(core::Topic topic) { mode_topic_ = topic; }
@@ -210,6 +218,10 @@ class TtcApp {
     // ST[19]: which event-actions are enabled, and those waiting to run.
     bool action_enabled_[dict::kEventActionCount > 0 ? dict::kEventActionCount : 1]{};
     core::StaticVector<size_t, 8> pending_actions_;
+
+    uint16_t boot_count_    = 0;
+    uint8_t  last_reset_    = 0;
+    bool     watchdog_test_ = false;
 
     uint32_t tc_received_ = 0;
     uint32_t tc_rejected_ = 0;

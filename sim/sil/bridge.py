@@ -25,13 +25,15 @@ def encode_sensor(seq: int, t: float, mag, gyro, sun=ZERO3, wheel_h=ZERO3, gps_p
                   gps_vel=ZERO3, mag_valid=True, gyro_valid=True, sun_valid=False,
                   gps_valid=False, wheels_valid=False, star_q=(1.0, 0.0, 0.0, 0.0),
                   star_valid=False, eps=(0.0, 0.0, 0.0, 0.0, 0.0), rails=0,
-                  eps_valid=False) -> bytes:
-    """eps = (battery V, battery A charging-positive, solar W, load W, battery deg C)."""
+                  eps_valid=False, seu=(0xFF, 0)) -> bytes:
+    """eps = (battery V, battery A charging-positive, solar W, load W, battery deg C).
+    seu = (target, bit): a single-event upset for the flight computer's memory,
+    SIL only; target 0xFF means none (sim/sil/faults.py)."""
     flags = ((1 if mag_valid else 0) | (2 if gyro_valid else 0) | (4 if sun_valid else 0)
              | (8 if gps_valid else 0) | (16 if wheels_valid else 0) | (32 if star_valid else 0)
              | (64 if eps_valid else 0))
-    body = struct.pack(">BId3f3f3f3f3d3d4f5fHB", SENSOR, seq, t, *mag, *gyro, *sun, *wheel_h,
-                       *gps_pos, *gps_vel, *star_q, *eps, rails, flags)
+    body = struct.pack(">BId3f3f3f3f3d3d4f5fHBBI", SENSOR, seq, t, *mag, *gyro, *sun, *wheel_h,
+                       *gps_pos, *gps_vel, *star_q, *eps, rails, flags, *seu)
     body += struct.pack(">H", crc16(body))
     return struct.pack(">H", len(body)) + body
 

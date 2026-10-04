@@ -50,6 +50,9 @@ class SimIoApp {
     const SensorScreen& screen() const { return screen_; }
     const SimBridge&    bridge() const { return bridge_; }
 
+    // SIL only: where to deliver the simulator's single-event upsets.
+    void set_upset_handler(void (*fn)(void*, uint8_t, uint32_t), void* ctx) { upset_fn_ = fn; upset_ctx_ = ctx; }
+
  private:
     static void on_actuators(void* ctx, core::Topic, const uint8_t* data, size_t length);
     static void on_power(void* ctx, core::Topic, const uint8_t* data, size_t length);
@@ -64,6 +67,8 @@ class SimIoApp {
 
     SimBridge       bridge_;
     SensorScreen    screen_;
+    void (*upset_fn_)(void*, uint8_t, uint32_t) = nullptr;
+    void*  upset_ctx_ = nullptr;
     hal::IClock&    clock_;
     core::Bus&      bus_;
     core::EventLog& events_;

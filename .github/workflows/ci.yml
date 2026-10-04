@@ -171,3 +171,7 @@ jobs:
         run: make store-forward
       - name: power and modes
         run: make power
+      - name: fault recovery (lying sensors, a latch-up, a dead wheel, then SAFE)
+        run: make fdir
+      - name: radiation (EDAC, scrubbing, TMR)
+        run: make radiation
