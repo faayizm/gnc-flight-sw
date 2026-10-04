@@ -115,22 +115,30 @@ Lesson numbers point to where each idea is taught properly.
 | Term | Plain meaning |
 |---|---|
 | **Big endian** | Most significant byte first. What everything on a spacecraft link uses. Lesson 3 |
-| **EDAC** | Error Detection And Correction. Extra bits so a flipped bit can be repaired. Lesson 18 |
+| **EDAC** | Error Detection And Correction. Extra bits stored with every memory word, so a flipped bit can be found and repaired, and two flips at least detected. Lesson 18 |
+| **Event-action** | PUS ST[19]: when a named event is raised on board, run a stored telecommand. Keeps detecting a fault separate from responding to it. Lesson 18 |
 | **Fault injection** | Deliberately breaking things to prove the recovery code works. Lesson 18 |
+| **Isolation (of a fault)** | Working out *which* part has failed, and then stopping using it so the fault cannot spread. The "I" in FDIR. Lesson 18 |
 | **HAL** | Hardware Abstraction Layer. The interfaces that make code portable. Lesson 11 |
 | **Housekeeping** | Routine periodic health telemetry. Lesson 8 |
 | **Hysteresis** | Different thresholds for entering and leaving a state, so it cannot flap. Lesson 17 |
 | **Latch-up (SEL)** | A radiation-induced short circuit. Power-cycle fast or the part burns. Lesson 18 |
+| **Monte Carlo** | Flying the same scenario many times with every uncertain quantity drawn at random, to find the cases nobody wrote down. Lesson 18 |
+| **On-board monitoring** | PUS ST[12]: the spacecraft checks its own telemetry against limits, all the time, and raises an event when one is broken for long enough. Lesson 18 |
 | **Overrun** | A task that took longer than its allotted time slot. Lesson 10 |
+| **Reset cause** | Why the computer last started: power-on, or a watchdog reset. Saved in non-volatile memory and downlinked, with a boot count. Lesson 18 |
+| **SAA** | South Atlantic Anomaly: where the inner radiation belt dips lowest, and most radiation upsets in low orbit happen. Lesson 18 |
 | **Port** | An interface describing what the software *needs*, not what the hardware *is*. Lesson 11 |
 | **Rate group** | A set of tasks running at one frequency in a deterministic scheduler. Lesson 10 |
 | **Safe mode** | Minimal survival state. Entered autonomously; left only by ground command. Lesson 17 |
 | **Scrubbing** | Continuously reading and rewriting memory so single bit flips are fixed before they accumulate. Lesson 18 |
 | **SEU** | Single-Event Upset. A cosmic ray flips a bit. The hardware is fine; the data is wrong. Lesson 18 |
+| **Syndrome** | What an error-correcting code computes from a damaged word. In a Hamming code it is the position of the flipped bit. Lesson 18 |
 | **SIL** | Software-in-the-Loop. Real flight software against a simulator, no hardware |
 | **HIL** | Hardware-in-the-Loop. Real flight software on real hardware against a simulator |
 | **TID** | Total Ionising Dose. Cumulative radiation damage over a mission's life. Lesson 18 |
-| **Watchdog** | A timer that resets the processor unless the software keeps telling it not to. Lesson 10 |
+| **TMR** | Triple Modular Redundancy: keep three copies of a critical value and believe any two that agree. Lesson 18 |
+| **Watchdog** | A timer that resets the processor unless the software keeps telling it not to. Lessons 10, 11 and 18 |
 
 ## Units you will meet
 

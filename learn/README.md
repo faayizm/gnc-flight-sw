@@ -51,9 +51,10 @@ You can do all of these with no programming.
 
 The maths is real, the experiments run today, and so does the flight code
 that uses them: each lesson points to the file and to the flight (`make
-detumble`, `make pointing`, `make store-forward`, `make power`) where you can
-watch it work. Lesson 18 looks ahead to fault management, which is the next
-thing to be built, and says so plainly.
+detumble`, `make pointing`, `make store-forward`, `make power`, `make fdir`,
+`make radiation`, `make monte-carlo`) where you can watch it work. Lesson 18
+ends with you crashing the flight computer on purpose, and watching it come
+back.
 
 | # | Lesson | The question it answers |
 |---|---|---|

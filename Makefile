@@ -107,6 +107,11 @@ fdir: build  ## Fly the fault-recovery scenario: lying sensors, a latch-up, a de
 radiation: build  ## Fly an orbit of single-event upsets: EDAC, scrubbing and TMR make them invisible
 	@$(SYS_PYTHON) -m sim.scenarios.radiation
 
+RUNS ?= 8
+.PHONY: monte-carlo
+monte-carlo: build  ## Fly the wheel-failure recovery RUNS times (default 8), every uncertainty dispersed
+	@$(SYS_PYTHON) -m sim.scenarios.monte_carlo --runs $(RUNS)
+
 .PHONY: detumble-live
 detumble-live: build  ## Fly a detumble for a viewer on the TT&C port (COSMOS DETUMBLE screen)
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --live --ttc-port $(TTC_PORT)
@@ -173,7 +178,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test test-gnd test-sim sil detumble pointing store-forward power fdir radiation check-layering check-links check-toolbox check-lessons  ## Everything CI runs
+check: check-gen build test test-gnd test-sim sil detumble pointing store-forward power fdir radiation monte-carlo check-layering check-links check-toolbox check-lessons  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 

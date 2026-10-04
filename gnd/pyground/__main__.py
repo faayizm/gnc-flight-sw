@@ -104,11 +104,11 @@ def cmd_params(args: argparse.Namespace) -> int:
 
 
 def cmd_commands(_args: argparse.Namespace) -> int:
-    print(f"{'COMMAND':<20} {'PUS':<10} ARGUMENTS")
+    print(f"{'COMMAND':<20} {'PUS':<11} ARGUMENTS")
     print("-" * 70)
     for name, (service, subtype, arg_spec) in sorted(COMMANDS.items()):
         args_text = ", ".join(f"{a}:{t}" for a, t, _e in arg_spec) or "-"
-        print(f"{name:<20} ST[{service},{subtype}]".ljust(31) + args_text)
+        print(f"{name:<20} ST[{service},{subtype}]".ljust(33) + args_text)
     return 0
 
 

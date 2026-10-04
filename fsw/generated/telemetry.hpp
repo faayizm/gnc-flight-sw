@@ -124,7 +124,7 @@ struct AdcsHk {
     float gyro_bias_x{};  // Estimated gyro bias X [rad/s]
     float gyro_bias_y{};  // Estimated gyro bias Y [rad/s]
     float gyro_bias_z{};  // Estimated gyro bias Z [rad/s]
-    float pointing_err_deg{};  // Angle between body and reference pointing axis [deg]
+    float pointing_err_deg{};  // Estimated angle between the payload boresight (body +Z) and nadir [deg]
     float rate_norm{};  // Magnitude of the body rate vector [deg/s]
     uint8_t sun_valid{};  // Sun sensor reference is usable [bool]
     uint8_t mag_valid{};  // Magnetometer reference is usable [bool]
@@ -143,11 +143,12 @@ struct AdcsHk {
     float dipole_cmd_y{};  // Commanded magnetorquer dipole Y [A*m^2]
     float dipole_cmd_z{};  // Commanded magnetorquer dipole Z [A*m^2]
     uint8_t gps_valid{};  // GPS fix used in the last second [bool]
+    float att_err_deg{};  // Estimated three-axis attitude error from the target frame, yaw included [deg]
 
     static constexpr dict::HkSid kSid  = dict::HkSid::ADCS_HK;
     static constexpr dict::Apid  kApid = dict::Apid::ADCS;
-    static constexpr uint16_t kPayloadBytes = 118;
-    static constexpr uint16_t kPacketBytes  = 140;
+    static constexpr uint16_t kPayloadBytes = 122;
+    static constexpr uint16_t kPacketBytes  = 144;
 
     // Serialises the field block only. The ST[3,25] structure id and the
     // packet headers are written by the telemetry builder.
@@ -184,6 +185,7 @@ struct AdcsHk {
             && w.write_float32(dipole_cmd_y)
             && w.write_float32(dipole_cmd_z)
             && w.write_uint8(gps_valid)
+            && w.write_float32(att_err_deg)
             ;
     }
 
@@ -220,6 +222,7 @@ struct AdcsHk {
             && r.read_float32(dipole_cmd_y)
             && r.read_float32(dipole_cmd_z)
             && r.read_uint8(gps_valid)
+            && r.read_float32(att_err_deg)
             ;
     }
 };

@@ -86,8 +86,9 @@ is asserted. They run in `make check`.
 | `nadir_pointing.py` | Pointing settles below 0.2° and holds through eclipse and a GPS outage; the gyro bias is learned; momentum is dumped before the wheels fill | ✅ |
 | `power_and_modes.py` | A stuck heater drains the battery: load shed in order, SAFE at CRITICAL, no autonomous exit, recovery on ground request | ✅ |
 | `store_and_forward.py` | Over two real passes and a noisy channel: time correlation, commands scheduled in one pass run on time out of contact, and the gap is replayed from the store in the next | ✅ |
-| `sensor_dropout.py` | A failed magnetometer degrades cleanly instead of diverging | Phase 6 |
-| `wheel_failure.py` | A wheel failure mid-pointing is detected, isolated and recovered | Phase 6 |
+| `fault_recovery.py` | Frozen and impossible sensors, a corrupted and silent bus, a wheel latch-up cleared by a power cycle, a dead wheel isolated with pointing held, then a second fault that only an ST[12] monitor catches, whose ST[19] action commands SAFE | ✅ |
+| `radiation.py` | An orbit of memory upsets, most in the South Atlantic Anomaly: every one corrected by EDAC or outvoted by TMR, an uncorrectable word reloaded from storage, pointing untouched | ✅ |
+| `monte_carlo.py` | The wheel failure, flown with mass, tumble, sensor errors and the failure itself dispersed; every run must isolate the wheel and keep pointing | ✅ |
 
 The eclipse, gyro-bias and wheel-saturation cases once planned as separate
 scenarios are assertions inside `nadir_pointing.py`, since one flight

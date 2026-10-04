@@ -158,6 +158,20 @@ TEST(pointing, torque_opposes_the_error_and_respects_the_wheel_limit) {
     CHECK(std::fabs(o2.wheel_torque.x) <= c.max_wheel_torque + 1e-15);
 }
 
+TEST(pointing, yaw_is_in_the_attitude_error_but_not_the_boresight_error) {
+    const Vec3 r{7.0e6, 0, 0}, v{0, 7.5e3, 0};
+    Vec3 w;
+    const Quat qt = nadir_target(r, v, w);
+    PointingConfig c;
+    const Quat yawed = qt * quat_from_rotvec(Vec3{0, 0, 5 * kDeg});      // about the boresight
+    const PointingOutput a = nadir_control(yawed, rotate_inv(yawed, w), Vec3{}, r, v, Vec3{}, false, c);
+    CHECK_NEAR(a.error_rad, 5 * kDeg, 1e-9);
+    CHECK_NEAR(a.boresight_rad, 0.0, 1e-9);                            // the payload still sees nadir
+    const Quat tilted = qt * quat_from_rotvec(Vec3{5 * kDeg, 0, 0});    // the boresight itself
+    const PointingOutput b = nadir_control(tilted, rotate_inv(tilted, w), Vec3{}, r, v, Vec3{}, false, c);
+    CHECK_NEAR(b.boresight_rad, 5 * kDeg, 1e-9);
+}
+
 TEST(pointing, momentum_dumping_torque_opposes_stored_momentum) {
     const Vec3 r{7.0e6, 0, 0}, v{0, 7.5e3, 0};
     Vec3 w;

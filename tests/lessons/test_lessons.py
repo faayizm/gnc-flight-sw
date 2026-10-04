@@ -89,6 +89,33 @@ def port_free(port: int) -> bool:
         return s.connect_ex(("127.0.0.1", port)) != 0
 
 
+def watchdog_exercise() -> None:
+    """Lesson 18's exercise, as a student does it: crash the computer with
+    the lesson's own command, then boot it again and read the banner."""
+    nvm = pathlib.Path(tempfile.gettempdir()) / f"lessons_wdt_{os.getpid()}.bin"
+    args = [str(FSW), "--ttc-port", "50001", "--sim-port", "0", "--nvm", str(nvm)]
+    try:
+        proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(0.5)
+        run_bash(block("18-when-things-break", "bash", "send TEST_WATCHDOG"))
+        try:
+            code = proc.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            code = None
+        check(code == 86, "18-when-things-break: TEST_WATCHDOG gets the computer reset (status 86)",
+              f"exit status {code}")
+        again = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        time.sleep(1.0)
+        again.terminate()
+        out = again.communicate(timeout=5)[0]
+        expect("18-when-things-break", "the next boot knows it was the watchdog", out,
+               "  boot        : #2, after WATCHDOG")
+    finally:
+        nvm.unlink(missing_ok=True)
+        pathlib.Path(f"{nvm}.reset").unlink(missing_ok=True)
+
+
 def main() -> int:
     if not FSW.exists():
         print("build/fsw not found -- run `make build` first")
@@ -111,7 +138,7 @@ def main() -> int:
                "VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)")
         out = run_bash("cd gnd && " + block("02-first-contact", "bash", "FLY_TO_MARS"))
         expect("02-first-contact", "an unknown command is stopped on the ground", out,
-               "unknown telecommand 'FLY_TO_MARS'; known: ADJUST_TIME, DELETE_STORE_UP_TO, DISABLE_HK")
+               "unknown telecommand 'FLY_TO_MARS'; known: ADJUST_TIME, DELETE_STORE_UP_TO, DISABLE_EVENT_ACTION")
 
         out = run_bash(block("04-checksums", "bash", "send_raw"))
         expect("04-checksums", "a flipped bit is caught and reported", out, "TC_REJECTED aux=BAD_CRC")
@@ -155,10 +182,16 @@ def main() -> int:
         out = run_bash("./build/tests/fsw_tests 2>&1 | grep nobody")
         expect("17-power-and-modes", "publishing into the void is still not an error", out,
                "publishing_to_a_topic_nobody_listens_to_is_not_an_error")
+        out = run_bash(block("18-when-things-break", "bash", "edac_playground"))
+        expect("18-when-things-break", "the syndrome names the broken bit; scrubbing saves the memory", out,
+               "      bit 2       0 [0] 1  0  0  1  1       2          bit 2",
+               "      1.6 s              0")
     finally:
         proc.terminate()
         proc.wait(timeout=5)
         nvm.unlink(missing_ok=True)
+
+    watchdog_exercise()
 
     print(f"\n{'FAILED: ' + str(fails) if fails else 'every lesson checked here does what it says'}")
     return 1 if fails else 0

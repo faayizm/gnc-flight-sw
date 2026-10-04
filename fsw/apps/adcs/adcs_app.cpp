@@ -186,6 +186,7 @@ msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
     msg::ActuatorCommand out;
     Vec3 body_torque{};
     double err_rad = 0.0;
+    double boresight_rad = 0.0;
 
     if (ctrl_mode_ == dict::AdcsCtrlMode::DETUMBLE) {
         out.dipole_a_m2 = bdot_m;
@@ -209,6 +210,7 @@ msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
         out.wheels_commanded = true;
         body_torque = po.body_torque;
         err_rad = po.error_rad;
+        boresight_rad = po.boresight_rad;
     }
 
     // ---- housekeeping ----------------------------------------------------
@@ -227,7 +229,8 @@ msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
     hk_.gyro_bias_y = static_cast<float>(bias.y);
     hk_.gyro_bias_z = static_cast<float>(bias.z);
     hk_.att_sigma_deg = mekf_.initialised() ? static_cast<float>(mekf_.sigma_attitude() * kRadToDeg) : 0.0f;
-    hk_.pointing_err_deg = static_cast<float>(err_rad * kRadToDeg);
+    hk_.pointing_err_deg = static_cast<float>(boresight_rad * kRadToDeg);
+    hk_.att_err_deg = static_cast<float>(err_rad * kRadToDeg);
     hk_.rate_norm = static_cast<float>(last_rate_dps_);
     hk_.mag_valid = s.mag_valid ? 1 : 0;
     hk_.sun_valid = s.sun_valid ? 1 : 0;

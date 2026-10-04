@@ -30,7 +30,11 @@ runs and single-stepping possible without the flight software knowing.
 
 ## Fault injection
 
-The bridge is where faults are injected in Phase 6, because it is the boundary
-where the spacecraft meets its environment: a sensor that freezes, a value that
-goes out of range, a bit flipped in a packet, a link that drops for a minute, a
-wheel that stops responding.
+The bridge is where faults are injected ([`faults.py`](faults.py)), because it
+is the boundary where the spacecraft meets its environment: a sensor that
+freezes, a value that goes out of range, a bit flipped in a frame, a bus that
+goes quiet, a wheel that stops responding or latches up, and -- through a
+SIL-only field of the sensor frame -- a bit flipped in the flight computer's
+memory. A scenario lists its faults; none of them draws from the simulation's
+own random generator, so a run with a fault is identical to the same run
+without it until the fault begins.

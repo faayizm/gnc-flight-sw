@@ -227,7 +227,7 @@ Earth, using reaction wheels:
 ```
   .  nadir error stays below 0.2 deg once settled (worst 0.113 deg)
   .  held through eclipse (4104 s in shadow, worst 0.064 deg)
-  .  momentum dumping keeps the wheels below half capacity (peak 0.76 mNms)
+  .  momentum dumping keeps the wheels below half capacity (peak 0.77 mNms)
 ```
 
 The law in `pointing.hpp` is the PD law above, with three refinements:
@@ -244,7 +244,11 @@ The law in `pointing.hpp` is the PD law above, with three refinements:
   it off all the time. Because the flight software knows the torque the
   magnetorquers will make, it subtracts it from what the wheels are asked for.
   Dumping momentum then costs no pointing accuracy at all. The wheels never
-  get past 0.76 of their 30 milli-newton-metre-seconds.
+  store more than 0.77 of their 30 milli-newton-metre-seconds.
+
+And when a wheel dies? The magnetorquers take over its axis as well, more
+slowly, and the two healthy wheels cancel what the coils do to theirs. Lesson
+18 kills a wheel on purpose and watches the spacecraft keep pointing.
 
 ## 🧪 Try it — tune a controller
 

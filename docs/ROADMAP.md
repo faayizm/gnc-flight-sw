@@ -156,22 +156,30 @@ managing its own modes, and a deliberately drained battery driving it into
 SAFE. `make power` does this with a stuck heater: load shedding in order,
 SAFE at CRITICAL, and recovery only when the ground asks.
 
-## Phase 6 — Fault handling and radiation
+## Phase 6 — Fault handling and radiation ✅ done
 
 Where flight software stops being an application and starts being flight
-software.
+software. How it works: [FDIR.md](FDIR.md).
 
-- PUS ST[12] on-board monitoring: limit checks defined in the dictionary
-- An FDIR recovery ladder: report, retry, reconfigure, safe mode
-- Fault injection at the simulator bridge: frozen sensors, out-of-range values,
-  dropped links, unresponsive actuators, corrupted packets
-- Single-event upset injection into memory, with EDAC and scrubbing
-- Redundancy and voting on critical state
-- Watchdog recovery paths, exercised
-- Monte Carlo campaigns in CI
+- ✅ PUS ST[12] on-board monitoring: limit checks defined in the dictionary,
+  ST[12,12] transition reports; PUS ST[19] event-action, each action a
+  stored telecommand
+- ✅ An FDIR recovery ladder for the reaction wheels: report, power-cycle
+  retry, isolate and reconfigure (the magnetorquers take the axis), SAFE
+- ✅ Fault injection at the simulator bridge: frozen sensors, out-of-range
+  values, dropped and corrupted frames, dead and latched-up wheels; a
+  sensor screen at the hardware boundary
+- ✅ Single-event upset injection into memory, with a South Atlantic Anomaly;
+  EDAC (72,64) on the parameter table, with scrubbing and reload from storage
+- ✅ Triple modular redundancy on the mode and the wheel-isolation mask
+- ✅ A hosted watchdog that really resets; boot count and reset cause in
+  non-volatile storage; ST[17,128] to prove it
+- ✅ Monte Carlo campaigns in CI (`make monte-carlo`)
 
 **Ends with:** a scenario that injects a wheel failure mid-pointing and shows
 the spacecraft detecting it, isolating it, and recovering — autonomously.
+`make fdir` does that in act 3 (isolated in 13 s, pointing held below 1°), and
+`make monte-carlo` does it for dispersed spacecraft.
 
 ## Phase 7 — Off the laptop
 

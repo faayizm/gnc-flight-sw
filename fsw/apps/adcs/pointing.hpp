@@ -68,6 +68,7 @@ struct PointingOutput {
     Vec3   wheel_torque{};    // what each wheel motor is asked for
     Vec3   dipole{};          // magnetorquer demand for momentum dumping
     double error_rad = 0.0;   // estimated three-axis attitude error
+    double boresight_rad = 0.0;  // estimated angle of body +Z (the payload) from nadir
 };
 
 // Nadir/along-track target attitude (body -> inertial) and its inertial
@@ -99,6 +100,12 @@ inline PointingOutput nadir_control(const Quat& q, const Vec3& omega, const Vec3
     Quat qe = conj(qt) * q;                  // body relative to target
     if (qe.w < 0.0) { qe = Quat{-qe.w, -qe.x, -qe.y, -qe.z}; }
     out.error_rad = quat_angle(qe);
+    // The payload only cares where +Z points. Rotation about +Z (yaw) is in
+    // the three-axis error but not in this one -- and with the Z wheel out
+    // of service, yaw is exactly what the magnetorquers are slowest to hold.
+    const Vec3 boresight = rotate(q, Vec3{0.0, 0.0, 1.0});
+    const Vec3 nadir = -unit(r);
+    out.boresight_rad = std::atan2(norm(cross(boresight, nadir)), dot(boresight, nadir));
 
     const Vec3 w_ref = rotate_inv(q, w_target_eci);
     const Vec3 w_err = omega - w_ref;

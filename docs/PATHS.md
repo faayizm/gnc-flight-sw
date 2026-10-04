@@ -29,7 +29,9 @@ gnc_flight_sw/
 │   │   ├── scheduler.hpp/.cpp   Rate-group scheduler. The heartbeat
 │   │   ├── bus.hpp              Synchronous publish/subscribe
 │   │   ├── event_log.hpp        Bounded event history + immediate downlink sink
-│   │   ├── param_store.hpp/.cpp Range-checked, CRC-protected parameter table
+│   │   ├── param_store.hpp/.cpp Range-checked, CRC-protected, EDAC-protected parameter table
+│   │   ├── edac.hpp             Hamming (72,64) SEC-DED: memory that corrects single upsets
+│   │   ├── tmr.hpp              Triple modular redundancy for small critical values
 │   │   ├── bytes.hpp            Big-endian serialisation. The only byte-order code
 │   │   ├── crc.hpp              CCSDS CRC-16
 │   │   ├── time.hpp             Monotonic and mission time, as distinct types
@@ -39,7 +41,7 @@ gnc_flight_sw/
 │   │
 │   ├── hal/                     The ports. The portability seam
 │   │   ├── README.md
-│   │   ├── clock.hpp            IClock: monotonic time, mission time, sleep
+│   │   ├── clock.hpp            IClock: monotonic, host and mission time, sleep
 │   │   ├── link.hpp             ILink: non-blocking bidirectional byte pipe
 │   │   ├── storage.hpp          IStorage: non-volatile blocks
 │   │   └── watchdog.hpp         IWatchdog: the last line of defence
@@ -68,6 +70,7 @@ gnc_flight_sw/
 │   │   │   └── ttc_app.*        Dispatch, verification, housekeeping, time, playback
 │   │   ├── io/                  The hardware boundary (the simulator bridge)
 │   │   │   ├── sim_bridge.*     The bridge protocol: the specification of the wire
+│   │   │   ├── sensor_screen.hpp Refuse impossible and frozen sensor readings
 │   │   │   └── sim_io_app.*     Sensors onto the bus, actuator replies back out
 │   │   ├── adcs/                Attitude determination and control
 │   │   │   ├── adcs_math.hpp    Vectors, quaternions, small matrices
@@ -81,9 +84,14 @@ gnc_flight_sw/
 │   │   ├── eps/                 Electrical power
 │   │   │   ├── power_policy.hpp State of charge, power states, load shedding, rail policy
 │   │   │   └── eps_app.*        The policy wired to the bus
-│   │   └── modemgr/             The single authority on what the spacecraft is doing
-│   │       ├── mode_logic.hpp   Autonomous transitions and how ground requests are judged
-│   │       └── mode_manager.*   The rules wired to the bus
+│   │   ├── modemgr/             The single authority on what the spacecraft is doing
+│   │   │   ├── mode_logic.hpp   Autonomous transitions and how ground requests are judged
+│   │   │   └── mode_manager.*   The rules wired to the bus
+│   │   └── fdir/                Fault detection, isolation and recovery
+│   │       ├── wheel_check.hpp  Is each wheel delivering its commanded torque?
+│   │       ├── wheel_ladder.hpp Report, retry, isolate: the recovery ladder
+│   │       ├── monitoring.hpp   PUS ST[12] on-board parameter monitoring
+│   │       └── fdir_app.*       All of it on the bus, plus scrubbing and upset routing
 │   │
 │   └── generated/               ── GENERATED. NEVER EDIT ──
 │       ├── README.md
@@ -111,17 +119,18 @@ gnc_flight_sw/
 ├── sim/                         ── SIMULATOR ──
 │   ├── README.md                Design, and why the FSW never sees the truth
 │   ├── models/                  Orbit, attitude, IGRF, sensors, actuators, power
-│   ├── sil/                     Bridge, simulation loop, radio channel, scenario harness
-│   └── scenarios/               detumble, nadir_pointing, store_and_forward, power_and_modes
+│   ├── sil/                     Bridge, simulation loop, fault injection, radio channel, harness
+│   └── scenarios/               detumble, nadir_pointing, store_and_forward, power_and_modes,
+│                                fault_recovery, radiation, monte_carlo
 │
 ├── tests/
 │   ├── README.md
 │   ├── framework.hpp            ~100-line dependency-free C++ test framework
 │   ├── CMakeLists.txt
-│   ├── unit/                    118 fast hermetic tests
+│   ├── unit/                    141 fast hermetic tests
 │   │   ├── README.md
 │   │   └── test_*.cpp
-│   ├── sil/                     45 checks against the real binary
+│   ├── sil/                     51 checks against the real binary
 │   │   ├── README.md
 │   │   └── test_endtoend.py
 │   ├── gnd/test_link.py         The ground station's link layer against libfec vectors
@@ -136,6 +145,7 @@ gnc_flight_sw/
 │   │   ├── crc_playground.py    Damage a message, watch the checksum catch it
 │   │   ├── packet_explorer.py   A real packet, byte by byte (--live for a fresh one)
 │   │   ├── fec_playground.py    Wreck bytes, watch Reed–Solomon repair them
+│   │   ├── edac_playground.py   Flip a bit, watch the code name it; why memory is scrubbed
 │   │   ├── orbit_sandbox.py     Orbital speeds, and an orbit from Newton's law alone
 │   │   └── spin_sandbox.py      Euler's equation and B-dot detumble
 │   ├── 01-what-is-a-satellite/  ─┐

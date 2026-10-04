@@ -407,8 +407,8 @@ enum class ParamId : uint16_t {
     POINT_BANDWIDTH_RADPS = 12,
     POINT_MAX_SLEW_DPS = 13,
     MOMENTUM_DUMP_GAIN = 14,
-    FDIR_HK_PERIOD_MS = 16,
     BATT_CAPACITY_WH = 15,
+    FDIR_HK_PERIOD_MS = 16,
 };
 
 enum class ParamType : uint8_t { U8, I8, U16, I16, U32, I32, U64, I64, F32, F64 };
@@ -439,8 +439,8 @@ inline constexpr ParamInfo kParams[] = {
     { ParamId::POINT_BANDWIDTH_RADPS, ParamType::F32, "POINT_BANDWIDTH_RADPS", 0.1, 0.005, 1.0, "rad/s", "Natural frequency of the pointing control loop" },
     { ParamId::POINT_MAX_SLEW_DPS, ParamType::F32, "POINT_MAX_SLEW_DPS", 1.0, 0.05, 5.0, "deg/s", "Largest body rate the pointing controller will command while acquiring" },
     { ParamId::MOMENTUM_DUMP_GAIN, ParamType::F32, "MOMENTUM_DUMP_GAIN", 0.0005, 0.0, 0.1, "1/s", "Magnetic momentum-unloading gain" },
-    { ParamId::FDIR_HK_PERIOD_MS, ParamType::U32, "FDIR_HK_PERIOD_MS", 1000.0, 100.0, 60000.0, "ms", "Generation period of FDIR_HK" },
     { ParamId::BATT_CAPACITY_WH, ParamType::F32, "BATT_CAPACITY_WH", 30.0, 1.0, 1000.0, "W*h", "Usable battery energy at 100% state of charge" },
+    { ParamId::FDIR_HK_PERIOD_MS, ParamType::U32, "FDIR_HK_PERIOD_MS", 1000.0, 100.0, 60000.0, "ms", "Generation period of FDIR_HK" },
 };
 inline constexpr size_t kParamCount = 16;
 

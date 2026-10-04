@@ -107,7 +107,7 @@ TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state."
     UNITS rad/s rad/s
   APPEND_ITEM    GYRO_BIAS_Z    32 FLOAT "Estimated gyro bias Z"
     UNITS rad/s rad/s
-  APPEND_ITEM    POINTING_ERR_DEG 32 FLOAT "Angle between body and reference pointing axis"
+  APPEND_ITEM    POINTING_ERR_DEG 32 FLOAT "Estimated angle between the payload boresight (body +Z) and nadir"
     UNITS deg deg
   APPEND_ITEM    RATE_NORM      32 FLOAT "Magnitude of the body rate vector"
     UNITS deg/s deg/s
@@ -149,6 +149,8 @@ TELEMETRY SAT ADCS_HK BIG_ENDIAN "Attitude determination and control state."
   APPEND_ITEM    GPS_VALID       8 UINT  "GPS fix used in the last second"
     STATE FALSE 0
     STATE TRUE 1
+  APPEND_ITEM    ATT_ERR_DEG    32 FLOAT "Estimated three-axis attitude error from the target frame, yaw included"
+    UNITS deg deg
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
 TELEMETRY SAT EPS_HK BIG_ENDIAN "Power subsystem state."
@@ -688,8 +690,8 @@ TELEMETRY SAT PARAM_REPORT BIG_ENDIAN "PUS ST[20,2] parameter value report"
     STATE POINT_BANDWIDTH_RADPS 12
     STATE POINT_MAX_SLEW_DPS 13
     STATE MOMENTUM_DUMP_GAIN 14
-    STATE FDIR_HK_PERIOD_MS 16
     STATE BATT_CAPACITY_WH 15
+    STATE FDIR_HK_PERIOD_MS 16
   APPEND_ITEM    PARAM_VALUE    64 FLOAT "Parameter value, widened to double"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 

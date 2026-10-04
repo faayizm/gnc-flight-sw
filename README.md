@@ -131,8 +131,10 @@ is built around, and it is the one most worth copying into your own work.
 | PUS ST[05] event reporting | Working — severity-coded, with a bounded on-board history |
 | PUS ST[09] time management | Working — time reports and ground correlation |
 | PUS ST[11] time-based scheduling | Working — time-tagged commands run out of contact |
+| PUS ST[12] on-board monitoring | Working — limits declared in the dictionary, transition reports |
 | PUS ST[15] storage and retrieval | Working — 4 MiB circular store, replay by time range |
-| PUS ST[17] connection test | Working |
+| PUS ST[17] connection test | Working, plus ST[17,128] to prove the watchdog |
+| PUS ST[19] event-action | Working — each action a stored telecommand, run through the same checks |
 | PUS ST[20] parameter management | Working — range-checked, CRC-protected, survives a restart |
 | Rate-group scheduler | Working — deterministic, deadline-monitored, single-threaded |
 | Software bus | Working — synchronous pub/sub, statically bounded |
@@ -140,7 +142,9 @@ is built around, and it is the one most worth copying into your own work.
 | Ground segment | Working — Python client and CLI; OpenC3 COSMOS config generated |
 | ADCS | **Working.** Detumble, MEKF estimation, nadir pointing, momentum dumping |
 | EPS and mode manager | **Working.** Load shedding, autonomous modes, SAFE |
-| FDIR | **Not yet.** Phase 6. Scaffolded and documented |
+| FDIR | **Working.** Sensor screening, a wheel recovery ladder, PUS ST[12] monitoring and ST[19] event-action (`make fdir`) |
+| Radiation and watchdog | **Working.** EDAC with scrubbing, TMR, simulated upsets (`make radiation`); a watchdog that really resets |
+| Monte Carlo | **Working.** Dispersed wheel-failure campaigns in CI (`make monte-carlo`) |
 | Orbit and attitude simulator | **Working** (`sim/`, `make detumble`, `make pointing`) |
 | TM/TC transfer frames, RS, COP-1 | **Working** — with a radio channel model (`make store-forward`) |
 
@@ -156,7 +160,7 @@ Every directory has a `README.md` explaining what belongs in it and why.
 | [`fsw/core/`](fsw/core/) | Portable flight core: scheduler, bus, parameters, events, time |
 | [`fsw/hal/`](fsw/hal/) | The ports. Four small interfaces that make this portable |
 | [`fsw/platform/`](fsw/platform/) | The adapters. The only OS-aware code in the tree |
-| [`fsw/apps/`](fsw/apps/) | The applications. TT&C today; ADCS, EPS, FDIR to come |
+| [`fsw/apps/`](fsw/apps/) | The applications: TT&C, I/O, ADCS, EPS, modes, FDIR |
 | [`fsw/generated/`](fsw/generated/) | Generated C++. Never edit by hand |
 | [`gnd/pyground/`](gnd/pyground/) | Dependency-free Python ground station and test driver |
 | [`gnd/openc3/`](gnd/openc3/) | OpenC3 COSMOS plugin: screens, limits, command definitions |

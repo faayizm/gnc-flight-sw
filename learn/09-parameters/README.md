@@ -19,19 +19,27 @@ Yes: decide in advance which numbers might need to change, and make those
 adjustable from the ground. They are called **parameters**, and on a real
 mission they are often the *only* way behaviour gets changed after launch.
 
-This spacecraft has eight, declared in
+This spacecraft has sixteen, declared in
 [`dictionary/mission.yaml`](../../dictionary/mission.yaml):
 
-| ID | Name | Default | Range | What it controls |
-|---|---|---|---|---|
-| 1 | `SYS_HK_PERIOD_MS` | 1000 | 100–60000 | How often system telemetry is sent |
-| 2 | `ADCS_HK_PERIOD_MS` | 1000 | 100–60000 | How often attitude telemetry is sent |
-| 3 | `EPS_HK_PERIOD_MS` | 1000 | 100–60000 | How often power telemetry is sent |
-| 4 | `DETUMBLE_RATE_DPS` | 2.0 | 0.1–30 | Spin rate above which we detumble |
-| 5 | `POINTING_RATE_DPS` | 0.5 | 0.01–10 | Spin rate below which we may point |
-| 6 | `BATT_LOW_SOC_PCT` | 40 | 5–90 | Battery level counting as "low" |
-| 7 | `BATT_CRIT_SOC_PCT` | 20 | 2–80 | Battery level counting as "critical" |
-| 8 | `LINK_TIMEOUT_S` | 300 | 10–86400 | Silence before autonomy reacts |
+| ID | Name | Default | Range | Units | What it controls |
+|---|---|---|---|---|---|
+| 1 | `SYS_HK_PERIOD_MS` | 1000 | 100–60000 | ms | Generation period of SYS_HK |
+| 2 | `ADCS_HK_PERIOD_MS` | 1000 | 100–60000 | ms | Generation period of ADCS_HK |
+| 3 | `EPS_HK_PERIOD_MS` | 1000 | 100–60000 | ms | Generation period of EPS_HK |
+| 4 | `DETUMBLE_RATE_DPS` | 2 | 0.1–30 | deg/s | Rate threshold above which detumble is commanded |
+| 5 | `POINTING_RATE_DPS` | 0.5 | 0.01–10 | deg/s | Rate threshold below which pointing is permitted |
+| 6 | `BATT_LOW_SOC_PCT` | 40 | 5–90 | % | State of charge entering the LOW power state |
+| 7 | `BATT_CRIT_SOC_PCT` | 20 | 2–80 | % | State of charge entering the CRITICAL power state |
+| 8 | `LINK_TIMEOUT_S` | 86400 | 600–604800 | s | Time without hearing the ground before the spacecraft enters SAFE |
+| 9 | `BDOT_GAIN` | 300000 | 0–10000000 | A*m^2/(T/s) | B-dot proportional gain |
+| 10 | `MTQ_MAX_DIPOLE` | 0.2 | 0–10 | A*m^2 | Largest magnetic dipole commanded on any axis |
+| 11 | `BDOT_FILTER_TAU_S` | 3 | 0.1–60 | s | Time constant of the filter applied to the field derivative |
+| 12 | `POINT_BANDWIDTH_RADPS` | 0.1 | 0.005–1 | rad/s | Natural frequency of the pointing control loop |
+| 13 | `POINT_MAX_SLEW_DPS` | 1 | 0.05–5 | deg/s | Largest body rate the pointing controller will command while acquiring |
+| 14 | `MOMENTUM_DUMP_GAIN` | 0.0005 | 0–0.1 | 1/s | Magnetic momentum-unloading gain |
+| 15 | `BATT_CAPACITY_WH` | 30 | 1–1000 | W*h | Usable battery energy at 100% state of charge |
+| 16 | `FDIR_HK_PERIOD_MS` | 1000 | 100–60000 | ms | Generation period of FDIR_HK |
 
 Notice every one has a **declared range**. That is the heart of this lesson.
 

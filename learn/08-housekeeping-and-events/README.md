@@ -36,16 +36,17 @@ make monitor
 ```
 
 ```
-  t=     1.023  apid=0x001 seq=    3  SYS_HK             uptime_s=1  tick_count=51  mode=BOOT  boot_count=0
-  t=     1.023  apid=0x002 seq=    1  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
-  t=     1.023  apid=0x003 seq=    1  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
-  t=     2.023  apid=0x001 seq=    4  SYS_HK             uptime_s=2  tick_count=101  mode=BOOT  boot_count=0
+  t=     1.122  apid=0x001 seq=    3  SYS_HK             uptime_s=1  tick_count=56  mode=BOOT  boot_count=1
+  t=     1.122  apid=0x002 seq=    1  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
+  t=     1.122  apid=0x003 seq=    1  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
+  t=     1.122  apid=0x004 seq=    1  FDIR_HK            wheel_state=MONITOR  wheels_usable=7  wheel_retries=0  wheel_resid_x=0
+  t=     2.122  apid=0x001 seq=    4  SYS_HK             uptime_s=2  tick_count=106  mode=BOOT  boot_count=1
 ```
 
-Three reports, once a second, forever, without anyone asking. That is
+Four reports, once a second, forever, without anyone asking. That is
 `ST[3,25]`, and it is the bulk of what any spacecraft downlinks.
 
-`SYS_HK` carries 23 fields about the flight software's own health. The monitor
+`SYS_HK` carries 24 fields about the flight software's own health. The monitor
 shows only the first four of each report. The full list is in the dictionary:
 
 ```bash
@@ -58,6 +59,7 @@ or read the definition in
 | Field | Why an engineer looks at it |
 |---|---|
 | `uptime_s` | Has it reset? An uptime that goes backwards means something bad |
+| `boot_count` / `last_reset` | How many times has it started, and why the last time? (Lesson 18) |
 | `cpu_load_pct` | Is there margin left for the worst case? |
 | `sched_overruns` | Has the software ever missed a deadline? |
 | `tc_received` / `tc_rejected` | Is the uplink healthy? A rising rejected count means noise |
@@ -74,6 +76,11 @@ to report on. The packets still arrive correctly formatted, which proves the
 telemetry chain works before there is anything real to put in it. With a
 simulator connected (`make detumble-live`, Lesson 12) they fill with real
 numbers.
+
+`FDIR_HK`, the fault-management report, is the exception: `wheels_usable=7`
+is a bit mask, X, Y and Z all set, meaning all three reaction wheels are in
+service. That is true before a single sensor sample has arrived. Lesson 18 is
+about what makes it change.
 
 ## 👀 See it — events
 
@@ -194,26 +201,26 @@ python3 -m pyground send REPORT_STORE_SUMMARY store_id=1
 ```
 
 ```
-  t=    20.063  apid=0x001 seq=   22  STORE_SUMMARY      store_id=1  oldest_s=0  newest_s=20  packets=60
+  t=    20.045  apid=0x001 seq=   22  STORE_SUMMARY      store_id=1  oldest_s=0  newest_s=20  packets=79
 ```
 
-Sixty packets, from second 0 to second 20. Now ask for seconds 5 to 7 back:
+Eighty-odd packets, from second 0 to second 20 (the exact number depends on
+when you asked). Now ask for seconds 5 to 7 back:
 
 ```bash
 python3 -m pyground send RETRIEVE_BY_TIME store_id=1 from_s=5 to_s=7
 ```
 
 ```
-  [replay] t=     5.323  apid=0x001 seq=    6  SYS_HK             uptime_s=5  tick_count=266  mode=BOOT  boot_count=0
-  [replay] t=     5.323  apid=0x002 seq=    5  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
+  t=    21.645  apid=0x001 seq=   29  EVENT_INFO         PLAYBACK_STARTED aux=12
+  t=    21.645  apid=0x001 seq=   31  EVENT_INFO         PLAYBACK_DONE aux=12
+  [replay] t=     5.425  apid=0x001 seq=    6  SYS_HK             uptime_s=5  tick_count=271  mode=BOOT  boot_count=1
+  [replay] t=     5.425  apid=0x002 seq=    5  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
   ...
-  t=    21.123  apid=0x001 seq=   28  EVENT_INFO         PLAYBACK_STARTED aux=9
-  t=    21.123  apid=0x001 seq=   30  EVENT_INFO         PLAYBACK_DONE aux=9
-  ...
-  [replay] t=     7.423  apid=0x003 seq=    7  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
+  [replay] t=     7.425  apid=0x004 seq=    7  FDIR_HK            wheel_state=MONITOR  wheels_usable=7  wheel_retries=0  wheel_resid_x=0
 ```
 
-Nine packets from fifteen seconds ago, with their **original** timestamps and
+Twelve packets from fifteen seconds ago, with their **original** timestamps and
 sequence numbers. That is how you can tell a replay from the live stream.
 They travel on a separate channel, marked `[replay]` here, so a long playback
 never holds up live telemetry.
@@ -236,9 +243,12 @@ packet from the dark part of the orbit was lost.
 
 ## 🎓 Go deeper
 
-**ST[12] on-board monitoring** (Phase 6) lets the spacecraft check its own
-limits and raise an event when a value strays — so it notices a problem
-immediately rather than waiting for a human to spot it in a graph hours later.
+**ST[12] on-board monitoring** lets the spacecraft check its own limits and
+raise an event when a value strays, so it notices a problem immediately
+rather than waiting for a human to spot it in a graph hours later. The limits
+are in the `monitors:` section of
+[`dictionary/mission.yaml`](../../dictionary/mission.yaml), and Lesson 18
+shows one catching a fault that nothing else could.
 
 ---
 

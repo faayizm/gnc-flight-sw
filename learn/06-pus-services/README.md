@@ -41,8 +41,7 @@ invented per mission.
 
 ## 💡 The services
 
-There are about twenty in the standard. This spacecraft implements five, and
-the roadmap adds more:
+There are about twenty in the standard. This spacecraft implements eleven:
 
 | Service | Name | What it is for | Here? |
 |---|---|---|---|
@@ -55,7 +54,8 @@ the roadmap adds more:
 | **ST[09]** | Time management | Sync the spacecraft clock | ✅ |
 | **ST[11]** | Time-based scheduling | "Do this at 14:32:07" | ✅ |
 | **ST[15]** | Storage and retrieval | Record telemetry, play it back later | ✅ |
-| ST[12] | On-board monitoring | Watch a value, alarm if it strays | Phase 6 |
+| **ST[12]** | On-board monitoring | Watch a value, alarm if it strays | ✅ |
+| **ST[19]** | Event-action | "When this happens, do that" | ✅ |
 | ST[06] | Memory management | Read and patch memory | — |
 | ST[13] | Large data transfer | Send something bigger than a packet | — |
 
@@ -73,18 +73,38 @@ python3 -m pyground commands
 ```
 
 ```
-COMMAND              PUS        ARGUMENTS
+COMMAND              PUS         ARGUMENTS
 ----------------------------------------------------------------------
-DISABLE_HK           ST[3,6]   sid:uint8
-ENABLE_HK            ST[3,5]   sid:uint8
-REPORT_PARAM         ST[20,1]  param_id:uint16
-RESET_COUNTERS       ST[8,2]   -
-SET_MODE             ST[8,1]   mode:uint8
-SET_PARAM            ST[20,3]  param_id:uint16, value:float64
-TEST_CONNECTION      ST[17,1]  -
+ADJUST_TIME          ST[9,128]   delta_s:float64
+DELETE_STORE_UP_TO   ST[15,11]   store_id:uint8, to_s:uint32
+DISABLE_EVENT_ACTION ST[19,5]    event_id:uint16
+DISABLE_HK           ST[3,6]     sid:uint8
+DISABLE_MONITOR      ST[12,2]    monitor_id:uint8
+DISABLE_SCHEDULE     ST[11,2]    -
+DISABLE_STORAGE      ST[15,2]    store_id:uint8
+ENABLE_EVENT_ACTION  ST[19,4]    event_id:uint16
+ENABLE_HK            ST[3,5]     sid:uint8
+ENABLE_MONITOR       ST[12,1]    monitor_id:uint8
+ENABLE_SCHEDULE      ST[11,1]    -
+ENABLE_STORAGE       ST[15,1]    store_id:uint8
+INSERT_ACTIVITIES    ST[11,4]    -
+REPORT_PARAM         ST[20,1]    param_id:uint16
+REPORT_STORE_SUMMARY ST[15,12]   store_id:uint8
+RESET_COUNTERS       ST[8,2]     -
+RESET_SCHEDULE       ST[11,3]    -
+RESTORE_WHEELS       ST[8,4]     mask:uint8
+RETRIEVE_BY_TIME     ST[15,9]    store_id:uint8, from_s:uint32, to_s:uint32
+SET_MODE             ST[8,1]     mode:uint8
+SET_PARAM            ST[20,3]    param_id:uint16, value:float64
+SET_TIME_REPORT_RATE ST[9,1]     rate_exp:uint8
+SWITCH_RAIL          ST[8,3]     rail:uint8, on:uint8
+TEST_CONNECTION      ST[17,1]    -
+TEST_WATCHDOG        ST[17,128]  -
 ```
 
 Every one of those service numbers means the same thing on a real ESA mission.
+`TEST_WATCHDOG` (subtype 128, so this mission's own) is the odd one out:
+Lesson 18 uses it to crash the computer on purpose.
 
 ## 💡 The extra header
 

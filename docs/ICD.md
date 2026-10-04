@@ -103,7 +103,7 @@ Core system health, scheduler timing and link statistics. Nominal generation rat
 
 ### ADCS_HK — structure id 2, APID `0x002`
 
-Attitude determination and control state. Nominal generation rate 1 Hz. Total packet size 140 bytes.
+Attitude determination and control state. Nominal generation rate 1 Hz. Total packet size 144 bytes.
 
 | Offset | Field | Type | Units | Description |
 |---:|---|---|---|---|
@@ -119,7 +119,7 @@ Attitude determination and control state. Nominal generation rate 1 Hz. Total pa
 | 30 | `gyro_bias_x` | float32 | rad/s | Estimated gyro bias X |
 | 34 | `gyro_bias_y` | float32 | rad/s | Estimated gyro bias Y |
 | 38 | `gyro_bias_z` | float32 | rad/s | Estimated gyro bias Z |
-| 42 | `pointing_err_deg` | float32 | deg | Angle between body and reference pointing axis |
+| 42 | `pointing_err_deg` | float32 | deg | Estimated angle between the payload boresight (body +Z) and nadir |
 | 46 | `rate_norm` | float32 | deg/s | Magnitude of the body rate vector |
 | 50 | `sun_valid` | uint8 | bool | Sun sensor reference is usable |
 | 51 | `mag_valid` | uint8 | bool | Magnetometer reference is usable |
@@ -138,6 +138,7 @@ Attitude determination and control state. Nominal generation rate 1 Hz. Total pa
 | 109 | `dipole_cmd_y` | float32 | A*m^2 | Commanded magnetorquer dipole Y |
 | 113 | `dipole_cmd_z` | float32 | A*m^2 | Commanded magnetorquer dipole Z |
 | 117 | `gps_valid` | uint8 | bool | GPS fix used in the last second |
+| 118 | `att_err_deg` | float32 | deg | Estimated three-axis attitude error from the target frame, yaw included |
 
 ### EPS_HK — structure id 3, APID `0x003`
 
@@ -401,8 +402,8 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 12 | `POINT_BANDWIDTH_RADPS` | float32 | 0.1 | 0.005 | 1.0 | rad/s | Natural frequency of the pointing control loop |
 | 13 | `POINT_MAX_SLEW_DPS` | float32 | 1.0 | 0.05 | 5.0 | deg/s | Largest body rate the pointing controller will command while acquiring |
 | 14 | `MOMENTUM_DUMP_GAIN` | float32 | 0.0005 | 0.0 | 0.1 | 1/s | Magnetic momentum-unloading gain |
-| 16 | `FDIR_HK_PERIOD_MS` | uint32 | 1000 | 100 | 60000 | ms | Generation period of FDIR_HK |
 | 15 | `BATT_CAPACITY_WH` | float32 | 30.0 | 1.0 | 1000.0 | W*h | Usable battery energy at 100% state of charge |
+| 16 | `FDIR_HK_PERIOD_MS` | uint32 | 1000 | 100 | 60000 | ms | Generation period of FDIR_HK |
 
 `ST[20,1]` requests one parameter and is answered by `ST[20,2]`, which reports the identifier followed by the value widened to a 64-bit float. `ST[20,3]` sets a parameter; the value is sent as a 64-bit float and converted to the parameter's declared type, and is rejected with `ILLEGAL_ARG` if it falls outside the declared range.
 

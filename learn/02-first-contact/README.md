@@ -56,7 +56,8 @@ HYPERSAT flight software up.
   base rate   : 50 Hz
   time scale  : 1.00x
   tasks       : 5 registered
-  parameters  : 15
+  parameters  : 16
+  boot        : #1, after POWER_ON
 t=    1s  link=DOWN  tc=0/0  tm=0  load=0%  overruns=0
 t=    2s  link=DOWN  tc=0/0  tm=0  load=0%  overruns=0
 ```
@@ -68,6 +69,11 @@ station is connected yet.
 (The first time, it may also print a note that it found no saved
 parameters and is using its built-in ones. That is normal: Lesson 9 explains
 it.)
+
+The `boot` line counts every start, and the count is kept in the
+spacecraft's non-volatile memory, so it goes up each time you run it. It also
+says *why* the computer started. A real spacecraft that reports a boot nobody
+commanded has had something go wrong; Lesson 18 makes that happen on purpose.
 
 The `sim bridge` line is where a simulated universe can plug in: sensors that
 see a real Sun and a real magnetic field, wheels that really spin. Nothing is
@@ -85,10 +91,11 @@ Watch terminal 1. `link=DOWN` becomes `link=UP`. You just made contact.
 And in terminal 2, telemetry starts flowing:
 
 ```
-  t=     0.563  apid=0x001 seq=    2  EVENT_INFO         LINK_CONNECTED aux=0
-  t=     1.023  apid=0x001 seq=    3  SYS_HK             uptime_s=1  tick_count=51  mode=BOOT  boot_count=0
-  t=     1.023  apid=0x002 seq=    1  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
-  t=     1.023  apid=0x003 seq=    1  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
+  t=     0.602  apid=0x001 seq=    2  EVENT_INFO         LINK_CONNECTED aux=0
+  t=     1.122  apid=0x001 seq=    3  SYS_HK             uptime_s=1  tick_count=56  mode=BOOT  boot_count=1
+  t=     1.122  apid=0x002 seq=    1  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
+  t=     1.122  apid=0x003 seq=    1  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
+  t=     1.122  apid=0x004 seq=    1  FDIR_HK            wheel_state=MONITOR  wheels_usable=7  wheel_retries=0  wheel_resid_x=0
 ```
 
 The spacecraft is reporting on itself once a second, without being asked.
@@ -143,7 +150,7 @@ python3 -m pyground send FLY_TO_MARS
 ```
 
 ```
-error: "unknown telecommand 'FLY_TO_MARS'; known: ADJUST_TIME, DELETE_STORE_UP_TO, DISABLE_HK, ...
+error: "unknown telecommand 'FLY_TO_MARS'; known: ADJUST_TIME, DELETE_STORE_UP_TO, DISABLE_EVENT_ACTION, ...
 ```
 
 The ground station stopped you before anything was transmitted. Good — radio

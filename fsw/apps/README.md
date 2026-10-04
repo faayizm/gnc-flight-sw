@@ -11,7 +11,7 @@ apps/
 ├── adcs/       attitude determination and control   WORKING (docs/ATTITUDE.md)
 ├── eps/        electrical power                     WORKING (docs/POWER_AND_MODES.md)
 ├── modemgr/    spacecraft mode arbitration          WORKING (docs/POWER_AND_MODES.md)
-└── fdir/       fault detection, isolation, recovery Phase 6
+└── fdir/       fault detection, isolation, recovery WORKING (docs/FDIR.md)
 
 messages.hpp    every bus payload, with its publisher and subscribers
 ```

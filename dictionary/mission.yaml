@@ -205,7 +205,7 @@ telemetry:
       - {name: gyro_bias_x,      type: float32, units: rad/s,   desc: Estimated gyro bias X}
       - {name: gyro_bias_y,      type: float32, units: rad/s,   desc: Estimated gyro bias Y}
       - {name: gyro_bias_z,      type: float32, units: rad/s,   desc: Estimated gyro bias Z}
-      - {name: pointing_err_deg, type: float32, units: deg,     desc: Angle between body and reference pointing axis}
+      - {name: pointing_err_deg, type: float32, units: deg,     desc: "Estimated angle between the payload boresight (body +Z) and nadir"}
       - {name: rate_norm,        type: float32, units: deg/s,   desc: Magnitude of the body rate vector}
       - {name: sun_valid,        type: uint8,   units: bool,    desc: Sun sensor reference is usable}
       - {name: mag_valid,        type: uint8,   units: bool,    desc: Magnetometer reference is usable}
@@ -224,6 +224,7 @@ telemetry:
       - {name: dipole_cmd_y,     type: float32, units: A*m^2,   desc: Commanded magnetorquer dipole Y}
       - {name: dipole_cmd_z,     type: float32, units: A*m^2,   desc: Commanded magnetorquer dipole Z}
       - {name: gps_valid,        type: uint8,   units: bool,    desc: GPS fix used in the last second}
+      - {name: att_err_deg,      type: float32, units: deg,     desc: "Estimated three-axis attitude error from the target frame, yaw included"}
 
   - name: EPS_HK
     sid: 3
@@ -499,8 +500,8 @@ params:
   - {name: POINT_BANDWIDTH_RADPS, id: 12, type: float32, default: 0.1, min: 0.005, max: 1.0, units: rad/s, desc: Natural frequency of the pointing control loop}
   - {name: POINT_MAX_SLEW_DPS,  id: 13, type: float32, default: 1.0,  min: 0.05, max: 5.0,   units: deg/s, desc: Largest body rate the pointing controller will command while acquiring}
   - {name: MOMENTUM_DUMP_GAIN,  id: 14, type: float32, default: 0.0005, min: 0.0, max: 0.1, units: 1/s,  desc: Magnetic momentum-unloading gain}
-  - {name: FDIR_HK_PERIOD_MS,   id: 16, type: uint32, default: 1000, min: 100, max: 60000, units: ms,   desc: Generation period of FDIR_HK}
   - {name: BATT_CAPACITY_WH,    id: 15, type: float32, default: 30.0, min: 1.0, max: 1000.0, units: W*h, desc: Usable battery energy at 100% state of charge}
+  - {name: FDIR_HK_PERIOD_MS,   id: 16, type: uint32, default: 1000, min: 100, max: 60000, units: ms,   desc: Generation period of FDIR_HK}
 
 # -----------------------------------------------------------------------------
 # On-board monitoring, PUS ST[12]. Each monitor checks one housekeeping field

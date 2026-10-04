@@ -58,6 +58,7 @@ inside the spacecraft. In this project:
 | `0x001` | The communications software |
 | `0x002` | Attitude control |
 | `0x003` | Power |
+| `0x004` | Fault management (Lesson 18) |
 | `0x00A` | The ground station |
 
 **Sequence count** is how the ground detects a lost packet. Each APID counts

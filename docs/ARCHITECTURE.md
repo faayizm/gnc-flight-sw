@@ -175,8 +175,10 @@ integer up to 2^53, which covers every type the dictionary currently allows
 except a 64-bit integer above that magnitude. The generator would need
 extending before such a parameter could be declared.
 
-**No radiation effects yet.** No SEU injection, no EDAC, no memory scrubbing,
-no redundancy on critical state. Phase 6.
+**Radiation protection covers three things.** The parameter table is under
+EDAC with scrubbing, and the mode and the wheel-isolation mask are under TMR
+(see [FDIR.md](FDIR.md)). Every application's working state is unprotected,
+as it would be on a processor without EDAC memory.
 
 **SAFE mode damps rates; it does not point at the Sun.** In SAFE the wheels
 are unpowered and B-dot holds the body slowly turning. The arrays see the Sun

@@ -24,14 +24,14 @@ services.
 | ST[01] verification | 1, 2, 7, 8 | Acceptance and completion, success and failure. Without this the ground is commanding blind |
 | ST[03] housekeeping | 5, 6, 25 | Periodic parameter reports; enable and disable per structure |
 | ST[05] events | 1–4 | Severity-coded event reports. The subtype *is* the severity, which lets a ground system filter on urgency knowing nothing about this mission |
-| ST[08] functions | 1, 2, 3 | Mode requests (judged by the mode manager), counter reset, power rail requests (applied by EPS) |
+| ST[08] functions | 1, 2, 3, 4 | Mode requests (judged by the mode manager), counter reset, power rail requests (applied by EPS), restoring isolated wheels (FDIR) |
 | ST[09] time | 1, 2, 128 | Periodic CUC time reports; ADJUST_TIME (mission-specific) applies the ground's correlation and sets the time reference status to 1 |
 | ST[11] scheduling | 1, 2, 3, 4 | Time-tagged telecommands: enable, disable, reset, insert (all-or-nothing) |
 | ST[15] storage | 1, 2, 9, 11, 12, 13 | Record every packet; replay a time range on the playback channel; delete; summary |
-| ST[17] test | 1, 2 | A connection test that changes no state — safe to send at any time, in any mode |
+| ST[12] monitoring | 1, 2, 12 | Enable and disable a monitor (carried to FDIR, which owns them); check transition reports |
+| ST[17] test | 1, 2, 128 | A connection test that changes no state — safe to send at any time, in any mode; TEST_WATCHDOG stops servicing the watchdog |
+| ST[19] event-action | 4, 5 | Enable and disable the stored telecommand an event triggers; actions run here, through the same dispatch as an uplinked command |
 | ST[20] parameters | 1, 2, 3 | Read and write on-board parameters, range-checked |
-
-ST[12] on-board monitoring arrives with fault management in Phase 6.
 
 ## Validation order, and why it is fixed
 

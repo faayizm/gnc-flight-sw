@@ -19,6 +19,11 @@ core::Status FdirApp::init() {
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::AdcsHk, &FdirApp::on_adcs_hk, this); }
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::EpsHk, &FdirApp::on_eps_hk, this); }
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::MonitorControl, &FdirApp::on_monitor_control, this); }
+    // Say so from the start: before the first sample, every wheel is in
+    // service and nothing is being retried -- not "zero wheels usable".
+    hk_.wheels_usable    = ladder_.usable();
+    hk_.monitors_enabled = monitoring_.enabled_count();
+    bus_.publish_object(core::Topic::FdirHk, hk_);
     return s;
 }
 

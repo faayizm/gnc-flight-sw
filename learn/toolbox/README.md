@@ -18,6 +18,7 @@ python3 learn/toolbox/byte_order.py
 | `packet_explorer.py` | A real packet taken apart byte by byte, with a bit diagram generated from the actual bytes | 5, 6 |
 | `orbit_sandbox.py` | How fast you must go to stay in orbit, and an orbit integrated from Newton's law alone | 12 |
 | `spin_sandbox.py` | Why a tumbling satellite keeps tumbling, and how a magnet stops it | 13, 16 |
+| `edac_playground.py` | Flip a bit in memory and watch the code name the broken bit; why memory is scrubbed | 18 |
 
 ## `packet_explorer.py --live`
 

@@ -156,6 +156,13 @@ wrong attitude, and then the controller will point the spacecraft accordingly.
 The honest answer is often "I do not know right now", and software has to be
 able to say it.
 
+A sensor's own flag is not always enough, though. A sensor that has frozen
+still says its reading is valid, because as far as its electronics know, it
+is. The flight software catches that from the data instead: every real
+sensor has noise, so a reading that repeats *exactly*, ten times in a row,
+cannot be real. Noise, the enemy of this whole lesson, turns out to be
+evidence that a sensor is alive. Lesson 18 shows the check at work.
+
 ## 👀 See it — bias versus noise
 
 Save this as `bias_demo.py` and run it:

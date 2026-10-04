@@ -179,6 +179,9 @@ Instead, [`posix_watchdog.hpp`](../../fsw/platform/posix/posix_watchdog.hpp)
 
 ```cpp
 void PosixWatchdog::kick() {
+    if (host_timeout_ms_ > 0) { rearm(host_timeout_ms_); }
+    if (!enabled_) { return; }
+
     const core::Instant now = clock_.now();
     const auto gap_ms = static_cast<uint32_t>((now - last_kick_).to_millis());
 
@@ -194,13 +197,20 @@ void PosixWatchdog::kick() {
 When you stop the spacecraft it reports:
 
 ```
-  watchdog     : longest gap 21 ms, 0 notional resets
+  watchdog     : longest gap 20 ms, 0 notional resets
 ```
 
 An otherwise untestable component has become a source of evidence. If the
 hosted build says the loop went quiet for longer than the timeout, the flight
 build on real hardware *would have reset* — and it is far better to learn that
 on your desk.
+
+And it can also bite. That first line re-arms a real timer on the host's own
+clock. If the loop stops kicking for five seconds, the timer fires, leaves a
+note saying "the watchdog did this", and ends the program, as a reset would.
+The next start reads the note. Five seconds rather than the flight build's
+tens of milliseconds, because a busy laptop is not a wedged loop. Lesson 18
+makes it happen on purpose.
 
 ## 🎓 Go deeper — what a port must not do
 
