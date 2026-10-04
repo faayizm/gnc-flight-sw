@@ -12,6 +12,7 @@ core::Status EpsApp::init() {
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::ModeChanged, &EpsApp::on_mode, this); }
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::UplinkActivity, &EpsApp::on_uplink, this); }
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::RailRequest, &EpsApp::on_rail, this); }
+    if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::FdirRails, &EpsApp::on_fdir, this); }
     return s;
 }
 
@@ -45,6 +46,14 @@ void EpsApp::on_rail(void* ctx, core::Topic, const uint8_t* data, size_t length)
     self->events_.raise(dict::EventId::RAIL_SWITCHED, static_cast<uint32_t>((r.rail << 8) | (r.on ? 1 : 0)));
 }
 
+void EpsApp::on_fdir(void* ctx, core::Topic, const uint8_t* data, size_t length) {
+    if (length != sizeof(msg::FdirRails)) { return; }
+    msg::FdirRails r;
+    std::memcpy(&r, data, sizeof r);
+    // Never the rails that keep the spacecraft alive and listening.
+    static_cast<EpsApp*>(ctx)->fdir_off_ = static_cast<uint16_t>(r.off & ~kProtectedRails);
+}
+
 void EpsApp::step(const msg::SensorFrame& s) {
     if (!s.eps_valid) { return; }
 
@@ -73,7 +82,7 @@ void EpsApp::step(const msg::SensorFrame& s) {
         level_ = level;
     }
     const bool tx_hold = s.time_s - last_uplink_s_ < kTxHoldS;
-    rails_ = rail_policy(mode_, level_, tx_hold, ground_rails_);
+    rails_ = static_cast<uint16_t>(rail_policy(mode_, level_, tx_hold, ground_rails_) & ~fdir_off_);
 
     msg::PowerStatus ps;
     ps.power_state = static_cast<uint8_t>(state_);

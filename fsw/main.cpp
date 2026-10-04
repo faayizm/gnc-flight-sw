@@ -29,6 +29,7 @@
 
 #include "apps/adcs/adcs_app.hpp"
 #include "apps/eps/eps_app.hpp"
+#include "apps/fdir/fdir_app.hpp"
 #include "apps/io/sim_io_app.hpp"
 #include "apps/modemgr/mode_manager.hpp"
 #include "apps/ttc/ttc_app.hpp"
@@ -167,8 +168,11 @@ int main(int argc, char** argv) {
     static fsw::eps::EpsApp         eps(bus, events, params);
     static fsw::io::SimIoApp        io(sim_link, clock, bus, events);
     static fsw::modemgr::ModeManager modes(clock, bus, events, params);
+    // Last: FDIR judges each sample after ADCS, EPS and I/O have answered it.
+    static fsw::fdir::FdirApp       fdir(bus, events);
     if (!fsw::core::is_ok(adcs.init()) || !fsw::core::is_ok(eps.init()) ||
-        !fsw::core::is_ok(io.init()) || !fsw::core::is_ok(modes.init())) {
+        !fsw::core::is_ok(io.init()) || !fsw::core::is_ok(modes.init()) ||
+        !fsw::core::is_ok(fdir.init())) {
         std::fprintf(stderr, "fatal: an application failed to initialise\n");
         return 1;
     }

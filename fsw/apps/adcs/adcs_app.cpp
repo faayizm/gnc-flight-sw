@@ -25,6 +25,8 @@ Vec3f to_f(const Vec3& v) {
 core::Status AdcsApp::init() {
     core::Status st = bus_.subscribe(core::Topic::SensorData, &AdcsApp::on_sensor, this);
     if (!core::is_ok(st)) { return st; }
+    st = bus_.subscribe(core::Topic::WheelHealth, &AdcsApp::on_wheels, this);
+    if (!core::is_ok(st)) { return st; }
     return bus_.subscribe(core::Topic::ModeChanged, &AdcsApp::on_mode, this);
 }
 
@@ -42,6 +44,13 @@ void AdcsApp::on_mode(void* ctx, core::Topic, const uint8_t* data, size_t length
     static_cast<AdcsApp*>(ctx)->system_mode_ = static_cast<dict::SystemMode>(m.to);
 }
 
+void AdcsApp::on_wheels(void* ctx, core::Topic, const uint8_t* data, size_t length) {
+    if (length != sizeof(msg::WheelHealth)) { return; }
+    msg::WheelHealth w;
+    std::memcpy(&w, data, sizeof w);
+    static_cast<AdcsApp*>(ctx)->wheels_usable_ = w.usable;
+}
+
 void AdcsApp::run_orbit(const msg::SensorFrame& s) {
     if (s.gps_valid) {
         orbit_.set_state(Vec3{s.gps_pos[0], s.gps_pos[1], s.gps_pos[2]},
@@ -53,9 +62,12 @@ void AdcsApp::run_orbit(const msg::SensorFrame& s) {
 }
 
 void AdcsApp::run_estimator(const msg::SensorFrame& s, double dt) {
-    const Vec3 gyro = to_d(s.gyro_rps);
-    if (mekf_.initialised() && s.gyro_valid && dt > 0.0) {
-        mekf_.propagate(gyro, dt, mekf_cfg_);
+    // Without a gyro reading the attitude still moves. Coasting on the last
+    // good reading is far better than freezing the estimate while the
+    // spacecraft turns underneath it; the star tracker corrects what drifts.
+    if (s.gyro_valid) { last_gyro_ = to_d(s.gyro_rps); }
+    if (mekf_.initialised() && dt > 0.0) {
+        mekf_.propagate(last_gyro_, dt, mekf_cfg_);
     }
     if (!orbit_.valid()) { return; }
 
@@ -179,13 +191,15 @@ msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
         out.dipole_a_m2 = bdot_m;
         out.mtq_commanded = true;
         body_torque = cross(to_d(bdot_m), to_d(s.mag_t));
-    } else if (ctrl_mode_ == dict::AdcsCtrlMode::POINTING && s.wheels_valid && mekf_.initialised() &&
+    } else if (ctrl_mode_ == dict::AdcsCtrlMode::POINTING && s.wheels_valid && s.gyro_valid &&
+               mekf_.initialised() &&
                orbit_.valid()) {
         PointingConfig pc;
         pc.bandwidth_rps = params_.get_f64(dict::ParamId::POINT_BANDWIDTH_RADPS);
         pc.max_slew_rps  = params_.get_f64(dict::ParamId::POINT_MAX_SLEW_DPS) / kRadToDeg;
         pc.dump_gain     = params_.get_f64(dict::ParamId::MOMENTUM_DUMP_GAIN);
         pc.max_dipole    = params_.get_f64(dict::ParamId::MTQ_MAX_DIPOLE);
+        pc.wheels_usable = wheels_usable_;
         const PointingOutput po = nadir_control(mekf_.attitude(), omega, to_d(s.wheel_h),
                                                 orbit_.position(), orbit_.velocity(),
                                                 to_d(s.mag_t), s.mag_valid, pc);

@@ -11,6 +11,7 @@ APIDS = {
     'TTC': 0x001,
     'ADCS': 0x002,
     'EPS': 0x003,
+    'FDIR': 0x004,
     'GND': 0x00A,
 }
 
@@ -22,8 +23,12 @@ ENUMS = {
     'AdcsCtrlMode': {'IDLE': 0, 'DETUMBLE': 1, 'STANDBY': 2, 'POINTING': 3},
     'PowerState': {'UNKNOWN': 0, 'NOMINAL': 1, 'LOW': 2, 'CRITICAL': 3},
     'PowerRail': {'OBC': 0, 'RX': 1, 'TX': 2, 'ADCS': 3, 'WHEELS': 4, 'PAYLOAD': 5, 'OPS_HEATERS': 6, 'SURVIVAL_HEATERS': 7},
-    'ModeRefusal': {'NONE': 0, 'RATES_HIGH': 1, 'ATTITUDE_UNKNOWN': 2, 'POWER': 3, 'NOT_FROM_MODE': 4, 'INVALID': 5},
-    'SafeReason': {'GROUND': 0, 'POWER_CRITICAL': 1, 'NO_CONTACT': 2},
+    'ModeRefusal': {'NONE': 0, 'RATES_HIGH': 1, 'ATTITUDE_UNKNOWN': 2, 'POWER': 3, 'NOT_FROM_MODE': 4, 'INVALID': 5, 'WHEELS': 6},
+    'SafeReason': {'GROUND': 0, 'POWER_CRITICAL': 1, 'NO_CONTACT': 2, 'ACTUATORS': 3},
+    'SensorId': {'MAG': 0, 'GYRO': 1, 'SUN': 2, 'STAR': 3, 'GPS': 4},
+    'SensorFault': {'NONE': 0, 'RANGE': 1, 'FROZEN': 2},
+    'FdirWheelState': {'MONITOR': 0, 'CYCLE_OFF': 1, 'VERIFY': 2},
+    'MonitorStatus': {'UNCHECKED': 0, 'WITHIN': 1, 'BELOW': 2, 'ABOVE': 3},
     'Severity': {'INFO': 1, 'LOW': 2, 'MEDIUM': 3, 'HIGH': 4},
 }
 
@@ -32,6 +37,7 @@ TELEMETRY = {
     'SYS_HK': (1, 0x001, [('uptime_s', 'uint32', 's', None), ('tick_count', 'uint32', 'ticks', None), ('mode', 'uint8', '', 'SystemMode'), ('boot_count', 'uint16', 'count', None), ('cpu_load_pct', 'uint8', '%', None), ('sched_overruns', 'uint16', 'count', None), ('tc_received', 'uint32', 'count', None), ('tc_rejected', 'uint32', 'count', None), ('tm_sent', 'uint32', 'count', None), ('link_up', 'uint8', 'bool', None), ('events_logged', 'uint32', 'count', None), ('last_event_id', 'uint16', 'id', None), ('tm_frames_sent', 'uint32', 'count', None), ('tc_frames_ok', 'uint32', 'count', None), ('tc_frames_bad', 'uint32', 'count', None), ('cltu_corrected', 'uint32', 'count', None), ('farm_vr', 'uint8', '-', None), ('farm_lockout', 'uint8', 'bool', None), ('time_status', 'uint8', '-', None), ('sched_pending', 'uint16', 'count', None), ('sched_enabled', 'uint8', 'bool', None), ('store_packets', 'uint32', 'count', None), ('store_used_pct', 'uint8', '%', None)]),
     'ADCS_HK': (2, 0x002, [('est_state', 'uint8', '', 'AdcsEstState'), ('ctrl_mode', 'uint8', '', 'AdcsCtrlMode'), ('q_est_0', 'float32', '-', None), ('q_est_1', 'float32', '-', None), ('q_est_2', 'float32', '-', None), ('q_est_3', 'float32', '-', None), ('omega_x', 'float32', 'rad/s', None), ('omega_y', 'float32', 'rad/s', None), ('omega_z', 'float32', 'rad/s', None), ('gyro_bias_x', 'float32', 'rad/s', None), ('gyro_bias_y', 'float32', 'rad/s', None), ('gyro_bias_z', 'float32', 'rad/s', None), ('pointing_err_deg', 'float32', 'deg', None), ('rate_norm', 'float32', 'deg/s', None), ('sun_valid', 'uint8', 'bool', None), ('mag_valid', 'uint8', 'bool', None), ('eclipse', 'uint8', 'bool', None), ('torque_cmd_x', 'float32', 'N*m', None), ('torque_cmd_y', 'float32', 'N*m', None), ('torque_cmd_z', 'float32', 'N*m', None), ('pos_eci_x', 'float64', 'm', None), ('pos_eci_y', 'float64', 'm', None), ('pos_eci_z', 'float64', 'm', None), ('att_sigma_deg', 'float32', 'deg', None), ('wheel_h_x', 'float32', 'N*m*s', None), ('wheel_h_y', 'float32', 'N*m*s', None), ('wheel_h_z', 'float32', 'N*m*s', None), ('dipole_cmd_x', 'float32', 'A*m^2', None), ('dipole_cmd_y', 'float32', 'A*m^2', None), ('dipole_cmd_z', 'float32', 'A*m^2', None), ('gps_valid', 'uint8', 'bool', None)]),
     'EPS_HK': (3, 0x003, [('power_state', 'uint8', '', 'PowerState'), ('batt_voltage', 'float32', 'V', None), ('batt_current', 'float32', 'A', None), ('batt_soc_pct', 'float32', '%', None), ('batt_temp_c', 'float32', 'degC', None), ('solar_power_w', 'float32', 'W', None), ('load_power_w', 'float32', 'W', None), ('rails_enabled', 'uint16', 'mask', None), ('shed_level', 'uint8', 'level', None)]),
+    'FDIR_HK': (4, 0x004, [('wheel_state', 'uint8', '', 'FdirWheelState'), ('wheels_usable', 'uint8', 'mask', None), ('wheel_retries', 'uint8', 'count', None), ('wheel_resid_x', 'float32', 'N*m*s', None), ('wheel_resid_y', 'float32', 'N*m*s', None), ('wheel_resid_z', 'float32', 'N*m*s', None), ('monitors_enabled', 'uint8', 'count', None), ('monitors_alarm', 'uint8', 'count', None)]),
 }
 
 # name -> (service, subtype, [(arg, type, enum_or_None), ...])
@@ -43,6 +49,11 @@ COMMANDS = {
     'SET_PARAM': (20, 3, [('param_id', 'uint16', None), ('value', 'float64', None)]),
     'SET_MODE': (8, 1, [('mode', 'uint8', 'SystemMode')]),
     'SWITCH_RAIL': (8, 3, [('rail', 'uint8', 'PowerRail'), ('on', 'uint8', None)]),
+    'RESTORE_WHEELS': (8, 4, [('mask', 'uint8', None)]),
+    'ENABLE_MONITOR': (12, 1, [('monitor_id', 'uint8', None)]),
+    'DISABLE_MONITOR': (12, 2, [('monitor_id', 'uint8', None)]),
+    'ENABLE_EVENT_ACTION': (19, 4, [('event_id', 'uint16', None)]),
+    'DISABLE_EVENT_ACTION': (19, 5, [('event_id', 'uint16', None)]),
     'RESET_COUNTERS': (8, 2, []),
     'SET_TIME_REPORT_RATE': (9, 1, [('rate_exp', 'uint8', None)]),
     'ADJUST_TIME': (9, 128, [('delta_s', 'float64', None)]),
@@ -86,6 +97,19 @@ EVENTS = {
     26: ('LOAD_SHED', 'MEDIUM', 'Load-shedding level changed; aux = new level (0 = everything restored)'),
     27: ('RAIL_SWITCHED', 'INFO', 'A power rail was switched by ground command; aux = rail << 8 | on'),
     15: ('SENSOR_RESTORED', 'INFO', 'Sensor data resumed after a timeout'),
+    12: ('SENSOR_REJECTED', 'MEDIUM', 'A sensor failed its range or frozen-value check and is ignored; aux = SensorId << 8 | SensorFault'),
+    28: ('WHEEL_FAULT', 'MEDIUM', 'A reaction wheel is not delivering its commanded torque; aux = wheel mask, bit 0 = X'),
+    29: ('WHEEL_POWER_CYCLE', 'INFO', 'Wheel drives switched off and on to clear a possible latch-up; aux = wheels under test'),
+    30: ('WHEEL_RECOVERED', 'INFO', 'A wheel works again after its power cycle; aux = wheel mask'),
+    31: ('WHEEL_ISOLATED', 'HIGH', 'A wheel still failed after its retry and is out of service; aux = wheel mask'),
+    32: ('BATT_VOLTAGE_ALARM', 'MEDIUM', 'Battery voltage outside its monitoring limits; aux = monitor id << 8 | MonitorStatus'),
+    33: ('BATT_TEMP_ALARM', 'MEDIUM', 'Battery temperature outside its monitoring limits; aux = monitor id << 8 | MonitorStatus'),
+    34: ('RATE_ALARM', 'MEDIUM', 'Body rate above its monitoring limit; aux = monitor id << 8 | MonitorStatus'),
+    35: ('POINTING_LOST', 'HIGH', 'Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus'),
+    36: ('WHEEL_MOMENTUM_HIGH', 'MEDIUM', 'A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus'),
+    37: ('EVENT_ACTION', 'INFO', 'An on-board action ran in response to an event; aux = the triggering event id'),
+    18: ('SENSOR_GAP', 'MEDIUM', 'Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds'),
+    13: ('SENSOR_READMITTED', 'INFO', 'A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId'),
 }
 
 # id -> (name, type, default, min, max, units, description)
@@ -104,7 +128,24 @@ PARAMS = {
     12: ('POINT_BANDWIDTH_RADPS', 'float32', 0.1, 0.005, 1.0, 'rad/s', 'Natural frequency of the pointing control loop'),
     13: ('POINT_MAX_SLEW_DPS', 'float32', 1.0, 0.05, 5.0, 'deg/s', 'Largest body rate the pointing controller will command while acquiring'),
     14: ('MOMENTUM_DUMP_GAIN', 'float32', 0.0005, 0.0, 0.1, '1/s', 'Magnetic momentum-unloading gain'),
+    16: ('FDIR_HK_PERIOD_MS', 'uint32', 1000, 100, 60000, 'ms', 'Generation period of FDIR_HK'),
     15: ('BATT_CAPACITY_WH', 'float32', 30.0, 1.0, 1000.0, 'W*h', 'Usable battery energy at 100% state of charge'),
+}
+
+# id -> (name, packet, field, low, high, repetitions, event)
+MONITORS = {
+    1: ('BATT_VOLTAGE', 'EPS_HK', 'batt_voltage', 6.6, 8.7, 50, 'BATT_VOLTAGE_ALARM'),
+    2: ('BATT_TEMP', 'EPS_HK', 'batt_temp_c', -5.0, 45.0, 100, 'BATT_TEMP_ALARM'),
+    3: ('BODY_RATE', 'ADCS_HK', 'rate_norm', -1.0, 5.0, 50, 'RATE_ALARM'),
+    4: ('POINTING', 'ADCS_HK', 'pointing_err_deg', -1.0, 15.0, 3000, 'POINTING_LOST'),
+    5: ('WHEEL_H_X', 'ADCS_HK', 'wheel_h_x', -0.02, 0.02, 50, 'WHEEL_MOMENTUM_HIGH'),
+    6: ('WHEEL_H_Y', 'ADCS_HK', 'wheel_h_y', -0.02, 0.02, 50, 'WHEEL_MOMENTUM_HIGH'),
+    7: ('WHEEL_H_Z', 'ADCS_HK', 'wheel_h_z', -0.02, 0.02, 50, 'WHEEL_MOMENTUM_HIGH'),
+}
+
+# event name -> (command, args, description)
+EVENT_ACTIONS = {
+    'POINTING_LOST': ('SET_MODE', {'mode': 'SAFE'}, 'Pointing has been lost for five minutes and nothing below has recovered it: stop trying, go SAFE, wait for the ground'),
 }
 
 STRUCT_CODES = {

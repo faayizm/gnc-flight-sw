@@ -186,6 +186,39 @@ TELEMETRY SAT EPS_HK BIG_ENDIAN "Power subsystem state."
   APPEND_ITEM    SHED_LEVEL      8 UINT  "Active load-shedding level"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
+TELEMETRY SAT FDIR_HK BIG_ENDIAN "Fault management state."
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 4 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 3 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 25 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ID_ITEM SID             8 UINT 4 "Housekeeping structure identifier"
+  APPEND_ITEM    WHEEL_STATE     8 UINT  "Reaction-wheel recovery ladder state"
+    STATE MONITOR 0
+    STATE CYCLE_OFF 1
+    STATE VERIFY 2
+  APPEND_ITEM    WHEELS_USABLE   8 UINT  "Reaction wheels in service, bit 0 = X"
+  APPEND_ITEM    WHEEL_RETRIES   8 UINT  "Power-cycle retries spent"
+  APPEND_ITEM    WHEEL_RESID_X  32 FLOAT "Wheel X momentum not explained by its commands"
+    UNITS N*m*s N*m*s
+  APPEND_ITEM    WHEEL_RESID_Y  32 FLOAT "Wheel Y momentum not explained by its commands"
+    UNITS N*m*s N*m*s
+  APPEND_ITEM    WHEEL_RESID_Z  32 FLOAT "Wheel Z momentum not explained by its commands"
+    UNITS N*m*s N*m*s
+  APPEND_ITEM    MONITORS_ENABLED  8 UINT  "ST[12] parameter monitors enabled"
+  APPEND_ITEM    MONITORS_ALARM  8 UINT  "ST[12] monitors currently out of limits"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
 TELEMETRY SAT EVENT_INFO BIG_ENDIAN "PUS ST[5,1] info event report"
   APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
   APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
@@ -227,6 +260,19 @@ TELEMETRY SAT EVENT_INFO BIG_ENDIAN "PUS ST[5,1] info event report"
     STATE LOAD_SHED 26
     STATE RAIL_SWITCHED 27
     STATE SENSOR_RESTORED 15
+    STATE SENSOR_REJECTED 12
+    STATE WHEEL_FAULT 28
+    STATE WHEEL_POWER_CYCLE 29
+    STATE WHEEL_RECOVERED 30
+    STATE WHEEL_ISOLATED 31
+    STATE BATT_VOLTAGE_ALARM 32
+    STATE BATT_TEMP_ALARM 33
+    STATE RATE_ALARM 34
+    STATE POINTING_LOST 35
+    STATE WHEEL_MOMENTUM_HIGH 36
+    STATE EVENT_ACTION 37
+    STATE SENSOR_GAP 18
+    STATE SENSOR_READMITTED 13
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
@@ -271,6 +317,19 @@ TELEMETRY SAT EVENT_LOW BIG_ENDIAN "PUS ST[5,2] low event report"
     STATE LOAD_SHED 26
     STATE RAIL_SWITCHED 27
     STATE SENSOR_RESTORED 15
+    STATE SENSOR_REJECTED 12
+    STATE WHEEL_FAULT 28
+    STATE WHEEL_POWER_CYCLE 29
+    STATE WHEEL_RECOVERED 30
+    STATE WHEEL_ISOLATED 31
+    STATE BATT_VOLTAGE_ALARM 32
+    STATE BATT_TEMP_ALARM 33
+    STATE RATE_ALARM 34
+    STATE POINTING_LOST 35
+    STATE WHEEL_MOMENTUM_HIGH 36
+    STATE EVENT_ACTION 37
+    STATE SENSOR_GAP 18
+    STATE SENSOR_READMITTED 13
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
@@ -315,6 +374,19 @@ TELEMETRY SAT EVENT_MEDIUM BIG_ENDIAN "PUS ST[5,3] medium event report"
     STATE LOAD_SHED 26
     STATE RAIL_SWITCHED 27
     STATE SENSOR_RESTORED 15
+    STATE SENSOR_REJECTED 12
+    STATE WHEEL_FAULT 28
+    STATE WHEEL_POWER_CYCLE 29
+    STATE WHEEL_RECOVERED 30
+    STATE WHEEL_ISOLATED 31
+    STATE BATT_VOLTAGE_ALARM 32
+    STATE BATT_TEMP_ALARM 33
+    STATE RATE_ALARM 34
+    STATE POINTING_LOST 35
+    STATE WHEEL_MOMENTUM_HIGH 36
+    STATE EVENT_ACTION 37
+    STATE SENSOR_GAP 18
+    STATE SENSOR_READMITTED 13
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
@@ -359,6 +431,19 @@ TELEMETRY SAT EVENT_HIGH BIG_ENDIAN "PUS ST[5,4] high event report"
     STATE LOAD_SHED 26
     STATE RAIL_SWITCHED 27
     STATE SENSOR_RESTORED 15
+    STATE SENSOR_REJECTED 12
+    STATE WHEEL_FAULT 28
+    STATE WHEEL_POWER_CYCLE 29
+    STATE WHEEL_RECOVERED 30
+    STATE WHEEL_ISOLATED 31
+    STATE BATT_VOLTAGE_ALARM 32
+    STATE BATT_TEMP_ALARM 33
+    STATE RATE_ALARM 34
+    STATE POINTING_LOST 35
+    STATE WHEEL_MOMENTUM_HIGH 36
+    STATE EVENT_ACTION 37
+    STATE SENSOR_GAP 18
+    STATE SENSOR_READMITTED 13
   APPEND_ITEM    AUX_DATA       32 UINT  "Event auxiliary data"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
@@ -520,6 +605,44 @@ TELEMETRY SAT STORE_SUMMARY BIG_ENDIAN "PUS ST[15,13] packet store summary repor
   APPEND_ITEM    USED_PCT        8 UINT  "Fill level, percent"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
 
+TELEMETRY SAT MONITOR_REPORT BIG_ENDIAN "PUS ST[12,12] check transition report"
+  APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
+  APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
+  APPEND_ITEM    CCSDS_SECHDR    1 UINT   "Secondary header flag, always 1 for PUS"
+  APPEND_ID_ITEM CCSDS_APID     11 UINT 4 "Application process identifier"
+  APPEND_ITEM    CCSDS_SEQFLAGS  2 UINT   "Sequence flags, 3 = unsegmented"
+  APPEND_ITEM    CCSDS_SEQCNT   14 UINT   "Packet sequence count"
+  APPEND_ITEM    CCSDS_LENGTH   16 UINT   "Packet data length minus one"
+  APPEND_ITEM    PUS_VERSION     4 UINT   "PUS version number, always 2"
+  APPEND_ITEM    PUS_TIMEREF     4 UINT   "Spacecraft time reference status"
+  APPEND_ID_ITEM PUS_SERVICE     8 UINT 12 "PUS service type"
+  APPEND_ID_ITEM PUS_SUBTYPE     8 UINT 12 "PUS message subtype"
+  APPEND_ITEM    PUS_MSGCNT     16 UINT   "Message type counter"
+  APPEND_ITEM    PUS_DESTID     16 UINT   "Destination identifier"
+  APPEND_ITEM    PUS_TIME_SEC   32 UINT   "CUC coarse time, seconds since mission epoch"
+  APPEND_ITEM    PUS_TIME_SUB   16 UINT   "CUC fine time, units of 1/65536 s"
+  APPEND_ITEM    MONITOR_ID      8 UINT  "Monitor identifier"
+    STATE BATT_VOLTAGE 1
+    STATE BATT_TEMP 2
+    STATE BODY_RATE 3
+    STATE POINTING 4
+    STATE WHEEL_H_X 5
+    STATE WHEEL_H_Y 6
+    STATE WHEEL_H_Z 7
+  APPEND_ITEM    FROM_STATUS     8 UINT  "Checking status before"
+    STATE UNCHECKED 0
+    STATE WITHIN 1
+    STATE BELOW 2
+    STATE ABOVE 3
+  APPEND_ITEM    TO_STATUS       8 UINT  "Checking status after"
+    STATE UNCHECKED 0
+    STATE WITHIN 1
+    STATE BELOW 2
+    STATE ABOVE 3
+  APPEND_ITEM    VALUE          64 FLOAT "Value that caused the transition"
+  APPEND_ITEM    LIMIT          64 FLOAT "Limit crossed (the low or high limit)"
+  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"
+
 TELEMETRY SAT PARAM_REPORT BIG_ENDIAN "PUS ST[20,2] parameter value report"
   APPEND_ITEM    CCSDS_VERSION   3 UINT   "Packet version number, always 0"
   APPEND_ITEM    CCSDS_TYPE      1 UINT   "Packet type, 0 = telemetry"
@@ -551,6 +674,7 @@ TELEMETRY SAT PARAM_REPORT BIG_ENDIAN "PUS ST[20,2] parameter value report"
     STATE POINT_BANDWIDTH_RADPS 12
     STATE POINT_MAX_SLEW_DPS 13
     STATE MOMENTUM_DUMP_GAIN 14
+    STATE FDIR_HK_PERIOD_MS 16
     STATE BATT_CAPACITY_WH 15
   APPEND_ITEM    PARAM_VALUE    64 FLOAT "Parameter value, widened to double"
   APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"

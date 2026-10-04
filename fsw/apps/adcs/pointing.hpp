@@ -28,10 +28,24 @@
 //  The torque from that dipole is known, so it is subtracted from what the
 //  wheels are asked to do. Dumping then costs no pointing accuracy at all,
 //  which is the point of doing it this way.
+//
+//  A FAILED WHEEL. When FDIR takes a wheel out of service (fdir/wheel_ladder.hpp)
+//  its axis has no wheel, and the magnetorquers take over that axis too. The
+//  dipole that produces a wanted torque tau is
+//
+//      m = (B x tau) / |B|^2      =>      m x B = tau - (tau . B^) B^
+//
+//  i.e. all of tau except its component along the field, which no coil can
+//  ever make. The parts of m x B that land on the healthy axes are known, so
+//  the healthy wheels cancel them, exactly as for dumping. Magnetorquers are
+//  a few hundred times weaker than a wheel, so the failed axis is given a
+//  bandwidth they can actually deliver; pointing on that axis becomes looser,
+//  and loosest when the field happens to lie along it -- but it is pointing.
 // ============================================================================
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
 #include "apps/adcs/adcs_math.hpp"
 
@@ -45,6 +59,8 @@ struct PointingConfig {
     double max_wheel_torque = 2.0e-3;      // N*m, per wheel, from the datasheet
     double dump_gain       = 5.0e-4;       // k, 1/s
     double max_dipole      = 0.2;          // A*m^2, per axis
+    uint8_t wheels_usable  = 0x7;          // bit i: the wheel on body axis i is in service
+    double magnetic_bandwidth_rps = 0.01;  // wn on an axis with no wheel
 };
 
 struct PointingOutput {
@@ -87,26 +103,47 @@ inline PointingOutput nadir_control(const Quat& q, const Vec3& omega, const Vec3
     const Vec3 w_ref = rotate_inv(q, w_target_eci);
     const Vec3 w_err = omega - w_ref;
 
-    Vec3 w_cmd = qe.vec() * (-2.0 * c.bandwidth_rps / (2.0 * c.damping));
-    const double wn = norm(w_cmd);
-    if (wn > c.max_slew_rps) { w_cmd = w_cmd * (c.max_slew_rps / wn); }
+    // Per-axis bandwidth: the full loop where a wheel works, a gentle one
+    // where only the magnetorquers can push.
+    const bool wheel[3] = {(c.wheels_usable & 1u) != 0, (c.wheels_usable & 2u) != 0,
+                           (c.wheels_usable & 4u) != 0};
+    const double wn[3] = {wheel[0] ? c.bandwidth_rps : c.magnetic_bandwidth_rps,
+                          wheel[1] ? c.bandwidth_rps : c.magnetic_bandwidth_rps,
+                          wheel[2] ? c.bandwidth_rps : c.magnetic_bandwidth_rps};
+    const Vec3 qv = qe.vec();
+    Vec3 w_cmd{qv.x * (-2.0 * wn[0] / (2.0 * c.damping)), qv.y * (-2.0 * wn[1] / (2.0 * c.damping)),
+               qv.z * (-2.0 * wn[2] / (2.0 * c.damping))};
+    const double wc = norm(w_cmd);
+    if (wc > c.max_slew_rps) { w_cmd = w_cmd * (c.max_slew_rps / wc); }
 
-    const double kd = 2.0 * c.damping * c.bandwidth_rps;
+    const double kd[3] = {2.0 * c.damping * wn[0], 2.0 * c.damping * wn[1], 2.0 * c.damping * wn[2]};
     const Vec3 iw{c.inertia.x * omega.x, c.inertia.y * omega.y, c.inertia.z * omega.z};
     const Vec3 de = w_err - w_cmd;
-    Vec3 tau = Vec3{-kd * c.inertia.x * de.x, -kd * c.inertia.y * de.y, -kd * c.inertia.z * de.z}
+    Vec3 tau = Vec3{-kd[0] * c.inertia.x * de.x, -kd[1] * c.inertia.y * de.y, -kd[2] * c.inertia.z * de.z}
                + cross(omega, iw + wheel_h);
 
-    // Momentum dumping, and the torque it will produce.
+    // Magnetorquers: dump what the working wheels have stored, and supply the
+    // torque the missing wheels cannot. A dead wheel's momentum cannot be
+    // dumped through it; it reaches the body as the wheel spins down, and the
+    // loop above deals with it there.
     Vec3 tau_mtq{};
     const double b2 = dot(b_body, b_body);
-    if (mag_valid && b2 > 0.0 && c.dump_gain > 0.0) {
-        out.dipole = limit_per_axis(cross(wheel_h, b_body) * (c.dump_gain / b2), c.max_dipole);
+    if (mag_valid && b2 > 0.0) {
+        const Vec3 h_dump{wheel[0] ? wheel_h.x : 0.0, wheel[1] ? wheel_h.y : 0.0,
+                          wheel[2] ? wheel_h.z : 0.0};
+        const Vec3 tau_need{wheel[0] ? 0.0 : tau.x, wheel[1] ? 0.0 : tau.y, wheel[2] ? 0.0 : tau.z};
+        Vec3 m = cross(h_dump, b_body) * (c.dump_gain / b2);
+        if (c.wheels_usable != 0x7) { m = m + cross(b_body, tau_need) * (1.0 / b2); }
+        out.dipole = limit_per_axis(m, c.max_dipole);
         tau_mtq = cross(out.dipole, b_body);
     }
 
     // Wheels supply what the magnetorquers do not; the body feels -motor torque.
-    const Vec3 wheel_body = limit_per_axis(tau - tau_mtq, c.max_wheel_torque);
+    Vec3 wheel_body = tau - tau_mtq;
+    if (!wheel[0]) { wheel_body.x = 0.0; }
+    if (!wheel[1]) { wheel_body.y = 0.0; }
+    if (!wheel[2]) { wheel_body.z = 0.0; }
+    wheel_body = limit_per_axis(wheel_body, c.max_wheel_torque);
     out.body_torque = wheel_body + tau_mtq;
     out.wheel_torque = -wheel_body;
     return out;

@@ -32,6 +32,11 @@ inline constexpr CommandInfo kCommands[] = {
     { 20, 3, 10, false, "SET_PARAM", "ST[20,3] set one on-board parameter. Value is interpreted per the parameter type." },
     { 8, 1, 1, false, "SET_MODE", "ST[8,1] request a spacecraft mode transition. The mode manager may refuse." },
     { 8, 3, 2, false, "SWITCH_RAIL", "ST[8,3] (mission-specific) enable or disable a power rail. The rail is on only if the ground enables it AND the power and mode policy allow it." },
+    { 8, 4, 1, false, "RESTORE_WHEELS", "ST[8,4] (mission-specific) return isolated reaction wheels to service and restore their retry budget. FDIR will isolate them again if they still fail." },
+    { 12, 1, 1, false, "ENABLE_MONITOR", "ST[12,1] enable one on-board parameter monitor. Its checking starts afresh." },
+    { 12, 2, 1, false, "DISABLE_MONITOR", "ST[12,2] disable one on-board parameter monitor. Its status becomes UNCHECKED." },
+    { 19, 4, 2, false, "ENABLE_EVENT_ACTION", "ST[19,4] enable the on-board action attached to an event." },
+    { 19, 5, 2, false, "DISABLE_EVENT_ACTION", "ST[19,5] disable the on-board action attached to an event. The event is still reported." },
     { 8, 2, 0, false, "RESET_COUNTERS", "ST[8,2] clear the housekeeping statistics counters." },
     { 9, 1, 1, false, "SET_TIME_REPORT_RATE", "ST[9,1] generate a CUC time report every 2^rate_exp seconds; 255 stops them." },
     { 9, 128, 8, false, "ADJUST_TIME", "ST[9,128] (mission-specific) shift the on-board clock by delta_s and mark time as correlated. The ground computes delta from a time report." },
@@ -45,7 +50,7 @@ inline constexpr CommandInfo kCommands[] = {
     { 15, 11, 5, false, "DELETE_STORE_UP_TO", "ST[15,11] delete stored packets older than to_s." },
     { 15, 12, 1, false, "REPORT_STORE_SUMMARY", "ST[15,12] request a packet store summary, answered by ST[15,13]." },
 };
-inline constexpr size_t kCommandCount = 19;
+inline constexpr size_t kCommandCount = 24;
 
 inline const CommandInfo* find_command(uint8_t service, uint8_t subtype) {
     for (size_t i = 0; i < kCommandCount; ++i) {
@@ -203,6 +208,111 @@ struct SwitchRailArgs {
         return true
             && w.write_uint8(rail)
             && w.write_uint8(on)
+            ;
+    }
+};
+
+// ST[8,4] (mission-specific) return isolated reaction wheels to service and restore their retry budget. FDIR will isolate them again if they still fail.
+struct RestoreWheelsArgs {
+    uint8_t mask{};  // Wheels to restore, bit 0 = X
+
+    static constexpr uint8_t  kService   = 8;
+    static constexpr uint8_t  kSubtype   = 4;
+    static constexpr uint16_t kArgBytes  = 1;
+
+    bool deserialize(core::ByteReader& r) {
+        return true
+            && r.read_uint8(mask)
+            ;
+    }
+
+    bool serialize(core::ByteWriter& w) const {
+        return true
+            && w.write_uint8(mask)
+            ;
+    }
+};
+
+// ST[12,1] enable one on-board parameter monitor. Its checking starts afresh.
+struct EnableMonitorArgs {
+    uint8_t monitor_id{};  // Monitor identifier
+
+    static constexpr uint8_t  kService   = 12;
+    static constexpr uint8_t  kSubtype   = 1;
+    static constexpr uint16_t kArgBytes  = 1;
+
+    bool deserialize(core::ByteReader& r) {
+        return true
+            && r.read_uint8(monitor_id)
+            ;
+    }
+
+    bool serialize(core::ByteWriter& w) const {
+        return true
+            && w.write_uint8(monitor_id)
+            ;
+    }
+};
+
+// ST[12,2] disable one on-board parameter monitor. Its status becomes UNCHECKED.
+struct DisableMonitorArgs {
+    uint8_t monitor_id{};  // Monitor identifier
+
+    static constexpr uint8_t  kService   = 12;
+    static constexpr uint8_t  kSubtype   = 2;
+    static constexpr uint16_t kArgBytes  = 1;
+
+    bool deserialize(core::ByteReader& r) {
+        return true
+            && r.read_uint8(monitor_id)
+            ;
+    }
+
+    bool serialize(core::ByteWriter& w) const {
+        return true
+            && w.write_uint8(monitor_id)
+            ;
+    }
+};
+
+// ST[19,4] enable the on-board action attached to an event.
+struct EnableEventActionArgs {
+    uint16_t event_id{};  // Event whose action to enable
+
+    static constexpr uint8_t  kService   = 19;
+    static constexpr uint8_t  kSubtype   = 4;
+    static constexpr uint16_t kArgBytes  = 2;
+
+    bool deserialize(core::ByteReader& r) {
+        return true
+            && r.read_uint16(event_id)
+            ;
+    }
+
+    bool serialize(core::ByteWriter& w) const {
+        return true
+            && w.write_uint16(event_id)
+            ;
+    }
+};
+
+// ST[19,5] disable the on-board action attached to an event. The event is still reported.
+struct DisableEventActionArgs {
+    uint16_t event_id{};  // Event whose action to disable
+
+    static constexpr uint8_t  kService   = 19;
+    static constexpr uint8_t  kSubtype   = 5;
+    static constexpr uint16_t kArgBytes  = 2;
+
+    bool deserialize(core::ByteReader& r) {
+        return true
+            && r.read_uint16(event_id)
+            ;
+    }
+
+    bool serialize(core::ByteWriter& w) const {
+        return true
+            && w.write_uint16(event_id)
             ;
     }
 };

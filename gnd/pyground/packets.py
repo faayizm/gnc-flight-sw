@@ -17,7 +17,7 @@ import struct
 from dataclasses import dataclass, field
 from typing import Any
 
-from .dictionary import (APIDS, COMMANDS, ENUMS, EVENTS, PARAMS, STRUCT_CODES, TELEMETRY,
+from .dictionary import (APIDS, COMMANDS, ENUMS, EVENTS, MONITORS, PARAMS, STRUCT_CODES, TELEMETRY,
                          VARIABLE_COMMANDS)
 
 CCSDS_HEADER_BYTES = 6
@@ -187,6 +187,10 @@ class Telemetry:
                 extra = f" reason={self.fields['failure']}"
             return (f"{self.name:<18} tc(apid=0x{self.fields.get('req_apid', 0):03X}, "
                     f"seq={self.fields.get('req_seqcnt', 0)}){extra}")
+        if self.name == "MONITOR_REPORT":
+            f = self.fields
+            return (f"{self.name:<18} {f.get('monitor', '?')} {f.get('from', '?')} -> {f.get('to', '?')} "
+                    f"(value {_fmt(f.get('value', 0.0))}, limit {_fmt(f.get('limit', 0.0))})")
         if self.name == "PARAM_REPORT":
             return (f"{self.name:<18} {self.fields.get('param_name', '?')} = "
                     f"{self.fields.get('value', 0)}")
@@ -249,6 +253,14 @@ def _decode_payload(tm: Telemetry) -> None:
             tm.name = "TIME_REPORT"
             rate, coarse, fine = struct.unpack(">BIH", tm.payload[:7])
             tm.fields.update(rate_exp=rate, time_s=coarse + fine / 65536.0)
+        elif tm.service == 12 and tm.subtype == 12:
+            tm.name = "MONITOR_REPORT"
+            mid, frm, to, value, limit = struct.unpack(">BBBdd", tm.payload[:19])
+            status = {v: k for k, v in ENUMS["MonitorStatus"].items()}
+            tm.fields.update(monitor_id=mid, monitor=MONITORS.get(mid, (f"#{mid}",))[0],
+                             value=value, limit=limit)
+            tm.fields["from"] = status.get(frm, frm)
+            tm.fields["to"] = status.get(to, to)
         elif tm.service == 15 and tm.subtype == 13:
             tm.name = "STORE_SUMMARY"
             sid, oldest, newest, count, pct = struct.unpack(">BIIIB", tm.payload[:14])

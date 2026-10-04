@@ -68,6 +68,7 @@ class AdcsApp {
  private:
     static void on_sensor(void* ctx, core::Topic, const uint8_t* data, size_t length);
     static void on_mode(void* ctx, core::Topic, const uint8_t* data, size_t length);
+    static void on_wheels(void* ctx, core::Topic, const uint8_t* data, size_t length);
 
     void run_orbit(const msg::SensorFrame& s);
     void run_estimator(const msg::SensorFrame& s, double dt);
@@ -108,6 +109,8 @@ class AdcsApp {
     double   last_gps_t_      = -1e9;
     double   last_star_t_     = -1e9;
     double   last_rate_dps_   = 0.0;
+    Vec3     last_gyro_{};
+    uint8_t  wheels_usable_   = 0x7;      // from FDIR
     uint32_t bad_innovations_ = 0;
     uint32_t samples_         = 0;
 };

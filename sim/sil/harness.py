@@ -60,9 +60,13 @@ class Downlink:
         self.events: list[tuple[float, str]] = []
         self.event_aux: dict[str, list] = {}
         self.hk: dict[str, dict] = {}
+        self.other: list = []          # everything that is neither an event nor housekeeping
+        self.last_time_s = 0.0         # newest on-board timestamp heard live
 
     def drain(self, sim_t: float, on_event=None) -> None:
         for tm in self.client.poll_nowait():
+            if tm.vcid == 0:
+                self.last_time_s = max(self.last_time_s, tm.time_s)
             if tm.name.startswith("EVENT"):
                 name = tm.fields["event_name"]
                 if name == "MODE_CHANGED":
@@ -72,8 +76,10 @@ class Downlink:
                 self.event_aux.setdefault(name, []).append(tm.fields.get("aux"))
                 if on_event:
                     on_event(sim_t, name)
-            else:
+            elif tm.service == 3:
                 self.hk[tm.name] = tm.fields
+            else:
+                self.other.append(tm)
 
     def saw(self, name: str) -> bool:
         return any(n == name for _, n in self.events)

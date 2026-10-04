@@ -19,6 +19,7 @@ from ..models.orbit import Orbit
 from ..models.power import PowerSystem
 from ..models.sensors import Gps, Gyro, Magnetometer, StarTracker, SunSensor
 from .bridge import Bridge
+from .faults import Fault, Injector
 
 DEG = math.pi / 180.0
 
@@ -35,6 +36,7 @@ class Scenario:
     dt: float = 0.1                          # sensor sample period
     gps_outages: list = field(default_factory=list)    # [(start, end), ...] seconds
     wheel_failures: dict = field(default_factory=dict)  # {axis: time}
+    faults: list = field(default_factory=list)          # [faults.Fault, ...]
     initial_soc: float = 0.8
     stuck_heater: tuple | None = None    # (start time, extra watts)
 
@@ -67,6 +69,10 @@ class Simulation:
         self.rails_cmd = self.power.rails
         self.eclipsed = False
         self.samples = self.eclipse_samples = self.sun_valid_samples = self.blind_violations = 0
+        names = ("wheel_x", "wheel_y", "wheel_z")
+        self.faults = Injector(list(sc.faults) + [Fault("dead", names[a], when)
+                                                  for a, when in sc.wheel_failures.items()], sc.seed)
+        self.last_answer_t = 0.0       # when the flight software last commanded the actuators
 
     # -- truth, for assertions only; never sent to the flight software --------
     @property
@@ -97,14 +103,12 @@ class Simulation:
 
     def step(self) -> None:
         dt = self.sc.dt
-        for axis, when in self.sc.wheel_failures.items():
-            if self.t >= when:
-                self.wheels.failed[axis] = True
         if self.sc.stuck_heater and self.t >= self.sc.stuck_heater[0]:
             self.power.stuck_heater_w = self.sc.stuck_heater[1]
         adcs_on = bool(self.power.rails & (1 << 3))
         wheels_on = bool(self.power.rails & (1 << 4))
         self.wheels.powered = wheels_on
+        self.faults.wheel_faults(self.t, self.wheels, wheels_on)
 
         b_eci = magnetic_field_eci(self.orbit.r, self.t)
         b_body = rotate_inv(self.body.q, b_eci)
@@ -123,17 +127,38 @@ class Simulation:
         st_q, st_valid = self.star.read(self.body.q, self.body.omega, sun_body,
                                         rotate_inv(self.body.q, self.orbit.r), self.eclipsed, self.t)
         self.star_valid_samples += st_valid
-        # An unpowered rail is not a sensor reporting zero: it is no report at all.
-        self.dipole, self.wheel_cmd, rails, self.flags = self.bridge.exchange(
-            self.seq, self.t, mag, gyro, sun=sun, sun_valid=sun_valid and adcs_on,
-            mag_valid=adcs_on, gyro_valid=adcs_on,
-            wheel_h=self.wheels.measured(), wheels_valid=wheels_on,
-            gps_pos=gps_pos, gps_vel=gps_vel, gps_valid=gps_valid,
-            star_q=st_q, star_valid=st_valid and adcs_on,
-            eps=self.power.telemetry(), rails=self.power.rails, eps_valid=True)
-        if self.flags & 4:
-            self.power.command_rails(rails)
-            self.rails_cmd = rails
+
+        # Faulty sensors still say they are valid; that is what makes them faulty.
+        f = self.faults
+        mag, gyro = f.sensor("mag", self.t, mag), f.sensor("gyro", self.t, gyro)
+        if sun_valid:
+            sun = f.sensor("sun", self.t, sun)
+        if st_valid:
+            st_q = f.sensor("star", self.t, st_q)
+        if gps_valid:
+            gps_pos, gps_vel = f.sensor("gps", self.t, (gps_pos, gps_vel))
+
+        answer = None
+        if not f.bus_dropped(self.t):
+            # An unpowered rail is not a sensor reporting zero: it is no report at all.
+            answer = self.bridge.exchange(
+                self.seq, self.t, mag, gyro, sun=sun, sun_valid=sun_valid and adcs_on,
+                mag_valid=adcs_on, gyro_valid=adcs_on,
+                wheel_h=self.wheels.measured(), wheels_valid=wheels_on,
+                gps_pos=gps_pos, gps_vel=gps_vel, gps_valid=gps_valid,
+                star_q=st_q, star_valid=st_valid and adcs_on,
+                eps=self.power.telemetry(), rails=self.power.rails, eps_valid=True,
+                corrupt_bit=f.corrupt(self.t))
+        if answer is not None:
+            self.dipole, self.wheel_cmd, rails, self.flags = answer
+            self.last_answer_t = self.t
+            if self.flags & 4:
+                self.power.command_rails(rails)
+                self.rails_cmd = rails
+        elif self.t - self.last_answer_t > 1.0:
+            # The actuator drives hold their last command for a second, then
+            # their own command timeout zeroes them.
+            self.dipole, self.wheel_cmd = (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)
         if not adcs_on:
             self.dipole = (0.0, 0.0, 0.0)
         if not wheels_on:

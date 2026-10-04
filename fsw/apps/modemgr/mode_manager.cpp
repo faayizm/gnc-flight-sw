@@ -12,7 +12,14 @@ core::Status ModeManager::init() {
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::AdcsStatus, &ModeManager::on_adcs, this); }
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::PowerStatus, &ModeManager::on_power, this); }
     if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::UplinkActivity, &ModeManager::on_uplink, this); }
+    if (core::is_ok(s)) { s = bus_.subscribe(core::Topic::WheelHealth, &ModeManager::on_wheels, this); }
     return s;
+}
+
+void ModeManager::on_wheels(void* ctx, core::Topic, const uint8_t* data, size_t length) {
+    if (length == sizeof(msg::WheelHealth)) {
+        std::memcpy(&static_cast<ModeManager*>(ctx)->wheels_, data, length);
+    }
 }
 
 void ModeManager::on_request(void* ctx, core::Topic, const uint8_t* data, size_t length) {
@@ -54,6 +61,7 @@ Facts ModeManager::facts() {
     f.power         = power_.valid ? static_cast<dict::PowerState>(power_.power_state)
                                    : dict::PowerState::UNKNOWN;
     f.since_contact_s = (clock_.now() - last_contact_).to_double_seconds();
+    f.wheels = ((wheels_.usable >> 0) & 1) + ((wheels_.usable >> 1) & 1) + ((wheels_.usable >> 2) & 1);
     return f;
 }
 

@@ -12,6 +12,7 @@ with ECSS-E-ST-70-41C (PUS-C) secondary headers.
 | TTC | `0x001` (1) |
 | ADCS | `0x002` (2) |
 | EPS | `0x003` (3) |
+| FDIR | `0x004` (4) |
 | GND | `0x00A` (10) |
 
 ## Space link
@@ -153,6 +154,21 @@ Power subsystem state. Nominal generation rate 1 Hz. Total packet size 50 bytes.
 | 25 | `rails_enabled` | uint16 | mask | Bitmask of enabled power rails |
 | 27 | `shed_level` | uint8 | level | Active load-shedding level |
 
+### FDIR_HK — structure id 4, APID `0x004`
+
+Fault management state. Nominal generation rate 1 Hz. Total packet size 39 bytes.
+
+| Offset | Field | Type | Units | Description |
+|---:|---|---|---|---|
+| 0 | `wheel_state` | uint8 |  | Reaction-wheel recovery ladder state (MONITOR=0, CYCLE_OFF=1, VERIFY=2) |
+| 1 | `wheels_usable` | uint8 | mask | Reaction wheels in service, bit 0 = X |
+| 2 | `wheel_retries` | uint8 | count | Power-cycle retries spent |
+| 3 | `wheel_resid_x` | float32 | N*m*s | Wheel X momentum not explained by its commands |
+| 7 | `wheel_resid_y` | float32 | N*m*s | Wheel Y momentum not explained by its commands |
+| 11 | `wheel_resid_z` | float32 | N*m*s | Wheel Z momentum not explained by its commands |
+| 15 | `monitors_enabled` | uint8 | count | ST[12] parameter monitors enabled |
+| 16 | `monitors_alarm` | uint8 | count | ST[12] monitors currently out of limits |
+
 ## Telecommands
 
 | Service | Subtype | Name | Args | Description |
@@ -164,6 +180,11 @@ Power subsystem state. Nominal generation rate 1 Hz. Total packet size 50 bytes.
 | 20 | 3 | `SET_PARAM` | 10 B | ST[20,3] set one on-board parameter. Value is interpreted per the parameter type. |
 | 8 | 1 | `SET_MODE` | 1 B | ST[8,1] request a spacecraft mode transition. The mode manager may refuse. |
 | 8 | 3 | `SWITCH_RAIL` | 2 B | ST[8,3] (mission-specific) enable or disable a power rail. The rail is on only if the ground enables it AND the power and mode policy allow it. |
+| 8 | 4 | `RESTORE_WHEELS` | 1 B | ST[8,4] (mission-specific) return isolated reaction wheels to service and restore their retry budget. FDIR will isolate them again if they still fail. |
+| 12 | 1 | `ENABLE_MONITOR` | 1 B | ST[12,1] enable one on-board parameter monitor. Its checking starts afresh. |
+| 12 | 2 | `DISABLE_MONITOR` | 1 B | ST[12,2] disable one on-board parameter monitor. Its status becomes UNCHECKED. |
+| 19 | 4 | `ENABLE_EVENT_ACTION` | 2 B | ST[19,4] enable the on-board action attached to an event. |
+| 19 | 5 | `DISABLE_EVENT_ACTION` | 2 B | ST[19,5] disable the on-board action attached to an event. The event is still reported. |
 | 8 | 2 | `RESET_COUNTERS` | 0 B | ST[8,2] clear the housekeeping statistics counters. |
 | 9 | 1 | `SET_TIME_REPORT_RATE` | 1 B | ST[9,1] generate a CUC time report every 2^rate_exp seconds; 255 stops them. |
 | 9 | 128 | `ADJUST_TIME` | 8 B | ST[9,128] (mission-specific) shift the on-board clock by delta_s and mark time as correlated. The ground computes delta from a time report. |
@@ -214,6 +235,36 @@ Power subsystem state. Nominal generation rate 1 Hz. Total packet size 50 bytes.
 |---:|---|---|---|
 | 0 | `rail` | uint8 | Rail to switch (OBC=0, RX=1, TX=2, ADCS=3, WHEELS=4, PAYLOAD=5, OPS_HEATERS=6, SURVIVAL_HEATERS=7) |
 | 1 | `on` | uint8 | 1 to enable |
+
+### `RESTORE_WHEELS` — ST[8,4]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `mask` | uint8 | Wheels to restore, bit 0 = X |
+
+### `ENABLE_MONITOR` — ST[12,1]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `monitor_id` | uint8 | Monitor identifier |
+
+### `DISABLE_MONITOR` — ST[12,2]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `monitor_id` | uint8 | Monitor identifier |
+
+### `ENABLE_EVENT_ACTION` — ST[19,4]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `event_id` | uint16 | Event whose action to enable |
+
+### `DISABLE_EVENT_ACTION` — ST[19,5]
+
+| Offset | Argument | Type | Description |
+|---:|---|---|---|
+| 0 | `event_id` | uint16 | Event whose action to disable |
 
 ### `SET_TIME_REPORT_RATE` — ST[9,1]
 
@@ -311,6 +362,19 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 26 | `LOAD_SHED` | MEDIUM | Load-shedding level changed; aux = new level (0 = everything restored) |
 | 27 | `RAIL_SWITCHED` | INFO | A power rail was switched by ground command; aux = rail << 8 | on |
 | 15 | `SENSOR_RESTORED` | INFO | Sensor data resumed after a timeout |
+| 12 | `SENSOR_REJECTED` | MEDIUM | A sensor failed its range or frozen-value check and is ignored; aux = SensorId << 8 | SensorFault |
+| 28 | `WHEEL_FAULT` | MEDIUM | A reaction wheel is not delivering its commanded torque; aux = wheel mask, bit 0 = X |
+| 29 | `WHEEL_POWER_CYCLE` | INFO | Wheel drives switched off and on to clear a possible latch-up; aux = wheels under test |
+| 30 | `WHEEL_RECOVERED` | INFO | A wheel works again after its power cycle; aux = wheel mask |
+| 31 | `WHEEL_ISOLATED` | HIGH | A wheel still failed after its retry and is out of service; aux = wheel mask |
+| 32 | `BATT_VOLTAGE_ALARM` | MEDIUM | Battery voltage outside its monitoring limits; aux = monitor id << 8 | MonitorStatus |
+| 33 | `BATT_TEMP_ALARM` | MEDIUM | Battery temperature outside its monitoring limits; aux = monitor id << 8 | MonitorStatus |
+| 34 | `RATE_ALARM` | MEDIUM | Body rate above its monitoring limit; aux = monitor id << 8 | MonitorStatus |
+| 35 | `POINTING_LOST` | HIGH | Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus |
+| 36 | `WHEEL_MOMENTUM_HIGH` | MEDIUM | A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus |
+| 37 | `EVENT_ACTION` | INFO | An on-board action ran in response to an event; aux = the triggering event id |
+| 18 | `SENSOR_GAP` | MEDIUM | Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds |
+| 13 | `SENSOR_READMITTED` | INFO | A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId |
 
 ## On-board parameters (PUS ST[20])
 
@@ -330,7 +394,30 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 12 | `POINT_BANDWIDTH_RADPS` | float32 | 0.1 | 0.005 | 1.0 | rad/s | Natural frequency of the pointing control loop |
 | 13 | `POINT_MAX_SLEW_DPS` | float32 | 1.0 | 0.05 | 5.0 | deg/s | Largest body rate the pointing controller will command while acquiring |
 | 14 | `MOMENTUM_DUMP_GAIN` | float32 | 0.0005 | 0.0 | 0.1 | 1/s | Magnetic momentum-unloading gain |
+| 16 | `FDIR_HK_PERIOD_MS` | uint32 | 1000 | 100 | 60000 | ms | Generation period of FDIR_HK |
 | 15 | `BATT_CAPACITY_WH` | float32 | 30.0 | 1.0 | 1000.0 | W*h | Usable battery energy at 100% state of charge |
 
 `ST[20,1]` requests one parameter and is answered by `ST[20,2]`, which reports the identifier followed by the value widened to a 64-bit float. `ST[20,3]` sets a parameter; the value is sent as a 64-bit float and converted to the parameter's declared type, and is rejected with `ILLEGAL_ARG` if it falls outside the declared range.
+
+## On-board monitoring (PUS ST[12])
+
+Each monitor checks one housekeeping field every time it is published (10 Hz). A limit must be broken `repetitions` samples in a row before the status changes. Every status change is downlinked as an `ST[12,12]` check transition report (APID `FDIR`): monitor id (u8), status before (u8), status after (u8), the value (f64) and the limit crossed (f64). A change to `BELOW` or `ABOVE` also raises the monitor's event. `ST[12,1]` and `ST[12,2]` enable and disable one monitor.
+
+| ID | Name | Field | Low | High | Repetitions | Event |
+|---:|---|---|---:|---:|---:|---|
+| 1 | `BATT_VOLTAGE` | `EPS_HK.batt_voltage` | 6.6 | 8.7 | 50 | `BATT_VOLTAGE_ALARM` |
+| 2 | `BATT_TEMP` | `EPS_HK.batt_temp_c` | -5.0 | 45.0 | 100 | `BATT_TEMP_ALARM` |
+| 3 | `BODY_RATE` | `ADCS_HK.rate_norm` | -1.0 | 5.0 | 50 | `RATE_ALARM` |
+| 4 | `POINTING` | `ADCS_HK.pointing_err_deg` | -1.0 | 15.0 | 3000 | `POINTING_LOST` |
+| 5 | `WHEEL_H_X` | `ADCS_HK.wheel_h_x` | -0.02 | 0.02 | 50 | `WHEEL_MOMENTUM_HIGH` |
+| 6 | `WHEEL_H_Y` | `ADCS_HK.wheel_h_y` | -0.02 | 0.02 | 50 | `WHEEL_MOMENTUM_HIGH` |
+| 7 | `WHEEL_H_Z` | `ADCS_HK.wheel_h_z` | -0.02 | 0.02 | 50 | `WHEEL_MOMENTUM_HIGH` |
+
+## Event-action (PUS ST[19])
+
+When the event is raised on board, the command runs as though uplinked, with the same checks. An `EVENT_ACTION` event (aux = the triggering event id) records it. `ST[19,4]` and `ST[19,5]` enable and disable the action for one event.
+
+| Event | Command | Arguments | Why |
+|---|---|---|---|
+| `POINTING_LOST` | `SET_MODE` | mode=SAFE | Pointing has been lost for five minutes and nothing below has recovered it: stop trying, go SAFE, wait for the ground |
 

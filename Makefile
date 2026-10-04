@@ -99,6 +99,10 @@ store-forward: build  ## Fly two ground passes: schedule commands, run them out 
 power: build  ## Fly the power scenario: a stuck heater drains the battery into SAFE, the ground recovers
 	@$(SYS_PYTHON) -m sim.scenarios.power_and_modes
 
+.PHONY: fdir
+fdir: build  ## Fly the fault-recovery scenario: lying sensors, a latch-up, a dead wheel, then SAFE
+	@$(SYS_PYTHON) -m sim.scenarios.fault_recovery
+
 .PHONY: detumble-live
 detumble-live: build  ## Fly a detumble for a viewer on the TT&C port (COSMOS DETUMBLE screen)
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --live --ttc-port $(TTC_PORT)

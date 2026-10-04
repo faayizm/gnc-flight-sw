@@ -17,6 +17,7 @@ enum class Apid : uint16_t {
     TTC = 0x001,
     ADCS = 0x002,
     EPS = 0x003,
+    FDIR = 0x004,
     GND = 0x00A,
 };
 constexpr uint16_t apid_value(Apid a) { return static_cast<uint16_t>(a); }
@@ -137,6 +138,7 @@ enum class ModeRefusal : uint8_t {
     POWER = 3,
     NOT_FROM_MODE = 4,
     INVALID = 5,
+    WHEELS = 6,
 };
 constexpr const char* to_string(ModeRefusal v) {
     switch (v) {
@@ -146,6 +148,7 @@ constexpr const char* to_string(ModeRefusal v) {
         case ModeRefusal::POWER: return "POWER";
         case ModeRefusal::NOT_FROM_MODE: return "NOT_FROM_MODE";
         case ModeRefusal::INVALID: return "INVALID";
+        case ModeRefusal::WHEELS: return "WHEELS";
     }
     return "UNKNOWN";
 }
@@ -155,12 +158,80 @@ enum class SafeReason : uint8_t {
     GROUND = 0,
     POWER_CRITICAL = 1,
     NO_CONTACT = 2,
+    ACTUATORS = 3,
 };
 constexpr const char* to_string(SafeReason v) {
     switch (v) {
         case SafeReason::GROUND: return "GROUND";
         case SafeReason::POWER_CRITICAL: return "POWER_CRITICAL";
         case SafeReason::NO_CONTACT: return "NO_CONTACT";
+        case SafeReason::ACTUATORS: return "ACTUATORS";
+    }
+    return "UNKNOWN";
+}
+
+// Sensors the I/O application screens (SENSOR_REJECTED / SENSOR_READMITTED aux).
+enum class SensorId : uint8_t {
+    MAG = 0,
+    GYRO = 1,
+    SUN = 2,
+    STAR = 3,
+    GPS = 4,
+};
+constexpr const char* to_string(SensorId v) {
+    switch (v) {
+        case SensorId::MAG: return "MAG";
+        case SensorId::GYRO: return "GYRO";
+        case SensorId::SUN: return "SUN";
+        case SensorId::STAR: return "STAR";
+        case SensorId::GPS: return "GPS";
+    }
+    return "UNKNOWN";
+}
+
+// Why a sensor reading was refused at the hardware boundary.
+enum class SensorFault : uint8_t {
+    NONE = 0,
+    RANGE = 1,
+    FROZEN = 2,
+};
+constexpr const char* to_string(SensorFault v) {
+    switch (v) {
+        case SensorFault::NONE: return "NONE";
+        case SensorFault::RANGE: return "RANGE";
+        case SensorFault::FROZEN: return "FROZEN";
+    }
+    return "UNKNOWN";
+}
+
+// Where the reaction-wheel recovery ladder is (fdir/wheel_ladder.hpp).
+enum class FdirWheelState : uint8_t {
+    MONITOR = 0,
+    CYCLE_OFF = 1,
+    VERIFY = 2,
+};
+constexpr const char* to_string(FdirWheelState v) {
+    switch (v) {
+        case FdirWheelState::MONITOR: return "MONITOR";
+        case FdirWheelState::CYCLE_OFF: return "CYCLE_OFF";
+        case FdirWheelState::VERIFY: return "VERIFY";
+    }
+    return "UNKNOWN";
+}
+
+// PUS ST[12] checking status of one monitored parameter.
+enum class MonitorStatus : uint8_t {
+    UNCHECKED = 0,
+    WITHIN = 1,
+    BELOW = 2,
+    ABOVE = 3,
+};
+constexpr const char* to_string(MonitorStatus v) {
+    switch (v) {
+        case MonitorStatus::UNCHECKED: return "UNCHECKED";
+        case MonitorStatus::WITHIN: return "WITHIN";
+        case MonitorStatus::BELOW: return "BELOW";
+        case MonitorStatus::ABOVE: return "ABOVE";
     }
     return "UNKNOWN";
 }
@@ -187,8 +258,9 @@ enum class HkSid : uint8_t {
     SYS_HK = 1,   // Core system health, scheduler timing and link statistics.
     ADCS_HK = 2,   // Attitude determination and control state.
     EPS_HK = 3,   // Power subsystem state.
+    FDIR_HK = 4,   // Fault management state.
 };
-inline constexpr size_t kHkStructureCount = 3;
+inline constexpr size_t kHkStructureCount = 4;
 
 // --- On-board events, downlinked as PUS ST[05] -----------------------------
 enum class EventId : uint16_t {
@@ -216,6 +288,19 @@ enum class EventId : uint16_t {
     LOAD_SHED = 26,
     RAIL_SWITCHED = 27,
     SENSOR_RESTORED = 15,
+    SENSOR_REJECTED = 12,
+    WHEEL_FAULT = 28,
+    WHEEL_POWER_CYCLE = 29,
+    WHEEL_RECOVERED = 30,
+    WHEEL_ISOLATED = 31,
+    BATT_VOLTAGE_ALARM = 32,
+    BATT_TEMP_ALARM = 33,
+    RATE_ALARM = 34,
+    POINTING_LOST = 35,
+    WHEEL_MOMENTUM_HIGH = 36,
+    EVENT_ACTION = 37,
+    SENSOR_GAP = 18,
+    SENSOR_READMITTED = 13,
 };
 
 struct EventInfo {
@@ -250,8 +335,21 @@ inline constexpr EventInfo kEvents[] = {
     { EventId::LOAD_SHED, Severity::MEDIUM, "LOAD_SHED", "Load-shedding level changed; aux = new level (0 = everything restored)" },
     { EventId::RAIL_SWITCHED, Severity::INFO, "RAIL_SWITCHED", "A power rail was switched by ground command; aux = rail << 8 | on" },
     { EventId::SENSOR_RESTORED, Severity::INFO, "SENSOR_RESTORED", "Sensor data resumed after a timeout" },
+    { EventId::SENSOR_REJECTED, Severity::MEDIUM, "SENSOR_REJECTED", "A sensor failed its range or frozen-value check and is ignored; aux = SensorId << 8 | SensorFault" },
+    { EventId::WHEEL_FAULT, Severity::MEDIUM, "WHEEL_FAULT", "A reaction wheel is not delivering its commanded torque; aux = wheel mask, bit 0 = X" },
+    { EventId::WHEEL_POWER_CYCLE, Severity::INFO, "WHEEL_POWER_CYCLE", "Wheel drives switched off and on to clear a possible latch-up; aux = wheels under test" },
+    { EventId::WHEEL_RECOVERED, Severity::INFO, "WHEEL_RECOVERED", "A wheel works again after its power cycle; aux = wheel mask" },
+    { EventId::WHEEL_ISOLATED, Severity::HIGH, "WHEEL_ISOLATED", "A wheel still failed after its retry and is out of service; aux = wheel mask" },
+    { EventId::BATT_VOLTAGE_ALARM, Severity::MEDIUM, "BATT_VOLTAGE_ALARM", "Battery voltage outside its monitoring limits; aux = monitor id << 8 | MonitorStatus" },
+    { EventId::BATT_TEMP_ALARM, Severity::MEDIUM, "BATT_TEMP_ALARM", "Battery temperature outside its monitoring limits; aux = monitor id << 8 | MonitorStatus" },
+    { EventId::RATE_ALARM, Severity::MEDIUM, "RATE_ALARM", "Body rate above its monitoring limit; aux = monitor id << 8 | MonitorStatus" },
+    { EventId::POINTING_LOST, Severity::HIGH, "POINTING_LOST", "Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus" },
+    { EventId::WHEEL_MOMENTUM_HIGH, Severity::MEDIUM, "WHEEL_MOMENTUM_HIGH", "A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus" },
+    { EventId::EVENT_ACTION, Severity::INFO, "EVENT_ACTION", "An on-board action ran in response to an event; aux = the triggering event id" },
+    { EventId::SENSOR_GAP, Severity::MEDIUM, "SENSOR_GAP", "Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds" },
+    { EventId::SENSOR_READMITTED, Severity::INFO, "SENSOR_READMITTED", "A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId" },
 };
-inline constexpr size_t kEventCount = 24;
+inline constexpr size_t kEventCount = 37;
 
 inline const EventInfo* find_event(EventId id) {
     for (size_t i = 0; i < kEventCount; ++i) {
@@ -259,6 +357,22 @@ inline const EventInfo* find_event(EventId id) {
     }
     return nullptr;
 }
+
+// --- Event-action definitions, PUS ST[19] ----------------------------------
+// The telecommand each event triggers, stored exactly as it would be uplinked.
+struct EventActionDef {
+    EventId     event;
+    uint8_t     service;
+    uint8_t     subtype;
+    uint8_t     args[16];
+    uint8_t     arg_bytes;
+    const char* description;
+};
+
+inline constexpr EventActionDef kEventActions[] = {
+    { EventId::POINTING_LOST, 8, 1, {0x01}, 1, "SET_MODE mode=SAFE: Pointing has been lost for five minutes and nothing below has recovered it: stop trying, go SAFE, wait for the ground" },
+};
+inline constexpr size_t kEventActionCount = 1;
 
 // --- On-board parameters, accessed through PUS ST[20] ----------------------
 enum class ParamId : uint16_t {
@@ -276,6 +390,7 @@ enum class ParamId : uint16_t {
     POINT_BANDWIDTH_RADPS = 12,
     POINT_MAX_SLEW_DPS = 13,
     MOMENTUM_DUMP_GAIN = 14,
+    FDIR_HK_PERIOD_MS = 16,
     BATT_CAPACITY_WH = 15,
 };
 
@@ -307,9 +422,10 @@ inline constexpr ParamInfo kParams[] = {
     { ParamId::POINT_BANDWIDTH_RADPS, ParamType::F32, "POINT_BANDWIDTH_RADPS", 0.1, 0.005, 1.0, "rad/s", "Natural frequency of the pointing control loop" },
     { ParamId::POINT_MAX_SLEW_DPS, ParamType::F32, "POINT_MAX_SLEW_DPS", 1.0, 0.05, 5.0, "deg/s", "Largest body rate the pointing controller will command while acquiring" },
     { ParamId::MOMENTUM_DUMP_GAIN, ParamType::F32, "MOMENTUM_DUMP_GAIN", 0.0005, 0.0, 0.1, "1/s", "Magnetic momentum-unloading gain" },
+    { ParamId::FDIR_HK_PERIOD_MS, ParamType::U32, "FDIR_HK_PERIOD_MS", 1000.0, 100.0, 60000.0, "ms", "Generation period of FDIR_HK" },
     { ParamId::BATT_CAPACITY_WH, ParamType::F32, "BATT_CAPACITY_WH", 30.0, 1.0, 1000.0, "W*h", "Usable battery energy at 100% state of charge" },
 };
-inline constexpr size_t kParamCount = 15;
+inline constexpr size_t kParamCount = 16;
 
 inline const ParamInfo* find_param(ParamId id) {
     for (size_t i = 0; i < kParamCount; ++i) {

@@ -69,6 +69,10 @@ def camel(name: str) -> str:
     return "".join(part.capitalize() for part in name.split("_"))
 
 
+def _kv(args) -> str:
+    return " ".join(f"{k}={v}" for k, v in (args or {}).items())
+
+
 def cpp_default(type_name: str, value) -> str:
     if type_name == "float32":
         return f"{float(value)}f"
@@ -89,6 +93,8 @@ class Dictionary:
         self.commands = raw.get("commands", [])
         self.events = raw.get("events", [])
         self.params = raw.get("params", [])
+        self.monitors = raw.get("monitors", [])
+        self.event_actions = raw.get("event_actions", [])
         self._validate()
 
     def _validate(self) -> None:
@@ -138,6 +144,32 @@ class Dictionary:
                 errors.append(f"parameter {p['name']} default {p['default']} outside "
                               f"[{p['min']}, {p['max']}]")
 
+        tm_by_name = {tm["name"]: tm for tm in self.telemetry}
+        event_names = {e["name"] for e in self.events}
+        seen_mon = set()
+        for m in self.monitors:
+            if m["id"] in seen_mon or not (0 < m["id"] < 256):
+                errors.append(f"monitor id {m['id']} reused or outside 1..255")
+            seen_mon.add(m["id"])
+            tm = tm_by_name.get(m["packet"])
+            fields = {f["name"]: f for f in tm["fields"]} if tm else {}
+            if m["field"] not in fields:
+                errors.append(f"monitor {m['name']} watches unknown field {m['packet']}.{m['field']}")
+            if m["event"] not in event_names:
+                errors.append(f"monitor {m['name']} raises unknown event {m['event']}")
+            if not m["low"] < m["high"] or m["repetitions"] < 1:
+                errors.append(f"monitor {m['name']} needs low < high and repetitions >= 1")
+
+        cmd_by_name = {c["name"]: c for c in self.commands}
+        for a in self.event_actions:
+            if a["event"] not in event_names:
+                errors.append(f"event action on unknown event {a['event']}")
+            c = cmd_by_name.get(a["command"])
+            if c is None or c.get("variable"):
+                errors.append(f"event action {a['event']} uses unknown or variable command {a['command']}")
+            elif set((a.get("args") or {}).keys()) != {x["name"] for x in (c.get("args") or [])}:
+                errors.append(f"event action {a['event']} must give exactly the arguments of {a['command']}")
+
         if errors:
             for e in errors:
                 print(f"dictionary error: {e}", file=sys.stderr)
@@ -153,6 +185,18 @@ class Dictionary:
         """Total on-the-wire size of one ST[3,25] report for this structure."""
         return (CCSDS_PRIMARY_BYTES + PUS_TM_SEC_BYTES + 1
                 + self.payload_size(tm["fields"]) + CRC_BYTES)
+
+    def action_arg_bytes(self, action) -> bytes:
+        """The argument block of an event action's telecommand, as uplinked."""
+        import struct as _struct
+        cmd = next(c for c in self.commands if c["name"] == action["command"])
+        out = b""
+        for a in cmd.get("args") or []:
+            v = action["args"][a["name"]]
+            if "enum" in a and isinstance(v, str):
+                v = self.enums[a["enum"]]["values"][v]
+            out += _struct.pack(">" + TYPES[a["type"]][4], v)
+        return out
 
     def tc_packet_size(self, cmd) -> int:
         return (CCSDS_PRIMARY_BYTES + PUS_TC_SEC_BYTES
@@ -232,6 +276,28 @@ def gen_dictionary_hpp(d: Dictionary) -> str:
     o.append("    }")
     o.append("    return nullptr;")
     o.append("}")
+    o.append("")
+
+    o.append("// --- Event-action definitions, PUS ST[19] ----------------------------------")
+    o.append("// The telecommand each event triggers, stored exactly as it would be uplinked.")
+    o.append("struct EventActionDef {")
+    o.append("    EventId     event;")
+    o.append("    uint8_t     service;")
+    o.append("    uint8_t     subtype;")
+    o.append("    uint8_t     args[16];")
+    o.append("    uint8_t     arg_bytes;")
+    o.append("    const char* description;")
+    o.append("};")
+    o.append("")
+    o.append("inline constexpr EventActionDef kEventActions[] = {")
+    for a in d.event_actions:
+        c = next(x for x in d.commands if x["name"] == a["command"])
+        b = d.action_arg_bytes(a)
+        arr = ", ".join(f"0x{x:02X}" for x in b) or "0"
+        o.append(f"    {{ EventId::{a['event']}, {c['service']}, {c['subtype']}, {{{arr}}}, {len(b)}, "
+                 f"\"{a['command']} {_kv(a.get('args'))}: {a['desc']}\" }},")
+    o.append("};")
+    o.append(f"inline constexpr size_t kEventActionCount = {len(d.event_actions)};")
     o.append("")
 
     o.append("// --- On-board parameters, accessed through PUS ST[20] ----------------------")
@@ -322,6 +388,28 @@ def gen_telemetry_hpp(d: Dictionary) -> str:
         o.append(f"static_assert(sizeof({struct}) > 0, \"{struct} must be instantiable\");")
         o.append("")
 
+    o.append("// --- Parameter monitoring definitions, PUS ST[12] ---------------------------")
+    o.append("// Each reads one field out of the housekeeping structure it belongs to.")
+    o.append("struct MonitorDef {")
+    o.append("    uint8_t       id;")
+    o.append("    const char*   name;")
+    o.append("    dict::HkSid   sid;")
+    o.append("    double      (*read)(const void* hk);")
+    o.append("    double        low;")
+    o.append("    double        high;")
+    o.append("    uint16_t      repetitions;")
+    o.append("    dict::EventId event;")
+    o.append("};")
+    o.append("")
+    o.append("inline constexpr MonitorDef kMonitors[] = {")
+    for m in d.monitors:
+        st = camel(m["packet"])
+        o.append(f"    {{ {m['id']}, \"{m['name']}\", dict::HkSid::{m['packet']},")
+        o.append(f"      [](const void* p) {{ return static_cast<double>(static_cast<const {st}*>(p)->{m['field']}); }},")
+        o.append(f"      {float(m['low'])}, {float(m['high'])}, {m['repetitions']}, dict::EventId::{m['event']} }},")
+    o.append("};")
+    o.append(f"inline constexpr size_t kMonitorCount = {len(d.monitors)};")
+    o.append("")
     o.append("}  // namespace fsw::tlm")
     return "\n".join(o) + "\n"
 
@@ -509,6 +597,21 @@ def gen_cosmos_tlm(d: Dictionary) -> str:
     o.append('  APPEND_ITEM    NEWEST_S       32 UINT  "Time of the newest stored packet"')
     o.append('  APPEND_ITEM    PACKETS        32 UINT  "Packets stored"')
     o.append('  APPEND_ITEM    USED_PCT        8 UINT  "Fill level, percent"')
+    o.append('  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"')
+    o.append("")
+
+    # Check transition report, ST[12,12].
+    o.append('TELEMETRY SAT MONITOR_REPORT BIG_ENDIAN "PUS ST[12,12] check transition report"')
+    o += _cosmos_tm_header(d.apids["FDIR"], 12, 12)
+    o.append('  APPEND_ITEM    MONITOR_ID      8 UINT  "Monitor identifier"')
+    for m in d.monitors:
+        o.append(f'    STATE {m["name"]} {m["id"]}')
+    for item, desc in (("FROM_STATUS", "Checking status before"), ("TO_STATUS", "Checking status after")):
+        o.append(f'  APPEND_ITEM    {item:<14}  8 UINT  "{desc}"')
+        for vname, vval in d.enums["MonitorStatus"]["values"].items():
+            o.append(f'    STATE {vname} {vval}')
+    o.append('  APPEND_ITEM    VALUE          64 FLOAT "Value that caused the transition"')
+    o.append('  APPEND_ITEM    LIMIT          64 FLOAT "Limit crossed (the low or high limit)"')
     o.append('  APPEND_ITEM    PACKET_CRC     16 UINT  "CCSDS CRC-16 packet error control"')
     o.append("")
 
@@ -778,6 +881,19 @@ def gen_pyground_dict(d: Dictionary) -> str:
                  f"{p['min']!r}, {p['max']!r}, {p['units']!r}, {p['desc']!r}),")
     o.append("}")
     o.append("")
+    o.append("# id -> (name, packet, field, low, high, repetitions, event)")
+    o.append("MONITORS = {")
+    for m in d.monitors:
+        o.append(f"    {m['id']}: ({m['name']!r}, {m['packet']!r}, {m['field']!r}, {float(m['low'])!r}, "
+                 f"{float(m['high'])!r}, {m['repetitions']!r}, {m['event']!r}),")
+    o.append("}")
+    o.append("")
+    o.append("# event name -> (command, args, description)")
+    o.append("EVENT_ACTIONS = {")
+    for a in d.event_actions:
+        o.append(f"    {a['event']!r}: ({a['command']!r}, {a.get('args') or {}!r}, {a['desc']!r}),")
+    o.append("}")
+    o.append("")
     o.append("STRUCT_CODES = {")
     for tname, spec in TYPES.items():
         o.append(f"    {tname!r}: {spec[4]!r},")
@@ -949,6 +1065,35 @@ def gen_icd(d: Dictionary) -> str:
              "`ST[20,3]` sets a parameter; the value is sent as a 64-bit float and "
              "converted to the parameter's declared type, and is rejected with "
              "`ILLEGAL_ARG` if it falls outside the declared range.")
+    o.append("")
+
+    o.append("## On-board monitoring (PUS ST[12])")
+    o.append("")
+    o.append("Each monitor checks one housekeeping field every time it is published (10 Hz). "
+             "A limit must be broken `repetitions` samples in a row before the status changes. "
+             "Every status change is downlinked as an `ST[12,12]` check transition report "
+             "(APID `FDIR`): monitor id (u8), status before (u8), status after (u8), the value "
+             "(f64) and the limit crossed (f64). A change to `BELOW` or `ABOVE` also raises the "
+             "monitor's event. `ST[12,1]` and `ST[12,2]` enable and disable one monitor.")
+    o.append("")
+    o.append("| ID | Name | Field | Low | High | Repetitions | Event |")
+    o.append("|---:|---|---|---:|---:|---:|---|")
+    for m in d.monitors:
+        o.append(f"| {m['id']} | `{m['name']}` | `{m['packet']}.{m['field']}` | {m['low']} | "
+                 f"{m['high']} | {m['repetitions']} | `{m['event']}` |")
+    o.append("")
+
+    o.append("## Event-action (PUS ST[19])")
+    o.append("")
+    o.append("When the event is raised on board, the command runs as though uplinked, with the "
+             "same checks. An `EVENT_ACTION` event (aux = the triggering event id) records it. "
+             "`ST[19,4]` and `ST[19,5]` enable and disable the action for one event.")
+    o.append("")
+    o.append("| Event | Command | Arguments | Why |")
+    o.append("|---|---|---|---|")
+    for a in d.event_actions:
+        args = ", ".join(f"{k}={v}" for k, v in (a.get("args") or {}).items())
+        o.append(f"| `{a['event']}` | `{a['command']}` | {args} | {a['desc']} |")
     o.append("")
     return "\n".join(o) + "\n"
 

@@ -19,6 +19,7 @@ mission:
     TTC:  0x001      # telecommand & telemetry handler, also emits ST[01]/ST[05]
     ADCS: 0x002      # attitude determination & control
     EPS:  0x003      # electrical power
+    FDIR: 0x004      # fault detection, isolation and recovery; on-board monitoring ST[12]
     GND:  0x00A      # ground segment (source APID of uplinked telecommands)
   # Space link: CCSDS TM/TC Space Data Link Protocols over a coded channel.
   # Both ends of the link are generated from these numbers.
@@ -95,6 +96,7 @@ enums:
       POWER:          3
       NOT_FROM_MODE:  4
       INVALID:        5
+      WHEELS:         6   # fewer than two reaction wheels usable
 
   SafeReason:
     desc: Why the spacecraft entered SAFE (SAFE_MODE_ENTERED aux).
@@ -102,6 +104,38 @@ enums:
       GROUND:         0
       POWER_CRITICAL: 1
       NO_CONTACT:     2
+      ACTUATORS:      3   # too few reaction wheels left to control attitude
+
+  SensorId:
+    desc: Sensors the I/O application screens (SENSOR_REJECTED / SENSOR_READMITTED aux).
+    values:
+      MAG:  0
+      GYRO: 1
+      SUN:  2
+      STAR: 3
+      GPS:  4
+
+  SensorFault:
+    desc: Why a sensor reading was refused at the hardware boundary.
+    values:
+      NONE:   0
+      RANGE:  1   # physically impossible value
+      FROZEN: 2   # the same reading, exactly, over and over
+
+  FdirWheelState:
+    desc: Where the reaction-wheel recovery ladder is (fdir/wheel_ladder.hpp).
+    values:
+      MONITOR:   0
+      CYCLE_OFF: 1   # drives switched off for a power-cycle retry
+      VERIFY:    2   # drives back on, waiting to see whether the retry worked
+
+  MonitorStatus:
+    desc: PUS ST[12] checking status of one monitored parameter.
+    values:
+      UNCHECKED: 0   # disabled, or not evaluated yet
+      WITHIN:    1
+      BELOW:     2   # below the low limit for `repetitions` samples in a row
+      ABOVE:     3   # above the high limit for `repetitions` samples in a row
 
   Severity:
     desc: PUS ST[05] event severity, mapped to subtypes 1..4.
@@ -200,6 +234,21 @@ telemetry:
       - {name: rails_enabled,    type: uint16,  units: mask, desc: Bitmask of enabled power rails}
       - {name: shed_level,       type: uint8,   units: level, desc: Active load-shedding level, 0 = none}
 
+  - name: FDIR_HK
+    sid: 4
+    apid: FDIR
+    rate_hz: 1
+    desc: Fault management state.
+    fields:
+      - {name: wheel_state,      type: uint8,   enum: FdirWheelState, desc: Reaction-wheel recovery ladder state}
+      - {name: wheels_usable,    type: uint8,   units: mask,  desc: "Reaction wheels in service, bit 0 = X"}
+      - {name: wheel_retries,    type: uint8,   units: count, desc: Power-cycle retries spent, all wheels}
+      - {name: wheel_resid_x,    type: float32, units: N*m*s, desc: Wheel X momentum not explained by its commands, last 5 s window}
+      - {name: wheel_resid_y,    type: float32, units: N*m*s, desc: Wheel Y momentum not explained by its commands, last 5 s window}
+      - {name: wheel_resid_z,    type: float32, units: N*m*s, desc: Wheel Z momentum not explained by its commands, last 5 s window}
+      - {name: monitors_enabled, type: uint8,   units: count, desc: "ST[12] parameter monitors enabled"}
+      - {name: monitors_alarm,   type: uint8,   units: count, desc: "ST[12] monitors currently out of limits"}
+
 # -----------------------------------------------------------------------------
 # Telecommands. Each is a PUS (service, subtype) with a typed argument list.
 # -----------------------------------------------------------------------------
@@ -253,6 +302,41 @@ commands:
     args:
       - {name: rail, type: uint8, enum: PowerRail, desc: Rail to switch}
       - {name: "on", type: uint8, desc: 1 to enable, 0 to disable}
+
+  - name: RESTORE_WHEELS
+    service: 8
+    subtype: 4
+    desc: "ST[8,4] (mission-specific) return isolated reaction wheels to service and restore their retry budget. FDIR will isolate them again if they still fail."
+    args:
+      - {name: mask, type: uint8, desc: "Wheels to restore, bit 0 = X"}
+
+  - name: ENABLE_MONITOR
+    service: 12
+    subtype: 1
+    desc: ST[12,1] enable one on-board parameter monitor. Its checking starts afresh.
+    args:
+      - {name: monitor_id, type: uint8, desc: Monitor identifier, see the monitoring table}
+
+  - name: DISABLE_MONITOR
+    service: 12
+    subtype: 2
+    desc: ST[12,2] disable one on-board parameter monitor. Its status becomes UNCHECKED.
+    args:
+      - {name: monitor_id, type: uint8, desc: Monitor identifier}
+
+  - name: ENABLE_EVENT_ACTION
+    service: 19
+    subtype: 4
+    desc: ST[19,4] enable the on-board action attached to an event.
+    args:
+      - {name: event_id, type: uint16, desc: Event whose action to enable}
+
+  - name: DISABLE_EVENT_ACTION
+    service: 19
+    subtype: 5
+    desc: ST[19,5] disable the on-board action attached to an event. The event is still reported.
+    args:
+      - {name: event_id, type: uint16, desc: Event whose action to disable}
 
   - name: RESET_COUNTERS
     service: 8
@@ -365,6 +449,19 @@ events:
   - {name: LOAD_SHED,         id: 26, severity: MEDIUM, desc: "Load-shedding level changed; aux = new level (0 = everything restored)"}
   - {name: RAIL_SWITCHED,     id: 27, severity: INFO,   desc: "A power rail was switched by ground command; aux = rail << 8 | on"}
   - {name: SENSOR_RESTORED,   id: 15, severity: INFO,   desc: Sensor data resumed after a timeout}
+  - {name: SENSOR_REJECTED,   id: 12, severity: MEDIUM, desc: "A sensor failed its range or frozen-value check and is ignored; aux = SensorId << 8 | SensorFault"}
+  - {name: WHEEL_FAULT,       id: 28, severity: MEDIUM, desc: "A reaction wheel is not delivering its commanded torque; aux = wheel mask, bit 0 = X"}
+  - {name: WHEEL_POWER_CYCLE, id: 29, severity: INFO,   desc: "Wheel drives switched off and on to clear a possible latch-up; aux = wheels under test"}
+  - {name: WHEEL_RECOVERED,   id: 30, severity: INFO,   desc: "A wheel works again after its power cycle; aux = wheel mask"}
+  - {name: WHEEL_ISOLATED,    id: 31, severity: HIGH,   desc: "A wheel still failed after its retry and is out of service; aux = wheel mask"}
+  - {name: BATT_VOLTAGE_ALARM, id: 32, severity: MEDIUM, desc: "Battery voltage outside its monitoring limits; aux = monitor id << 8 | MonitorStatus"}
+  - {name: BATT_TEMP_ALARM,   id: 33, severity: MEDIUM, desc: "Battery temperature outside its monitoring limits; aux = monitor id << 8 | MonitorStatus"}
+  - {name: RATE_ALARM,        id: 34, severity: MEDIUM, desc: "Body rate above its monitoring limit; aux = monitor id << 8 | MonitorStatus"}
+  - {name: POINTING_LOST,     id: 35, severity: HIGH,   desc: "Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus"}
+  - {name: WHEEL_MOMENTUM_HIGH, id: 36, severity: MEDIUM, desc: "A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus"}
+  - {name: EVENT_ACTION,      id: 37, severity: INFO,   desc: "An on-board action ran in response to an event; aux = the triggering event id"}
+  - {name: SENSOR_GAP,        id: 18, severity: MEDIUM, desc: "Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds"}
+  - {name: SENSOR_READMITTED, id: 13, severity: INFO,   desc: "A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId"}
 
 # -----------------------------------------------------------------------------
 # On-board parameters, readable and writable via PUS ST[20].
@@ -384,4 +481,32 @@ params:
   - {name: POINT_BANDWIDTH_RADPS, id: 12, type: float32, default: 0.1, min: 0.005, max: 1.0, units: rad/s, desc: Natural frequency of the pointing control loop}
   - {name: POINT_MAX_SLEW_DPS,  id: 13, type: float32, default: 1.0,  min: 0.05, max: 5.0,   units: deg/s, desc: Largest body rate the pointing controller will command while acquiring}
   - {name: MOMENTUM_DUMP_GAIN,  id: 14, type: float32, default: 0.0005, min: 0.0, max: 0.1, units: 1/s,  desc: Magnetic momentum-unloading gain}
+  - {name: FDIR_HK_PERIOD_MS,   id: 16, type: uint32, default: 1000, min: 100, max: 60000, units: ms,   desc: Generation period of FDIR_HK}
   - {name: BATT_CAPACITY_WH,    id: 15, type: float32, default: 30.0, min: 1.0, max: 1000.0, units: W*h, desc: Usable battery energy at 100% state of charge}
+
+# -----------------------------------------------------------------------------
+# On-board monitoring, PUS ST[12]. Each monitor checks one housekeeping field
+# against a low and a high limit, every time that field's subsystem publishes
+# it (10 Hz). A limit must be broken `repetitions` samples in a row before the
+# status changes -- one noisy sample is not an alarm. On every status change
+# FDIR raises `event` (when the new status is out of limits) and downlinks an
+# ST[12,12] check transition report. Monitors start enabled.
+# -----------------------------------------------------------------------------
+monitors:
+  - {id: 1, name: BATT_VOLTAGE, packet: EPS_HK,  field: batt_voltage,     low: 6.6,   high: 8.7,  repetitions: 50,   event: BATT_VOLTAGE_ALARM}
+  - {id: 2, name: BATT_TEMP,    packet: EPS_HK,  field: batt_temp_c,      low: -5.0,  high: 45.0, repetitions: 100,  event: BATT_TEMP_ALARM}
+  - {id: 3, name: BODY_RATE,    packet: ADCS_HK, field: rate_norm,        low: -1.0,  high: 5.0,  repetitions: 50,   event: RATE_ALARM}
+  - {id: 4, name: POINTING,     packet: ADCS_HK, field: pointing_err_deg, low: -1.0,  high: 15.0, repetitions: 3000, event: POINTING_LOST}
+  - {id: 5, name: WHEEL_H_X,    packet: ADCS_HK, field: wheel_h_x,        low: -0.02, high: 0.02, repetitions: 50,   event: WHEEL_MOMENTUM_HIGH}
+  - {id: 6, name: WHEEL_H_Y,    packet: ADCS_HK, field: wheel_h_y,        low: -0.02, high: 0.02, repetitions: 50,   event: WHEEL_MOMENTUM_HIGH}
+  - {id: 7, name: WHEEL_H_Z,    packet: ADCS_HK, field: wheel_h_z,        low: -0.02, high: 0.02, repetitions: 50,   event: WHEEL_MOMENTUM_HIGH}
+
+# -----------------------------------------------------------------------------
+# Event-action, PUS ST[19]. When `event` is raised on board, `command` is
+# executed as though it had been uplinked -- with the same checks, and the
+# same refusals. The command is stored on board as a complete telecommand, so
+# an action can do nothing the ground could not. Actions start enabled.
+# -----------------------------------------------------------------------------
+event_actions:
+  - {event: POINTING_LOST, command: SET_MODE, args: {mode: SAFE},
+     desc: "Pointing has been lost for five minutes and nothing below has recovered it: stop trying, go SAFE, wait for the ground"}

@@ -28,6 +28,7 @@ core::Status TtcApp::init() {
         dict::HkSid::SYS_HK,
         dict::HkSid::ADCS_HK,
         dict::HkSid::EPS_HK,
+        dict::HkSid::FDIR_HK,
     };
     for (dict::HkSid sid : sids) {
         HkState s;
@@ -44,6 +45,11 @@ core::Status TtcApp::init() {
     if (!core::is_ok(s)) { return s; }
     s = bus_.subscribe(core::Topic::EpsHk, &TtcApp::on_eps_hk, this);
     if (!core::is_ok(s)) { return s; }
+    s = bus_.subscribe(core::Topic::FdirHk, &TtcApp::on_fdir_hk, this);
+    if (!core::is_ok(s)) { return s; }
+    s = bus_.subscribe(core::Topic::MonitorReport, &TtcApp::on_monitor_report, this);
+    if (!core::is_ok(s)) { return s; }
+    for (bool& on : action_enabled_) { on = true; }
     s = bus_.subscribe(core::Topic::ModeChanged, &TtcApp::on_mode, this);
     if (!core::is_ok(s)) { return s; }
     s = bus_.subscribe(core::Topic::PowerStatus, &TtcApp::on_power, this);
@@ -61,7 +67,9 @@ double TtcApp::mission_time(void* context) {
 // ---------------------------------------------------------------------------
 
 void TtcApp::task_receive(void* context) {
-    static_cast<TtcApp*>(context)->pump_link();
+    auto* self = static_cast<TtcApp*>(context);
+    self->run_event_actions();
+    self->pump_link();
 }
 
 void TtcApp::pump_link() {
@@ -173,6 +181,8 @@ void TtcApp::handle_tc(const ReceivedTc& tc) {
         case Service::Time:         result = svc_time(tc);         break;
         case Service::Scheduling:   result = svc_scheduling(tc);   break;
         case Service::Storage:      result = svc_storage(tc);      break;
+        case Service::Monitoring:   result = svc_monitoring(tc);   break;
+        case Service::EventAction:  result = svc_event_action(tc); break;
         default:                    result = core::FailureCode::UnknownService; break;
     }
 
@@ -278,6 +288,16 @@ core::FailureCode TtcApp::svc_function(const ReceivedTc& tc) {
         return core::FailureCode::Ok;
     }
 
+    if (tc.secondary.subtype == cmd::RestoreWheelsArgs::kSubtype) {
+        cmd::RestoreWheelsArgs args;
+        core::ByteReader r(tc.args, tc.args_size);
+        if (!args.deserialize(r)) { return core::FailureCode::BadLength; }
+        if (args.mask == 0 || args.mask > 7) { return core::FailureCode::IllegalArg; }
+        // FDIR owns the wheels' health; the ground can only ask.
+        bus_.publish(core::Topic::WheelRestore, &args.mask, sizeof(args.mask));
+        return core::FailureCode::Ok;
+    }
+
     if (tc.secondary.subtype == cmd::ResetCountersArgs::kSubtype) {
         tc_received_ = 0;
         tc_rejected_ = 0;
@@ -286,6 +306,88 @@ core::FailureCode TtcApp::svc_function(const ReceivedTc& tc) {
     }
 
     return core::FailureCode::UnknownService;
+}
+
+// ---- ST[12] on-board monitoring --------------------------------------------
+
+core::FailureCode TtcApp::svc_monitoring(const ReceivedTc& tc) {
+    core::ByteReader r(tc.args, tc.args_size);
+    cmd::EnableMonitorArgs a;                     // both subtypes carry one id
+    if (!a.deserialize(r)) { return core::FailureCode::BadLength; }
+    bool known = false;
+    for (const tlm::MonitorDef& d : tlm::kMonitors) { known = known || d.id == a.monitor_id; }
+    if (!known) { return core::FailureCode::IllegalArg; }
+    if (tc.secondary.subtype != cmd::EnableMonitorArgs::kSubtype &&
+        tc.secondary.subtype != cmd::DisableMonitorArgs::kSubtype) {
+        return core::FailureCode::UnknownService;
+    }
+    // FDIR owns the monitors; TT&C only carries the request.
+    const msg::MonitorControl c{a.monitor_id, tc.secondary.subtype == cmd::EnableMonitorArgs::kSubtype};
+    bus_.publish_object(core::Topic::MonitorControl, c);
+    return core::FailureCode::Ok;
+}
+
+void TtcApp::on_monitor_report(void* context, core::Topic, const uint8_t* data, size_t length) {
+    if (length != sizeof(msg::MonitorReport)) { return; }
+    auto* self = static_cast<TtcApp*>(context);
+    msg::MonitorReport m;
+    std::memcpy(&m, data, sizeof m);
+    TmBuilder b(self->tx_scratch_, sizeof self->tx_scratch_);
+    if (!b.begin(dict::apid_value(dict::Apid::FDIR), self->seq_fdir_.next(), Service::Monitoring, 12,
+                 self->next_message_count(12, 12), self->now_cuc(), self->time_status_)) {
+        return;
+    }
+    b.payload().write_uint8(m.id);
+    b.payload().write_uint8(m.from);
+    b.payload().write_uint8(m.to);
+    b.payload().write_float64(m.value);
+    b.payload().write_float64(m.limit);
+    self->send_packet(b.finish());
+}
+
+// ---- ST[19] event-action ------------------------------------------------
+
+core::FailureCode TtcApp::svc_event_action(const ReceivedTc& tc) {
+    core::ByteReader r(tc.args, tc.args_size);
+    cmd::EnableEventActionArgs a;                 // both subtypes carry one event id
+    if (!a.deserialize(r)) { return core::FailureCode::BadLength; }
+    if (tc.secondary.subtype != cmd::EnableEventActionArgs::kSubtype &&
+        tc.secondary.subtype != cmd::DisableEventActionArgs::kSubtype) {
+        return core::FailureCode::UnknownService;
+    }
+    bool found = false;
+    for (size_t i = 0; i < dict::kEventActionCount; ++i) {
+        if (static_cast<uint16_t>(dict::kEventActions[i].event) == a.event_id) {
+            action_enabled_[i] = tc.secondary.subtype == cmd::EnableEventActionArgs::kSubtype;
+            found = true;
+        }
+    }
+    return found ? core::FailureCode::Ok : core::FailureCode::IllegalArg;
+}
+
+void TtcApp::run_event_actions() {
+    // Deferred from the event sink to here, the start of the next tick: an
+    // action can raise events of its own, and must not do so from inside the
+    // sink that is reporting the event that triggered it. Under lockstep the
+    // next tick always comes before the next sensor sample, so the action
+    // lands at the same point of the flight every time.
+    while (!pending_actions_.empty()) {
+        const size_t i = pending_actions_[0];
+        pending_actions_.erase(0);
+
+        const dict::EventActionDef& def = dict::kEventActions[i];
+        events_.raise(dict::EventId::EVENT_ACTION, static_cast<uint32_t>(def.event));
+        ReceivedTc tc;
+        tc.primary.apid       = dict::apid_value(dict::Apid::TTC);
+        tc.secondary.ack_flags = kAckNone;        // nobody on the ground is waiting for a reply
+        tc.secondary.service  = def.service;
+        tc.secondary.subtype  = def.subtype;
+        tc.secondary.source_id = 0;
+        tc.args      = def.args;
+        tc.args_size = def.arg_bytes;
+        ++tc_received_;
+        handle_tc(tc);
+    }
 }
 
 // ---- ST[9] time management ---------------------------------------------
@@ -563,6 +665,12 @@ void TtcApp::send_param_report(dict::ParamId id, double value) {
 void TtcApp::event_sink(void* context, const core::EventRecord& record) {
     auto* self = static_cast<TtcApp*>(context);
 
+    for (size_t i = 0; i < dict::kEventActionCount; ++i) {
+        if (dict::kEventActions[i].event == record.id && self->action_enabled_[i]) {
+            self->pending_actions_.push_back(i);   // full queue: the action is dropped, the event is not
+        }
+    }
+
     // The subtype IS the severity, which is what lets a ground system filter
     // on urgency without knowing a single thing about this mission's events.
     const uint8_t subtype = static_cast<uint8_t>(record.severity);
@@ -595,6 +703,10 @@ void TtcApp::send_hk(dict::HkSid sid) {
         case dict::HkSid::EPS_HK:
             apid = dict::apid_value(tlm::EpsHk::kApid);
             seq  = &seq_eps_;
+            break;
+        case dict::HkSid::FDIR_HK:
+            apid = dict::apid_value(tlm::FdirHk::kApid);
+            seq  = &seq_fdir_;
             break;
     }
 
@@ -640,6 +752,7 @@ void TtcApp::send_hk(dict::HkSid sid) {
         }
         case dict::HkSid::ADCS_HK: adcs_hk_.serialize(b.payload()); break;
         case dict::HkSid::EPS_HK:  eps_hk_.serialize(b.payload());  break;
+        case dict::HkSid::FDIR_HK: fdir_hk_.serialize(b.payload()); break;
     }
 
     send_packet(b.finish());
@@ -670,6 +783,7 @@ void TtcApp::task_telemetry(void* context) {
         dict::ParamId::SYS_HK_PERIOD_MS,
         dict::ParamId::ADCS_HK_PERIOD_MS,
         dict::ParamId::EPS_HK_PERIOD_MS,
+        dict::ParamId::FDIR_HK_PERIOD_MS,
     };
 
     for (size_t i = 0; i < self->hk_.size(); ++i) {
@@ -722,6 +836,13 @@ void TtcApp::on_power(void* context, core::Topic, const uint8_t* data, size_t le
         std::memcpy(&p, data, sizeof p);
         const auto tx = static_cast<uint16_t>(1u << static_cast<unsigned>(dict::PowerRail::TX));
         static_cast<TtcApp*>(context)->tx_on_ = !p.valid || (p.rails & tx) != 0;
+    }
+}
+
+void TtcApp::on_fdir_hk(void* context, core::Topic, const uint8_t* data, size_t length) {
+    auto* self = static_cast<TtcApp*>(context);
+    if (length == sizeof(tlm::FdirHk)) {
+        std::memcpy(&self->fdir_hk_, data, sizeof(tlm::FdirHk));
     }
 }
 

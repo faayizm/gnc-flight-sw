@@ -26,6 +26,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "apps/io/sensor_screen.hpp"
 #include "apps/io/sim_bridge.hpp"
 #include "apps/messages.hpp"
 #include "core/bus.hpp"
@@ -46,6 +47,8 @@ class SimIoApp {
 
     bool     sensors_ok() const { return sensors_ok_; }
     uint32_t samples()    const { return samples_; }
+    const SensorScreen& screen() const { return screen_; }
+    const SimBridge&    bridge() const { return bridge_; }
 
  private:
     static void on_actuators(void* ctx, core::Topic, const uint8_t* data, size_t length);
@@ -55,8 +58,12 @@ class SimIoApp {
     // Measured on the host clock: this watches the simulator process, and a
     // busy host must not look like a dead sensor (see IClock::host_now).
     static constexpr core::Duration kSensorTimeout = core::Duration::seconds(2);
+    // Sensors sample at 10 Hz; a jump of more than a second in their
+    // timestamps means samples went missing on the way here.
+    static constexpr double kGapS = 1.0;
 
     SimBridge       bridge_;
+    SensorScreen    screen_;
     hal::IClock&    clock_;
     core::Bus&      bus_;
     core::EventLog& events_;

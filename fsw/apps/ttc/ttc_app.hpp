@@ -102,6 +102,10 @@ class TtcApp {
     core::FailureCode svc_time(const ReceivedTc& tc);
     core::FailureCode svc_scheduling(const ReceivedTc& tc);
     core::FailureCode svc_storage(const ReceivedTc& tc);
+    core::FailureCode svc_monitoring(const ReceivedTc& tc);
+    core::FailureCode svc_event_action(const ReceivedTc& tc);
+    void run_event_actions();
+    static void on_monitor_report(void* context, core::Topic topic, const uint8_t* data, size_t length);
 
     void release_scheduled();
     void send_time_report();
@@ -127,6 +131,8 @@ class TtcApp {
                            const uint8_t* data, size_t length);
     static void on_eps_hk(void* context, core::Topic topic,
                           const uint8_t* data, size_t length);
+    static void on_fdir_hk(void* context, core::Topic topic,
+                           const uint8_t* data, size_t length);
     static void on_mode(void* context, core::Topic topic, const uint8_t* data, size_t length);
     static void on_power(void* context, core::Topic topic, const uint8_t* data, size_t length);
 
@@ -147,6 +153,7 @@ class TtcApp {
     SequenceCounter seq_ttc_;
     SequenceCounter seq_adcs_;
     SequenceCounter seq_eps_;
+    SequenceCounter seq_fdir_;
 
     uint8_t    rx_chunk_[kRxBufferBytes]{};
     uint8_t    tx_scratch_[kTxScratchBytes]{};
@@ -193,11 +200,16 @@ class TtcApp {
     // packet's presence proves the telemetry chain works.
     tlm::AdcsHk adcs_hk_{};
     tlm::EpsHk  eps_hk_{};
+    tlm::FdirHk fdir_hk_{};
 
     struct MsgCounter { uint8_t service; uint8_t subtype; uint16_t count; };
     core::StaticVector<MsgCounter, 32> msg_counters_;
 
     core::Topic mode_topic_ = core::Topic::ModeRequest;
+
+    // ST[19]: which event-actions are enabled, and those waiting to run.
+    bool action_enabled_[dict::kEventActionCount > 0 ? dict::kEventActionCount : 1]{};
+    core::StaticVector<size_t, 8> pending_actions_;
 
     uint32_t tc_received_ = 0;
     uint32_t tc_rejected_ = 0;

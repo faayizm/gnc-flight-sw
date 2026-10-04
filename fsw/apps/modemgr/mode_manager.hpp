@@ -53,6 +53,7 @@ class ModeManager {
     static void on_adcs(void* ctx, core::Topic, const uint8_t* data, size_t length);
     static void on_power(void* ctx, core::Topic, const uint8_t* data, size_t length);
     static void on_uplink(void* ctx, core::Topic, const uint8_t*, size_t);
+    static void on_wheels(void* ctx, core::Topic, const uint8_t* data, size_t length);
 
     void   start_contact_timer();
     Facts  facts();
@@ -67,6 +68,7 @@ class ModeManager {
     dict::SystemMode   mode_ = dict::SystemMode::BOOT;
     msg::AdcsStatus    adcs_{};
     msg::PowerStatus   power_{};
+    msg::WheelHealth   wheels_{};
     bool               have_adcs_ = false;
     core::Instant      last_contact_{};
     bool               started_ = false;

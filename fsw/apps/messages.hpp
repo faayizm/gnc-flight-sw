@@ -15,7 +15,12 @@
 //      ModeChanged      modemgr     ModeChange        adcs, eps, ttc
 //      UplinkActivity   ttc         (none)            eps, modemgr
 //      RailRequest      ttc         RailRequest       eps
-//      AdcsHk / EpsHk   adcs / eps  tlm::AdcsHk/EpsHk ttc
+//      WheelHealth      fdir        WheelHealth       adcs, modemgr
+//      FdirRails        fdir        FdirRails         eps
+//      WheelRestore     ttc         uint8_t (mask)    fdir
+//      MonitorControl   ttc         MonitorControl    fdir
+//      MonitorReport    fdir        MonitorReport     ttc
+//      AdcsHk / EpsHk / FdirHk      tlm::...Hk        ttc
 // ============================================================================
 #pragma once
 
@@ -80,6 +85,34 @@ struct PowerStatus {
 struct RailRequest {
     uint8_t rail = 0;               // dict::PowerRail
     bool    on   = false;
+};
+
+// Which reaction wheels attitude control may use. Published by FDIR whenever
+// it changes; until the first one arrives, every wheel is usable.
+struct WheelHealth {
+    uint8_t usable = 0x7;           // bit 0 = X
+    uint8_t state  = 0;             // dict::FdirWheelState
+};
+
+// Rails FDIR needs switched off regardless of policy or ground wishes, e.g.
+// for a power-cycle retry. EPS applies it on top of everything else.
+struct FdirRails {
+    uint16_t off = 0;               // bit per dict::PowerRail
+};
+
+// ST[12,1] / ST[12,2], carried from TT&C to FDIR.
+struct MonitorControl {
+    uint8_t id = 0;
+    bool    on = false;
+};
+
+// One ST[12] status change, for TT&C to downlink as ST[12,12].
+struct MonitorReport {
+    uint8_t id   = 0;
+    uint8_t from = 0;               // dict::MonitorStatus
+    uint8_t to   = 0;
+    double  value = 0.0;
+    double  limit = 0.0;
 };
 
 struct ModeChange {

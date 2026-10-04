@@ -36,7 +36,28 @@ void SimIoApp::run() {
             sensors_ok_ = true;
             if (samples_ > 0) { events_.raise(dict::EventId::SENSOR_RESTORED); }
         }
+        // A hole in the sensors' own timestamps. The host-clock watchdog
+        // below cannot see a short one when the simulation runs fast; the
+        // timestamps always can, deterministically, once data resumes.
+        if (samples_ > 0 && s.time_s - last_.time_s > kGapS) {
+            const double gap_ms = (s.time_s - last_.time_s) * 1000.0;
+            events_.raise(dict::EventId::SENSOR_GAP,
+                          static_cast<uint32_t>(gap_ms < 4.0e9 ? gap_ms : 4.0e9));
+        }
         ++samples_;
+
+        // Distrust before anything else sees the data.
+        ScreenChange changes[SensorScreen::kSensors];
+        const int n = screen_.screen(s, changes);
+        for (int i = 0; i < n; ++i) {
+            const auto id = static_cast<uint32_t>(changes[i].sensor);
+            if (changes[i].fault == dict::SensorFault::NONE) {
+                events_.raise(dict::EventId::SENSOR_READMITTED, id);
+            } else {
+                events_.raise(dict::EventId::SENSOR_REJECTED,
+                              (id << 8) | static_cast<uint32_t>(changes[i].fault));
+            }
+        }
         last_ = s;
 
         // Anything that does not answer this sample commands nothing.

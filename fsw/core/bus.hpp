@@ -46,6 +46,12 @@ enum class Topic : uint16_t {
     PowerStatus,      // battery state, shed level and rail policy, from EPS
     UplinkActivity,   // the ground was heard: a TC frame was accepted
     RailRequest,      // a ground request to switch a power rail, for EPS to apply
+    WheelHealth,      // which reaction wheels attitude control may use, from FDIR
+    FdirRails,        // rails FDIR needs off (power-cycle retries), for EPS
+    WheelRestore,     // a ground request to return isolated wheels to service
+    FdirHk,           // fault management housekeeping, published by FDIR
+    MonitorControl,   // ST[12] enable/disable, from the ground, for FDIR
+    MonitorReport,    // an ST[12] check transition, from FDIR, to downlink
     kTopicCount
 };
 
@@ -62,6 +68,12 @@ constexpr const char* to_string(Topic t) {
         case Topic::PowerStatus:     return "POWER_STATUS";
         case Topic::UplinkActivity:  return "UPLINK_ACTIVITY";
         case Topic::RailRequest:     return "RAIL_REQUEST";
+        case Topic::WheelHealth:     return "WHEEL_HEALTH";
+        case Topic::FdirRails:       return "FDIR_RAILS";
+        case Topic::WheelRestore:    return "WHEEL_RESTORE";
+        case Topic::FdirHk:          return "FDIR_HK";
+        case Topic::MonitorControl:  return "MONITOR_CONTROL";
+        case Topic::MonitorReport:   return "MONITOR_REPORT";
         case Topic::kTopicCount:     return "INVALID";
     }
     return "UNKNOWN";
@@ -72,7 +84,7 @@ class Bus {
     using Handler = void (*)(void* context, Topic topic,
                              const uint8_t* data, size_t length);
 
-    static constexpr size_t kMaxSubscriptions = 32;
+    static constexpr size_t kMaxSubscriptions = 48;
 
     // All subscriptions are made during initialisation. Nothing subscribes or
     // unsubscribes in flight, so the delivery set for a topic is fixed and can

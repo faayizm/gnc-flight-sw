@@ -55,6 +55,7 @@ class EpsApp {
     static void on_mode(void* ctx, core::Topic, const uint8_t* data, size_t length);
     static void on_uplink(void* ctx, core::Topic, const uint8_t*, size_t);
     static void on_rail(void* ctx, core::Topic, const uint8_t* data, size_t length);
+    static void on_fdir(void* ctx, core::Topic, const uint8_t* data, size_t length);
 
     core::Bus&              bus_;
     core::EventLog&         events_;
@@ -65,6 +66,7 @@ class EpsApp {
     dict::SystemMode mode_  = dict::SystemMode::BOOT;
     uint8_t  level_ = 0;
     uint16_t ground_rails_ = kDefaultGroundRails;
+    uint16_t fdir_off_ = 0;          // rails FDIR has switched off for a retry
     uint16_t rails_ = kDefaultGroundRails;
     bool     have_t_ = false;
     double   last_t_ = 0.0;

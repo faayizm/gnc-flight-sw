@@ -65,11 +65,22 @@ class Bridge:
         if self.sock:
             self.sock.close()
 
-    def exchange(self, seq: int, t: float, mag, gyro, **kw):
+    def exchange(self, seq: int, t: float, mag, gyro, corrupt_bit: int | None = None, **kw):
         """Send one sensor frame and block for the matching actuator frame.
-        Returns (dipole, wheel_torque, rails, flags)."""
+        Returns (dipole, wheel_torque, rails, flags).
+
+        With `corrupt_bit`, that bit of the frame body is flipped in transit
+        and None is returned at once: the flight software must reject the
+        frame, so there is nothing to wait for. If it wrongly answered, the
+        stray reply arrives during the next exchange and breaks lockstep
+        loudly, which is the test."""
         assert self.sock is not None
-        self.sock.sendall(encode_sensor(seq, t, mag, gyro, **kw))
+        frame = bytearray(encode_sensor(seq, t, mag, gyro, **kw))
+        if corrupt_bit is not None:
+            frame[2 + corrupt_bit // 8] ^= 0x80 >> (corrupt_bit % 8)
+            self.sock.sendall(frame)
+            return None
+        self.sock.sendall(frame)
         while True:
             if len(self.buf) >= 2:
                 n = struct.unpack(">H", self.buf[:2])[0]

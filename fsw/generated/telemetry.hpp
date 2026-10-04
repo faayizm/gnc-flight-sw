@@ -272,4 +272,89 @@ struct EpsHk {
 };
 static_assert(sizeof(EpsHk) > 0, "EpsHk must be instantiable");
 
+// Fault management state.
+// PUS ST[3,25] report, structure id 4, APID 0x004, nominal rate 1 Hz.
+struct FdirHk {
+    uint8_t wheel_state{};  // Reaction-wheel recovery ladder state
+    uint8_t wheels_usable{};  // Reaction wheels in service, bit 0 = X [mask]
+    uint8_t wheel_retries{};  // Power-cycle retries spent [count]
+    float wheel_resid_x{};  // Wheel X momentum not explained by its commands [N*m*s]
+    float wheel_resid_y{};  // Wheel Y momentum not explained by its commands [N*m*s]
+    float wheel_resid_z{};  // Wheel Z momentum not explained by its commands [N*m*s]
+    uint8_t monitors_enabled{};  // ST[12] parameter monitors enabled [count]
+    uint8_t monitors_alarm{};  // ST[12] monitors currently out of limits [count]
+
+    static constexpr dict::HkSid kSid  = dict::HkSid::FDIR_HK;
+    static constexpr dict::Apid  kApid = dict::Apid::FDIR;
+    static constexpr uint16_t kPayloadBytes = 17;
+    static constexpr uint16_t kPacketBytes  = 39;
+
+    // Serialises the field block only. The ST[3,25] structure id and the
+    // packet headers are written by the telemetry builder.
+    bool serialize(core::ByteWriter& w) const {
+        return true
+            && w.write_uint8(wheel_state)
+            && w.write_uint8(wheels_usable)
+            && w.write_uint8(wheel_retries)
+            && w.write_float32(wheel_resid_x)
+            && w.write_float32(wheel_resid_y)
+            && w.write_float32(wheel_resid_z)
+            && w.write_uint8(monitors_enabled)
+            && w.write_uint8(monitors_alarm)
+            ;
+    }
+
+    bool deserialize(core::ByteReader& r) {
+        return true
+            && r.read_uint8(wheel_state)
+            && r.read_uint8(wheels_usable)
+            && r.read_uint8(wheel_retries)
+            && r.read_float32(wheel_resid_x)
+            && r.read_float32(wheel_resid_y)
+            && r.read_float32(wheel_resid_z)
+            && r.read_uint8(monitors_enabled)
+            && r.read_uint8(monitors_alarm)
+            ;
+    }
+};
+static_assert(sizeof(FdirHk) > 0, "FdirHk must be instantiable");
+
+// --- Parameter monitoring definitions, PUS ST[12] ---------------------------
+// Each reads one field out of the housekeeping structure it belongs to.
+struct MonitorDef {
+    uint8_t       id;
+    const char*   name;
+    dict::HkSid   sid;
+    double      (*read)(const void* hk);
+    double        low;
+    double        high;
+    uint16_t      repetitions;
+    dict::EventId event;
+};
+
+inline constexpr MonitorDef kMonitors[] = {
+    { 1, "BATT_VOLTAGE", dict::HkSid::EPS_HK,
+      [](const void* p) { return static_cast<double>(static_cast<const EpsHk*>(p)->batt_voltage); },
+      6.6, 8.7, 50, dict::EventId::BATT_VOLTAGE_ALARM },
+    { 2, "BATT_TEMP", dict::HkSid::EPS_HK,
+      [](const void* p) { return static_cast<double>(static_cast<const EpsHk*>(p)->batt_temp_c); },
+      -5.0, 45.0, 100, dict::EventId::BATT_TEMP_ALARM },
+    { 3, "BODY_RATE", dict::HkSid::ADCS_HK,
+      [](const void* p) { return static_cast<double>(static_cast<const AdcsHk*>(p)->rate_norm); },
+      -1.0, 5.0, 50, dict::EventId::RATE_ALARM },
+    { 4, "POINTING", dict::HkSid::ADCS_HK,
+      [](const void* p) { return static_cast<double>(static_cast<const AdcsHk*>(p)->pointing_err_deg); },
+      -1.0, 15.0, 3000, dict::EventId::POINTING_LOST },
+    { 5, "WHEEL_H_X", dict::HkSid::ADCS_HK,
+      [](const void* p) { return static_cast<double>(static_cast<const AdcsHk*>(p)->wheel_h_x); },
+      -0.02, 0.02, 50, dict::EventId::WHEEL_MOMENTUM_HIGH },
+    { 6, "WHEEL_H_Y", dict::HkSid::ADCS_HK,
+      [](const void* p) { return static_cast<double>(static_cast<const AdcsHk*>(p)->wheel_h_y); },
+      -0.02, 0.02, 50, dict::EventId::WHEEL_MOMENTUM_HIGH },
+    { 7, "WHEEL_H_Z", dict::HkSid::ADCS_HK,
+      [](const void* p) { return static_cast<double>(static_cast<const AdcsHk*>(p)->wheel_h_z); },
+      -0.02, 0.02, 50, dict::EventId::WHEEL_MOMENTUM_HIGH },
+};
+inline constexpr size_t kMonitorCount = 7;
+
 }  // namespace fsw::tlm

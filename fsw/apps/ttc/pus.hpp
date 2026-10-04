@@ -19,8 +19,9 @@
 //            end to end without changing any spacecraft state.
 //    ST[20]  Parameter management -- read and write on-board parameters.
 //
-//  Later phases add ST[11] time-based scheduling, ST[12] on-board monitoring,
-//  ST[15] storage and retrieval, ST[08] function management.
+//  Later phases added ST[08] function management, ST[09] time, ST[11]
+//  time-based scheduling, ST[12] on-board monitoring, ST[15] storage and
+//  retrieval and ST[19] event-action.
 //
 //  SECONDARY HEADERS
 //
@@ -76,8 +77,10 @@ enum class Service : uint8_t {
     Function     = 8,
     Time         = 9,
     Scheduling   = 11,
+    Monitoring   = 12,
     Storage      = 15,
     Test         = 17,
+    EventAction  = 19,
     Parameter    = 20,
 };
 
