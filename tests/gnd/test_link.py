@@ -103,6 +103,14 @@ def test_tm_decoder():
     check(d.stats.rs_corrected == 4, "and the decoder counted the four repaired symbols")
     check(d.last_clcw is not None and d.last_clcw.report == 5, "the CLCW is read from the OCF")
 
+    d3 = TmDecoder()
+    d3.push(f1)
+    damaged = bytearray(f2)
+    damaged[0] ^= 0x81                  # two bit errors in the sync marker itself
+    got = d3.push(bytes(damaged))
+    check([p for _, p in got] == [big, small] and d3.stats.sync_losses == 0,
+          "while locked, a sync marker with two bit errors is still recognised")
+
     d2 = TmDecoder()
     got = d2.push(f2)
     check([p for _, p in got] == [small], "joining mid-stream, the first header pointer finds the next whole packet")

@@ -269,8 +269,26 @@ class LinkStats:
     idle_frames: int = 0
 
 
+_ASM_INT = int.from_bytes(ASM, "big")
+ASM_TOLERANCE_BITS = 4      # mismatches accepted where the next ASM is expected
+
+
+def _asm_distance(b: bytes) -> int:
+    return bin(int.from_bytes(b, "big") ^ _ASM_INT).count("1")
+
+
 class TmDecoder:
-    """Turns a received byte stream into (vcid, packet) pairs and CLCWs."""
+    """Turns a received byte stream into (vcid, packet) pairs and CLCWs.
+
+    Frame synchronisation works like a hardware frame synchroniser:
+    SEARCH for an exact attached sync marker anywhere in the stream, then, once
+    LOCKED, expect the next one exactly one CADU later and accept it there with
+    up to ASM_TOLERANCE_BITS bit errors. Near the horizon, at a bit error rate
+    of 1e-3, a 32-bit marker is hit in about 3% of frames; demanding an exact
+    match would throw those frames away even though Reed-Solomon could repair
+    everything after the marker. A false lock is still caught: the frame that
+    follows fails Reed-Solomon, or the next marker is nowhere near.
+    """
 
     def __init__(self):
         self.buf = bytearray()
@@ -293,7 +311,7 @@ class TmDecoder:
                 self.locked = True
             if len(self.buf) < CADU:
                 return out
-            if self.buf[:4] != ASM:
+            if self.buf[:4] != ASM and _asm_distance(bytes(self.buf[:4])) > ASM_TOLERANCE_BITS:
                 # Lost lock: the next frame did not start where it should.
                 self.locked = False
                 self.stats.sync_losses += 1

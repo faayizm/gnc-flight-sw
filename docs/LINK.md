@@ -51,6 +51,13 @@ out.
 | Pseudo-randomiser, h(x) = x⁸+x⁷+x⁵+x³+1 | Bit transitions for the receiver's clock recovery |
 | Attached sync marker `1ACFFC1D` | A receiver can find frame boundaries in a stream it joined anywhere |
 
+The ground's frame synchroniser searches for an exact sync marker. Once
+locked, it accepts the next marker with up to 4 bit errors, provided it sits
+exactly one frame later. Near the horizon a bit error lands in the 32-bit
+marker of about 3% of frames. Insisting on a perfect match there threw those
+frames away, although Reed-Solomon could have repaired everything after the
+marker. A store-and-forward run caught it.
+
 The RS encoder (C++) and encoder/decoder (Python) are both checked against
 vectors from Phil Karn's libfec. That ties each one to an outside reference,
 not only to each other. The dual-basis conversion is the classic source of

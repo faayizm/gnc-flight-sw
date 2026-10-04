@@ -181,7 +181,8 @@ def main() -> int:
     s, r = gnd.link, radio.stats
     print(f"\n  channel: {r.down_bit_errors} downlink and {r.up_bit_errors} uplink bit errors injected")
     print(f"  ground:  {s.cadus} frames, {s.rs_corrected} RS symbols corrected, "
-          f"{s.rs_failed} uncorrectable, {sum(s.frames_lost.values())} counter gaps "
+          f"{s.rs_failed} uncorrectable, {s.sync_losses} sync losses, "
+          f"{sum(s.frames_lost.values())} counter gaps "
           f"(mostly the 90-minute silence, counted modulo 256); "
           f"COP-1 retransmitted {gnd.fop.retransmissions}")
     check(r.down_bit_errors > 0 and s.rs_corrected > 0,
