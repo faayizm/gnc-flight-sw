@@ -82,6 +82,7 @@ add_library(fsw_apps STATIC
   fsw/apps/adcs/mekf.cpp
   fsw/apps/adcs/orbit_prop.cpp
   fsw/apps/fdir/fdir_app.cpp
+  fsw/spacecraft.cpp
 )
 target_link_libraries(fsw_apps PUBLIC fsw_core)
 target_compile_options(fsw_apps PRIVATE ${FSW_WARNINGS} ${FSW_FLIGHT_FLAGS})
