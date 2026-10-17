@@ -41,8 +41,8 @@ Fault detection and recovery come next. The roadmap in
                                      │
                  ┌───────────────────▼──────────────────┐
                  │  PLATFORM  (the only OS-aware code)  │
-                 │  POSIX today · FreeRTOS/bare metal   │
-                 │  is a directory, not a rewrite       │
+                 │  POSIX · FreeRTOS on a Cortex-M7:    │
+                 │  a directory, not a rewrite          │
                  └──────────────────────────────────────┘
 ```
 
@@ -76,7 +76,7 @@ answer. [`learn/GLOSSARY.md`](learn/GLOSSARY.md) translates every acronym.
 ## Try it in two minutes
 
 ```bash
-make build          # configure, compile, run 118 unit tests
+make build          # configure, compile, run 141 unit tests
 make run            # the spacecraft boots and waits for a ground station
 ```
 
@@ -107,6 +107,23 @@ make gen            # regenerate everything from dictionary/mission.yaml
 make params         # read every on-board parameter back from the spacecraft
 make help           # everything else
 ```
+
+## The same software on a flight processor
+
+```bash
+make target         # cross-compile for an Arm Cortex-M7 under FreeRTOS
+make target-sil     # fly it in QEMU through the same end-to-end tests
+make budget         # memory, stack and timing, read out of the binary
+```
+
+The flight core and every application are compiled unchanged for the board;
+only `fsw/platform/freertos/` and `targets/mps2-an500/` are new. The ground
+station and the simulator connect to the emulated board's UARTs over TCP and
+cannot tell the difference. [docs/BUDGET.md](docs/BUDGET.md) is the generated
+report; [docs/HIL.md](docs/HIL.md) is how a real board would take QEMU's place.
+It needs the Arm cross-compiler and QEMU (on Debian or Ubuntu: `gcc-arm-none-eabi
+libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib qemu-system-arm`); the
+first build fetches FreeRTOS.
 
 ## The one idea worth stealing
 

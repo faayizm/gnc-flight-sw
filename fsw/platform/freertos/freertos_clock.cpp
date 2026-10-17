@@ -52,13 +52,10 @@ void FreeRtosClock::sleep_until(core::Instant deadline) {
     if (deadline < current) { return; }
     const auto real_us = static_cast<int64_t>(
         static_cast<double>((deadline - current).to_micros()) / time_scale_);
+    // Whole RTOS ticks, rounded up: wake at or just after the deadline, never
+    // before it. Meanwhile the idle task sleeps the processor (wfi).
     const int64_t tick_us = 1000000 / configTICK_RATE_HZ;
-    if (real_us > tick_us) {
-        // Sleep one tick short: a delay of N ticks may end anywhere in the
-        // Nth tick, and the spin below finishes the job precisely.
-        vTaskDelay(static_cast<TickType_t>(real_us / tick_us - 1));
-    }
-    while (now() < deadline) {}
+    vTaskDelay(static_cast<TickType_t>((real_us + tick_us - 1) / tick_us));
 }
 
 }  // namespace fsw::platform

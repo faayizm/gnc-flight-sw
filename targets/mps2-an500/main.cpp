@@ -79,8 +79,9 @@ struct Options {
     bool     verbose          = false;
 };
 
-// "12.5" -> 1250. By hand, because newlib's strtod -- behind atof -- calls
-// malloc for the general case, and there is no heap.
+// "12.5" -> 1250. By hand: atof is strtod underneath, and in newlib that
+// brings in malloc, abort and file I/O -- ten system calls this board does
+// not have.
 uint32_t parse_centi(const char* s) {
     uint32_t whole = 0, frac = 0, frac_digits = 0;
     for (; *s >= '0' && *s <= '9'; ++s) { whole = whole * 10 + static_cast<uint32_t>(*s - '0'); }
@@ -147,16 +148,14 @@ fsw::dict::ResetCause reset_cause() {
 }
 
 void report_tasks(fsw::core::Scheduler& scheduler) {
-    console::put("task       runs      max_us  mean_us\n");
+    console::put("  task         runs    max_us   mean_us\n");
     for (const auto& t : scheduler.tasks()) {
         console::put("  ");
         console::put(t.name);
         for (size_t n = std::strlen(t.name); n < 8; ++n) { console::put(" "); }
-        console::put_u(t.runs);
-        console::put("  ");
-        console::put_u(t.max_us);
-        console::put("  ");
-        console::put_u(t.runs > 0 ? static_cast<uint32_t>(t.total_us / t.runs) : 0);
+        console::put_u(t.runs, 9);
+        console::put_u(t.max_us, 10);
+        console::put_u(t.runs > 0 ? static_cast<uint32_t>(t.total_us / t.runs) : 0, 10);
         console::put("\n");
     }
 }
@@ -259,6 +258,13 @@ void uart2_tx_irq() { g_sim_link.on_tx_interrupt(); }
 [[noreturn]] void NMI_Handler() {
     g_retained.watchdog_fired = kWatchdogFired;
     for (;;) {}
+}
+
+// Nothing to do until the next interrupt: the tick, or a byte on a UART.
+// Wait for it asleep, as a real board would to save power. (Under QEMU
+// -icount, this is also what lets virtual time pass without instructions.)
+void vApplicationIdleHook() {
+    __asm volatile("wfi");
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t, char*) {

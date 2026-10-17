@@ -103,14 +103,12 @@ const Vector g_vectors[16 + board::kIrqCount] = {
 //
 // Each of these is here because something in the C or C++ library refers to
 // it. None of them may allocate: there is no heap, and the linker proves it,
-// because nothing below provides _sbrk -- anything that calls malloc fails to
-// link.
+// because nothing provides _sbrk -- anything that so much as refers to malloc
+// fails to link.
 
-// A static object with a destructor registers it to run at exit. This
-// program never exits, so the registration is accepted and forgotten.
-// (Otherwise the C library's atexit table would be linked, which grows by
-// calling malloc.)
-int __cxa_atexit(void (*)(void*), void*, void*) { return 0; }
+// The handle a static object's destructor is registered against. The
+// registration happens (to the C library's fixed table of 32), and the
+// destructor never runs: this program never exits.
 void* __dso_handle = nullptr;
 
 // A pure virtual function called during construction or destruction.
@@ -120,7 +118,8 @@ void* __dso_handle = nullptr;
 
 // Every class with a virtual destructor has a "deleting destructor" in its
 // vtable, for `delete p` through a base pointer. Nothing here ever deletes
-// anything, but the vtable still names the function. Defined here, it can
-// never be reached; left to the library, it would bring in free() and malloc().
+// anything, but the vtable still names operator delete. Left to the C++
+// library, that brings in free(), free brings in malloc, and malloc needs
+// _sbrk -- and the link fails. Defined here, it is never reached.
 void operator delete(void*) noexcept { for (;;) {} }
 void operator delete(void*, std::size_t) noexcept { for (;;) {} }

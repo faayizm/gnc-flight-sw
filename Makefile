@@ -63,12 +63,20 @@ target:  ## Cross-compile for the Cortex-M7 board under FreeRTOS: build-target/f
 	@cmake --build $(TARGET_DIR) -j$(JOBS)
 
 .PHONY: target-run
-target-run: target  ## Run the board in QEMU: TT&C on TCP $(TTC_PORT), simulator on 50000 (QEMU_ARGS="--time-scale 10")
+target-run: target  ## Run the board in QEMU: TT&C on TCP 50001, simulator on 50000 (QEMU_ARGS="--time-scale 10")
 	@$(SYS_PYTHON) -m sim.sil.board --ttc-port $(TTC_PORT) --sim-port 50000 --verbose $(QEMU_ARGS)
 
 .PHONY: target-sil
 target-sil: target  ## The software-in-the-loop tests, against the board in QEMU
 	@FSW_TARGET=qemu $(SYS_PYTHON) tests/sil/test_endtoend.py
+
+.PHONY: target-detumble
+target-detumble: target  ## Fly the detumble scenario on the board in QEMU (about 20 minutes)
+	@FSW_TARGET=qemu $(SYS_PYTHON) -m sim.scenarios.detumble
+
+.PHONY: budget
+budget: target  ## Write docs/BUDGET.md: memory, stack and timing, from the board's binary and a QEMU run
+	@$(SYS_PYTHON) tools/budget.py
 
 # -- generate -----------------------------------------------------------------
 

@@ -114,6 +114,22 @@ Lesson numbers point to where each idea is taught properly.
 
 | Term | Plain meaning |
 |---|---|
+| **Cortex-M** | Arm's family of small processors for embedded systems. The board in Phase 7 is a Cortex-M7, chosen because its floating-point unit does `double` in hardware. Lesson 11 |
+| **Cross-compiler** | A compiler that runs on one kind of computer and produces programs for another: `arm-none-eabi-g++` runs on a laptop and writes code for a Cortex-M. Lesson 11 |
+| **Delayed ACK** | TCP waiting up to 40 ms before acknowledging data, hoping to combine the acknowledgement with a reply. Together with Nagle's algorithm, a classic source of mysterious 40 ms stalls. Lesson 11 |
+| **ELF file** | The standard format of a compiled program: machine code, data, where each part goes in memory, and debug information. `build-target/fsw.elf` is the board's. Lesson 11 |
+| **FreeRTOS** | A small, widely used real-time operating system. Here it does only three things: start the flight task, keep time, and let it sleep between ticks. Lesson 11 |
+| **Heap** | Memory handed out while a program runs (`malloc`, `new`). Flight code here never uses one, so its whole memory footprint is known before it runs, and on the board the linker refuses anything that would. Lessons 10 and 11 |
+| **Interrupt** | A hardware signal that makes the processor stop what it is doing and run a handler at once: a byte arrived on a UART, a timer ticked. Lesson 11 |
+| **Linker script** | The file that tells the linker where everything goes in the board's memory: code here, data there, the stack at the end. `targets/mps2-an500/mps2_an500.ld`. Lesson 11 |
+| **Nagle's algorithm** | TCP holding back small writes while earlier data is unacknowledged, to avoid flooding a network with tiny packets. Switched off with a "no delay" option. Lesson 11 |
+| **newlib** | The C library used on small embedded systems, with the maths functions. Its `sin` and `cos` differ from a laptop's in the last bits. Lesson 11 |
+| **NMI** | Non-Maskable Interrupt: one the software cannot switch off. On the board, the watchdog's last warning before it resets. Lesson 11 |
+| **QEMU** | An emulator: a program that pretends to be another computer, instruction by instruction. Here it plays a Cortex-M7 board. With `-icount` it counts instructions to keep time, which makes timing deterministic. Lesson 11 |
+| **RTOS** | Real-Time Operating System: a small operating system whose job is doing things on time rather than doing many things at once. Lesson 11 |
+| **Semihosting** | A way for a program on a board to ask an attached debugger, or an emulator, to do something for it: here, hand over the command line. Lesson 11 |
+| **SysTick** | The timer built into every Cortex-M processor. FreeRTOS counts its ticks with it. Lesson 11 |
+| **UART** | The simplest serial port: bytes one bit at a time down a wire, at an agreed rate (115,200 bits a second is common). The board talks to the ground and to the simulator through two of them. Lesson 11 |
 | **Big endian** | Most significant byte first. What everything on a spacecraft link uses. Lesson 3 |
 | **EDAC** | Error Detection And Correction. Extra bits stored with every memory word, so a flipped bit can be found and repaired, and two flips at least detected. Lesson 18 |
 | **Event-action** | PUS ST[19]: when a named event is raised on board, run a stored telecommand. Keeps detecting a fault separate from responding to it. Lesson 18 |
@@ -135,7 +151,7 @@ Lesson numbers point to where each idea is taught properly.
 | **SEU** | Single-Event Upset. A cosmic ray flips a bit. The hardware is fine; the data is wrong. Lesson 18 |
 | **Syndrome** | What an error-correcting code computes from a damaged word. In a Hamming code it is the position of the flipped bit. Lesson 18 |
 | **SIL** | Software-in-the-Loop. Real flight software against a simulator, no hardware |
-| **HIL** | Hardware-in-the-Loop. Real flight software on real hardware against a simulator |
+| **HIL** | Hardware-in-the-Loop. Real flight software on real hardware against a simulator. Lesson 11, and `docs/HIL.md` |
 | **TID** | Total Ionising Dose. Cumulative radiation damage over a mission's life. Lesson 18 |
 | **TMR** | Triple Modular Redundancy: keep three copies of a critical value and believe any two that agree. Lesson 18 |
 | **Watchdog** | A timer that resets the processor unless the software keeps telling it not to. Lessons 10, 11 and 18 |

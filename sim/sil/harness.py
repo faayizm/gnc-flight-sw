@@ -27,9 +27,21 @@ ON_BOARD = os.environ.get("FSW_TARGET", "host") == "qemu"
 FSW = board.ELF if ON_BOARD else ROOT / "build" / "fsw"
 
 
+# The board cannot fly as fast as the laptop: its sensor link is a UART that
+# QEMU moves about 10 kB/s through, near enough a real one at 115200 baud, and
+# each 0.1 s sensor sample is a 157-byte frame. So the lockstep loop manages
+# about 5 simulated seconds per second, whatever --time-scale says, and the
+# board's own clock is held to match rather than racing ahead of the samples.
+BOARD_TIME_SCALE = 5.0
+
+
 def fsw_command(ttc_port: int, sim_port: int, args: list[str]) -> list[str]:
     """The command that starts the flight software, on the laptop or the board."""
     if ON_BOARD:
+        args = list(args)
+        if "--time-scale" in args:
+            i = args.index("--time-scale") + 1
+            args[i] = str(min(float(args[i]), BOARD_TIME_SCALE))
         return board.command(ttc_port, sim_port, args)
     return [str(FSW), "--ttc-port", str(ttc_port), "--sim-port", str(sim_port), *args]
 

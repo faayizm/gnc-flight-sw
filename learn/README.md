@@ -45,7 +45,7 @@ You can do all of these with no programming.
 | # | Lesson | The question it answers |
 |---|---|---|
 | 10 | [The heartbeat](10-the-heartbeat/) | Why does flight software use one thread when your laptop uses hundreds? |
-| 11 | [Portability](11-portability/) | How do you write code before you know what computer it will run on? |
+| 11 | [Portability](11-portability/) | How do you write code before you know what computer it will run on? And does it really run there? |
 
 ### Part 3 — Physics and control 🔧🎓
 

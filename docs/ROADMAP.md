@@ -3,7 +3,7 @@
 Seven phases. Each ends with something you can watch happen, because a phase
 that produces only internal machinery is a phase whose value cannot be checked.
 
-**Currently at the end of Phase 5.**
+**All seven phases are done.**
 
 ---
 
@@ -181,19 +181,33 @@ the spacecraft detecting it, isolating it, and recovering — autonomously.
 `make fdir` does that in act 3 (isolated in 13 s, pointing held below 1°), and
 `make monte-carlo` does it for dispersed spacecraft.
 
-## Phase 7 — Off the laptop
+## Phase 7 — Off the laptop ✅ done
 
-Making the portability claim concrete.
+Making the portability claim concrete. How it went:
+[Lesson 11](../learn/11-portability/); the numbers: [BUDGET.md](BUDGET.md).
 
-- FreeRTOS platform adapter, the same flight core cross-compiled
-- Running on QEMU: Cortex-M or LEON3, the SPARC processor used across European
-  missions
-- Real timing measurements, real memory footprint, real watchdog behaviour
-- A hardware-in-the-loop path to a development board
-- A memory and timing budget report generated from the binary
+- ✅ One composition of the spacecraft (`fsw/spacecraft.cpp`), two mains
+- ✅ The same flight core and applications cross-compiled for an Arm
+  Cortex-M7 (MPS2 AN500) with the same strict flags, unchanged; FreeRTOS
+  V11.1.0 with static allocation only; no heap, enforced by the linker
+- ✅ `fsw/platform/freertos/`: the RTOS tick refined by SysTick,
+  interrupt-driven UART links, the CMSDK watchdog, RAM that survives a reset
+- ✅ Running on QEMU, the UARTs on TCP: the unchanged ground station and
+  simulator, the SIL tests (`make target-sil`) and the detumble scenario
+  (`make target-detumble`), which ends in the same state, bit for bit, as on
+  the laptop
+- ✅ A real watchdog reset: the board resets itself and reports `WATCHDOG`
+- ✅ A memory, stack and timing budget generated from the binary and a
+  deterministic QEMU `-icount` run (`make budget`)
+- ✅ A hardware-in-the-loop path to a development board, written down and
+  untested ([HIL.md](HIL.md)); a CI job for the board
+
+LEON3 was considered and not done: one emulated flight processor was enough
+to test the claim, and the Cortex-M7's double-precision FPU suits this code.
 
 **Ends with:** the identical flight core, unchanged, running on an emulated
-flight processor and flying the same scenarios.
+flight processor and flying the same scenarios. `make target-sil` and `make
+target-detumble`.
 
 ---
 

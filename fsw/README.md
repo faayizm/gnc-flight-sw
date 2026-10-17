@@ -32,7 +32,9 @@ Dependencies point one way only, and this is what makes the thing portable:
 Porting to FreeRTOS, to bare metal, or to a flight processor means writing a new
 directory under `platform/` and a new `main.cpp`. Not one line of `core/` or
 `apps/` changes. That claim is the point of the layout, and it is checked by
-`make check-layering`.
+`make check-layering`, and tested by `make target`: the same `core/` and
+`apps/`, cross-compiled for a Cortex-M7 under FreeRTOS (`platform/freertos/`,
+`../targets/mps2-an500/`).
 
 ## Enforced constraints
 

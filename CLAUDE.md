@@ -15,7 +15,9 @@ state of work in progress and what to do next.
 | `make pointing`, `store-forward`, `power`, `fdir`, `radiation` | Flight scenarios, asserted on simulator truth | ~1 min each |
 | `make monte-carlo RUNS=8` | Dispersed wheel failures, in parallel | ~1 min |
 | `make check-lessons` | Runs the lessons' own commands and checks the output they quote | ~1 min |
-| `make check` | Everything CI runs | ~15 min; run it in the background |
+| `make target`, `target-sil` | The Cortex-M7 board (FreeRTOS) cross-compiled, and the SIL tests against it in QEMU | ~1 min each |
+| `make target-detumble`, `budget` | A whole scenario on the board; `docs/BUDGET.md` regenerated | ~15 min, ~5 min |
+| `make check` | Everything CI runs on the laptop build (the board has its own CI job) | ~15 min; run it in the background |
 
 CI (`.github/workflows/ci.yml`) also builds with clang and runs unit + SIL
 tests under ASan and UBSan. **gcc Debug + `-fsanitize=undefined` reports
@@ -57,5 +59,9 @@ The user wants the lessons kept in step with the code, phase by phase.
   `git push -u origin <branch>`. Do not open a PR unless asked.
 - Never `pkill -f <pattern>` that also matches your own shell command line; it
   kills the shell. Kill by PID (write PIDs to a file) or use `pkill -x fsw`.
+- The board build needs `gcc-arm-none-eabi libnewlib-arm-none-eabi
+  libstdc++-arm-none-eabi-newlib qemu-system-arm` (apt; not persistent across
+  sessions). `FSW_TARGET=qemu` points the scenario harness and SIL tests at it.
+  The board flies at about 5x real time at most: its UART is the limit.
 - Scenario harnesses start `build/fsw` on free ports; `make run` uses port
   50001 and `hypersat_nvm.bin` in the repo root (delete it after experiments).

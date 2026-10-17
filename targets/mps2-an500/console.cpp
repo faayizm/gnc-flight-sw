@@ -31,15 +31,18 @@ void put(const char* s) {
     }
 }
 
-void put_u(uint32_t v) {
+void put_u(uint32_t v, int width) {
     char buf[11];
     int  n = 0;
     do {
         buf[n++] = static_cast<char>('0' + v % 10);
         v /= 10;
     } while (v != 0);
+    for (int pad = width - n; pad > 0; --pad) { put_char(' '); }
     while (n > 0) { put_char(buf[--n]); }
 }
+
+void put_u(uint32_t v) { put_u(v, 0); }
 
 void put_centi(uint32_t v) {
     put_u(v / 100);

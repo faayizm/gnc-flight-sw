@@ -34,7 +34,11 @@ a README is a rule that will be broken.
 
 The payoff is a concrete claim: porting to FreeRTOS or bare metal means adding
 a directory under `platform/` and writing a new `main.cpp`. Not one line of
-`core/` or `apps/` changes.
+`core/` or `apps/` changes. Phase 7 put it to the test: `platform/freertos/`
+and `targets/mps2-an500/` fly the same core on a Cortex-M7 under FreeRTOS, in
+QEMU, through the same SIL tests and scenarios ([HIL.md](HIL.md),
+[BUDGET.md](BUDGET.md)). `fsw/spacecraft.cpp` is the one composition both mains
+share.
 
 ## Decision: one thread, rate groups
 

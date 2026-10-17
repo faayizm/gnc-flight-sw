@@ -10,9 +10,14 @@
 //  `time_scale` times faster than the board's own clock, and host_now() is
 //  the board's own clock, unscaled. On a real flight computer the scale is 1.
 //
-//  sleep_until() blocks the task in the RTOS for whole ticks and spins out
-//  the rest. At 100x a 20 ms scheduler tick is 200 us of board time, shorter
-//  than one RTOS tick, so the spinning is what lets it run fast at all.
+//  sleep_until() blocks the task in the RTOS for whole ticks, rounded up, and
+//  the idle task sleeps the processor meanwhile. So a scheduler tick starts up
+//  to 1 ms of board time late, which at real time is 5% jitter on a 20 ms tick
+//  and harmless. At high time scales it is not: at 100x a scheduler tick is
+//  200 us of board time, shorter than one RTOS tick, so ticks come no faster
+//  than one per millisecond, and the spacecraft runs at about 20x however
+//  fast it was asked to. Busy-waiting instead would be precise, and would
+//  cost a real board its power budget for nothing.
 // ============================================================================
 #pragma once
 

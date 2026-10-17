@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import pathlib
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -116,7 +117,33 @@ def watchdog_exercise() -> None:
         pathlib.Path(f"{nvm}.reset").unlink(missing_ok=True)
 
 
+def board_exercise() -> None:
+    """Lesson 11's board, if it has been built: boot it in QEMU, read its
+    banner, and talk to it with the same ground tool as the laptop."""
+    sys.path.insert(0, str(ROOT))
+    from sim.sil import board
+    if not board.ELF.exists() or shutil.which("qemu-system-arm") is None:
+        print("  -  11-portability: board not built (make target), its checks skipped")
+        return
+    proc = subprocess.Popen(board.command(50001, 50000, []), stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True)
+    try:
+        time.sleep(1.0)
+        out = run_bash("cd gnd && python3 -m pyground send TEST_CONNECTION")
+        expect("11-portability", "the ground talks to the board as to the laptop", out, "TEST_REPORT")
+    finally:
+        proc.terminate()
+        banner = proc.communicate(timeout=5)[0]
+    expect("11-portability", "the board boots and says what it is", banner,
+           "HYPERSAT flight software up (Cortex-M7, FreeRTOS V11.1.0).",
+           "  TT&C link   : UART1", "  boot        : #1, after POWER_ON")
+
+
 def main() -> int:
+    if "--board-only" in sys.argv:
+        board_exercise()
+        print(f"\n{'FAILED: ' + str(fails) if fails else 'the board does what Lesson 11 says'}")
+        return 1 if fails else 0
     if not FSW.exists():
         print("build/fsw not found -- run `make build` first")
         return 2
@@ -192,6 +219,7 @@ def main() -> int:
         nvm.unlink(missing_ok=True)
 
     watchdog_exercise()
+    board_exercise()
 
     print(f"\n{'FAILED: ' + str(fails) if fails else 'every lesson checked here does what it says'}")
     return 1 if fails else 0

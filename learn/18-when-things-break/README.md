@@ -579,8 +579,9 @@ nobody can reach.
   you.
 - **Run a bigger campaign.** `make monte-carlo RUNS=100`, and see whether the
   requirements still hold at the hundredth case.
-- **Build the next phase.** [`docs/ROADMAP.md`](../../docs/ROADMAP.md) says
-  what comes next: Phase 7 takes the flight software off the laptop.
+- **Fly it on a flight processor.** Lesson 11 ends with the same software on
+  an emulated Cortex-M7: `make target-detumble` flies this course's detumble
+  on it, and [`docs/BUDGET.md`](../../docs/BUDGET.md) says what it costs.
 - **Read the architecture.**
   [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) explains every major
   decision, including the alternatives that were rejected.

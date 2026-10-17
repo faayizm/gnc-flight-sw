@@ -43,8 +43,8 @@ def command(ttc_port: int, sim_port: int, fsw_args: list[str], icount: int | Non
     cmd = ["qemu-system-arm", "-M", "mps2-an500", "-display", "none", "-monitor", "none",
            "-kernel", str(ELF), "-semihosting-config", semi,
            "-serial", "stdio",
-           "-serial", f"tcp:127.0.0.1:{ttc_port},server=on,wait=off",
-           "-serial", f"tcp:127.0.0.1:{sim_port},server=on,wait=off"]
+           "-serial", f"tcp:127.0.0.1:{ttc_port},server=on,wait=off,nodelay=on",
+           "-serial", f"tcp:127.0.0.1:{sim_port},server=on,wait=off,nodelay=on"]
     if icount is not None:
         # Deterministic: every instruction advances virtual time by 2^icount ns.
         cmd += ["-icount", f"shift={icount},align=off,sleep=on"]

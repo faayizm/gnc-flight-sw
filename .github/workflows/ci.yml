@@ -177,3 +177,33 @@ jobs:
         run: make radiation
       - name: monte carlo (8 dispersed wheel failures)
         run: make monte-carlo RUNS=8
+
+  # ---------------------------------------------------------------------------
+  # The board. The same flight core, cross-compiled for a Cortex-M7 under
+  # FreeRTOS with the real toolchain, then flown in QEMU: the SIL tests (the
+  # watchdog test resets the emulated board for real) and one whole scenario.
+  # This is the job that makes "portable" a tested claim rather than a hope.
+  # ---------------------------------------------------------------------------
+  board:
+    name: Cortex-M7 board (FreeRTOS, QEMU)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: install the cross-compiler and QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi \
+              libstdc++-arm-none-eabi-newlib qemu-system-arm
+      - name: build the board image
+        run: make target
+      - name: software-in-the-loop tests, on the board
+        run: make target-sil
+      - name: Lesson 11 does what it says about the board
+        run: python3 tests/lessons/test_lessons.py --board-only
+      - name: detumble, on the board
+        run: make target-detumble
+      - name: the budget report regenerates without error
+        run: python3 tools/budget.py --no-timing --output /tmp/BUDGET.md
