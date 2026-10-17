@@ -4,6 +4,7 @@
 # =============================================================================
 
 BUILD_DIR   := build
+TARGET_DIR  := build-target
 VENV        := .venv
 PYTHON      := $(VENV)/bin/python
 SYS_PYTHON  := python3
@@ -44,12 +45,30 @@ debug:  ## Reconfigure and build with assertions and no optimisation
 
 .PHONY: clean
 clean:  ## Remove build output and scratch storage files
-	@rm -rf $(BUILD_DIR) *_nvm.bin
+	@rm -rf $(BUILD_DIR) $(TARGET_DIR) *_nvm.bin
 	@echo "cleaned"
 
 .PHONY: distclean
 distclean: clean  ## Also remove the Python virtual environment
 	@rm -rf $(VENV)
+
+# -- the board ----------------------------------------------------------------
+
+QEMU_ARGS ?=
+.PHONY: target
+target:  ## Cross-compile for the Cortex-M7 board under FreeRTOS: build-target/fsw.elf
+	@test -f $(TARGET_DIR)/CMakeCache.txt || \
+		cmake -S targets/mps2-an500 -B $(TARGET_DIR) \
+		      -DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/targets/mps2-an500/toolchain-arm-none-eabi.cmake
+	@cmake --build $(TARGET_DIR) -j$(JOBS)
+
+.PHONY: target-run
+target-run: target  ## Run the board in QEMU: TT&C on TCP $(TTC_PORT), simulator on 50000 (QEMU_ARGS="--time-scale 10")
+	@$(SYS_PYTHON) -m sim.sil.board --ttc-port $(TTC_PORT) --sim-port 50000 --verbose $(QEMU_ARGS)
+
+.PHONY: target-sil
+target-sil: target  ## The software-in-the-loop tests, against the board in QEMU
+	@FSW_TARGET=qemu $(SYS_PYTHON) tests/sil/test_endtoend.py
 
 # -- generate -----------------------------------------------------------------
 

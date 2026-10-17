@@ -13,6 +13,9 @@
 #                   means here.
 #    fsw            the executable: fsw_core + fsw_apps + fsw_platform + main.
 #
+#  The board build, targets/mps2-an500/, compiles the same fsw_core and
+#  fsw_apps sources (cmake/fsw_sources.cmake) for a Cortex-M7 under FreeRTOS.
+#
 #  The strictness on fsw_core and fsw_apps is not decoration. Building them
 #  with -fno-exceptions -fno-rtti proves mechanically that no exception or
 #  dynamic_cast has crept into the flight path, which is a property that is
@@ -34,56 +37,19 @@ option(FSW_WERROR       "Treat warnings as errors"                      ON)
 option(FSW_STRICT_FLIGHT "Build core and apps without exceptions/RTTI"  ON)
 option(FSW_BUILD_TESTS  "Build the unit tests"                          ON)
 
-# Warnings the flight code is expected to compile clean under. -Wconversion is
-# included deliberately: silent narrowing is how a 32-bit counter ends up
-# truncated into a 16-bit telemetry field without anyone noticing.
-set(FSW_WARNINGS
-  -Wall -Wextra -Wpedantic
-  -Wconversion -Wsign-conversion
-  -Wshadow -Wnon-virtual-dtor -Wold-style-cast
-  -Wcast-align -Wunused -Woverloaded-virtual
-  -Wnull-dereference -Wdouble-promotion -Wformat=2
-)
-if(FSW_WERROR)
-  list(APPEND FSW_WARNINGS -Werror)
-endif()
-
-set(FSW_FLIGHT_FLAGS "")
-if(FSW_STRICT_FLIGHT)
-  list(APPEND FSW_FLIGHT_FLAGS -fno-exceptions -fno-rtti)
-endif()
+include(cmake/fsw_sources.cmake)
 
 # -----------------------------------------------------------------------------
 # fsw_core -- portable flight core
 # -----------------------------------------------------------------------------
-add_library(fsw_core STATIC
-  fsw/core/scheduler.cpp
-  fsw/core/param_store.cpp
-)
+add_library(fsw_core STATIC ${FSW_CORE_SOURCES})
 target_include_directories(fsw_core PUBLIC ${CMAKE_SOURCE_DIR}/fsw)
 target_compile_options(fsw_core PRIVATE ${FSW_WARNINGS} ${FSW_FLIGHT_FLAGS})
 
 # -----------------------------------------------------------------------------
 # fsw_apps -- the applications
 # -----------------------------------------------------------------------------
-add_library(fsw_apps STATIC
-  fsw/apps/ttc/space_packet.cpp
-  fsw/apps/ttc/pus.cpp
-  fsw/apps/ttc/ttc_app.cpp
-  fsw/apps/ttc/channel_coding.cpp
-  fsw/apps/ttc/tm_framer.cpp
-  fsw/apps/ttc/tc_receiver.cpp
-  fsw/apps/io/sim_bridge.cpp
-  fsw/apps/io/sim_io_app.cpp
-  fsw/apps/eps/eps_app.cpp
-  fsw/apps/modemgr/mode_manager.cpp
-  fsw/apps/adcs/adcs_app.cpp
-  fsw/apps/adcs/ephemeris.cpp
-  fsw/apps/adcs/mekf.cpp
-  fsw/apps/adcs/orbit_prop.cpp
-  fsw/apps/fdir/fdir_app.cpp
-  fsw/spacecraft.cpp
-)
+add_library(fsw_apps STATIC ${FSW_APPS_SOURCES})
 target_link_libraries(fsw_apps PUBLIC fsw_core)
 target_compile_options(fsw_apps PRIVATE ${FSW_WARNINGS} ${FSW_FLIGHT_FLAGS})
 

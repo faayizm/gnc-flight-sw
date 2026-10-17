@@ -1,5 +1,9 @@
 """Shared plumbing for scenarios: start the flight binary, connect the
-simulator and a ground client, and collect what comes down."""
+simulator and a ground client, and collect what comes down.
+
+FSW_TARGET=qemu flies the board image (build-target/fsw.elf) in QEMU instead
+of build/fsw. Nothing else changes: the same ports, the same bytes, the same
+checks on the simulator's truth."""
 
 from __future__ import annotations
 
@@ -10,14 +14,24 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "gnd"))
 
 from pyground.client import GroundClient          # noqa: E402
 from pyground.dictionary import ENUMS             # noqa: E402
+from sim.sil import board                         # noqa: E402
 
 MODES = {v: k for k, v in ENUMS["SystemMode"].items()}
 
-FSW = ROOT / "build" / "fsw"
+ON_BOARD = os.environ.get("FSW_TARGET", "host") == "qemu"
+FSW = board.ELF if ON_BOARD else ROOT / "build" / "fsw"
+
+
+def fsw_command(ttc_port: int, sim_port: int, args: list[str]) -> list[str]:
+    """The command that starts the flight software, on the laptop or the board."""
+    if ON_BOARD:
+        return board.command(ttc_port, sim_port, args)
+    return [str(FSW), "--ttc-port", str(ttc_port), "--sim-port", str(sim_port), *args]
 
 
 def free_port() -> int:
@@ -32,8 +46,8 @@ class Flight:
     def __init__(self, time_scale: float, ttc_port: int | None = None):
         self.ttc, self.sim = ttc_port or free_port(), free_port()
         self.nvm = ROOT / "build" / f"sim_nvm_{self.sim}.bin"
-        self.args = [str(FSW), "--ttc-port", str(self.ttc), "--sim-port", str(self.sim),
-                     "--time-scale", str(time_scale), "--nvm", str(self.nvm)]
+        self.args = fsw_command(self.ttc, self.sim,
+                                ["--time-scale", str(time_scale), "--nvm", str(self.nvm)])
 
     def __enter__(self):
         self.nvm.unlink(missing_ok=True)

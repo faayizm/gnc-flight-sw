@@ -9,12 +9,14 @@ them the only tests that can catch an error in how the pieces fit together,
 which is where the interesting bugs in flight software actually live.
 
 Run:  make sil        (or python3 tests/sil/test_endtoend.py)
+      make target-sil  (the same tests against the board, in QEMU)
 """
 
 from __future__ import annotations
 
 import os
 import pathlib
+import select
 import socket
 import struct
 import subprocess
@@ -22,12 +24,12 @@ import sys
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "gnd"))
 
 from pyground.client import GroundClient          # noqa: E402
 from pyground.packets import build_tc, crc16      # noqa: E402
-
-FSW_BINARY = ROOT / "build" / "fsw"
+from sim.sil.harness import FSW as FSW_BINARY, ON_BOARD, fsw_command  # noqa: E402
 
 _failures: list[str] = []
 _passes = 0
@@ -64,11 +66,8 @@ class Spacecraft:
     def __enter__(self) -> Spacecraft:
         self.nvm.unlink(missing_ok=True)
         self.process = subprocess.Popen(
-            [str(FSW_BINARY),
-             "--ttc-port", str(self.port),
-             "--sim-port", str(free_port()),
-             "--time-scale", str(self.time_scale),
-             "--nvm", str(self.nvm), *self.extra],
+            fsw_command(self.port, free_port(),
+                        ["--time-scale", str(self.time_scale), "--nvm", str(self.nvm), *self.extra]),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
         )
         return self
@@ -229,8 +228,29 @@ def test_housekeeping_can_be_silenced_and_restored() -> None:
         check("EPS_HK" in restored, "re-enabling brings it back")
 
 
+def wait_for_console(process: subprocess.Popen, text: str, timeout: float) -> bool:
+    """Read the flight software's console until a line contains `text`."""
+    deadline = time.monotonic() + timeout
+    assert process.stdout is not None
+    while time.monotonic() < deadline:
+        ready, _, _ = select.select([process.stdout], [], [], 0.2)
+        if ready:
+            line = process.stdout.readline()
+            if not line:
+                return False
+            if text in line:
+                return True
+    return False
+
+
 def test_parameters_survive_a_restart() -> None:
     print("\n[persistence]")
+    if ON_BOARD:
+        # The board keeps its "non-volatile" blocks in RAM that survives a
+        # reset, not the end of the QEMU process. The watchdog test below
+        # covers what that RAM is for: parameters surviving a reset.
+        print("  -  skipped on the board: its storage survives a reset, not a power cycle")
+        return
     sat = Spacecraft()
     with sat:
         with sat.client() as gnd:
@@ -294,6 +314,38 @@ def test_watchdog_resets_and_the_spacecraft_recovers() -> None:
         finally:
             restarted.terminate()
             restarted.wait(timeout=5)
+
+
+def test_watchdog_resets_the_board_and_it_recovers() -> None:
+    print("\n[watchdog, on the board]")
+    sat = Spacecraft(extra=["--watchdog-ms", "1000"])
+    with sat:
+        with sat.client() as gnd:
+            hk = gnd.wait_for("SYS_HK", timeout=3.0)
+            check(hk is not None and hk.fields["boot_count"] == 1 and hk.fields["last_reset"] == "POWER_ON",
+                  "first boot: boot count 1, started by power-on")
+            gnd.send("SET_PARAM", param_id=4, value=7.5)
+            gnd.wait_for("VERIF_COMPLETE_OK", timeout=2.0)
+            time.sleep(1.5)                     # parameters reach storage within a second
+            gnd.send("TEST_WATCHDOG")
+            check(gnd.wait_for("VERIF_COMPLETE_OK", timeout=2.0) is not None,
+                  "ST[17,128] is accepted: the main loop stops servicing the watchdog")
+            stopped = time.monotonic()
+        # Nobody restarts anything: the CMSDK watchdog resets the board, and
+        # the console announces the next boot.
+        rebooted = wait_for_console(sat.process, "after WATCHDOG", timeout=10.0)
+        gone = time.monotonic() - stopped
+        check(rebooted, f"the watchdog reset the board, which booted again {gone:.1f} s later")
+        check(sat.process.poll() is None, "inside the same QEMU process: a reset, not a restart")
+        with sat.client() as gnd:
+            hk = gnd.wait_for("SYS_HK", timeout=3.0)
+            check(hk is not None and hk.fields["last_reset"] == "WATCHDOG",
+                  "the next boot knows why it happened: last_reset = WATCHDOG")
+            check(hk is not None and hk.fields["boot_count"] == 2, "and counts it: boot count 2")
+            gnd.send("REPORT_PARAM", param_id=4)
+            report = gnd.wait_for("PARAM_REPORT", timeout=3.0)
+            check(report is not None and abs(report.fields["value"] - 7.5) < 1e-6,
+                  "a parameter set before the reset survived it, in RAM nothing reloads or zeroes")
 
 
 def test_reconnection() -> None:
@@ -401,7 +453,7 @@ def main() -> int:
         print(f"error: {FSW_BINARY} not found. Run `make build` first.", file=sys.stderr)
         return 2
 
-    print("HYPERSAT software-in-the-loop tests")
+    print("HYPERSAT software-in-the-loop tests" + (" -- on the board, in QEMU" if ON_BOARD else ""))
     started = time.monotonic()
 
     for test in (test_link_and_connection_test,
@@ -412,7 +464,8 @@ def main() -> int:
                  test_corrupted_telecommand_is_dropped_silently,
                  test_housekeeping_can_be_silenced_and_restored,
                  test_parameters_survive_a_restart,
-                 test_watchdog_resets_and_the_spacecraft_recovers,
+                 (test_watchdog_resets_the_board_and_it_recovers if ON_BOARD
+                  else test_watchdog_resets_and_the_spacecraft_recovers),
                  test_reconnection,
                  test_uplink_coding_and_framing_recovery,
                  test_cop1_recovers_lost_frames,
