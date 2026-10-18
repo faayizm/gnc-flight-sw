@@ -5,6 +5,24 @@ and ground station) plus an 18-lesson course in `learn/`. The roadmap is
 `docs/ROADMAP.md`. **If `docs/HANDOFF.md` exists, read it first:** it holds the
 state of work in progress and what to do next.
 
+## Next up
+
+Phases 0–7 of the roadmap are done. If the user just says "continue", work
+through this list in order, tick items off here as they are finished, and
+commit the updated list with the work:
+
+1. **Health check.** Install the board toolchain (see Practicalities), then
+   run `make check`, `make target` and `make target-sil`. Fix anything that
+   is broken before starting anything else.
+2. **Review the whole course for accuracy.** Read Lessons 1–18, the
+   glossary and the toolbox as a student would, in order. Fix stale facts,
+   numbers and commands (refresh quoted output from fresh runs), broken
+   cross-references, and anything one lesson says that a later phase made
+   untrue. Report what was changed and why.
+3. **Propose a Phase 8**, for example a sun-pointing safe mode (the gap noted
+   in `docs/ARCHITECTURE.md`). Write the proposal into `docs/ROADMAP.md` and
+   **ask the user before building it**.
+
 ## Build and test
 
 | Command | What | Time |
