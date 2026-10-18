@@ -47,14 +47,10 @@ Four reports, once a second, forever, without anyone asking. That is
 `ST[3,25]`, and it is the bulk of what any spacecraft downlinks.
 
 `SYS_HK` carries 24 fields about the flight software's own health. The monitor
-shows only the first four of each report. The full list is in the dictionary:
-
-```bash
-cd gnd && python3 -m pyground monitor
-```
-
-or read the definition in
-[`dictionary/mission.yaml`](../../dictionary/mission.yaml):
+shows only the first four of each report. The full list, field by field, is in
+[`docs/ICD.md`](../../docs/ICD.md), generated from the definition in
+[`dictionary/mission.yaml`](../../dictionary/mission.yaml). The ones an
+engineer reaches for first:
 
 | Field | Why an engineer looks at it |
 |---|---|
@@ -84,14 +80,14 @@ about what makes it change.
 
 ## 👀 See it — events
 
-Events appear only when something happens. Connect and disconnect the ground
-station and watch:
+Events appear only when something happens. Run `make demo` again and pick
+out the events from everything else:
 
 ```
-  EVENT_INFO   LINK_CONNECTED
-  EVENT_INFO   PARAM_SET aux=1
-  EVENT_LOW    TC_REJECTED aux=UNKNOWN_SERVICE
-  EVENT_INFO   HK_DISABLED aux=3
+  t=    40.362  apid=0x001 seq=  110  EVENT_INFO         LINK_CONNECTED aux=0
+  t=    42.063  apid=0x001 seq=  120  EVENT_INFO         PARAM_SET aux=1
+  t=    44.623  apid=0x001 seq=  136  EVENT_INFO         HK_DISABLED aux=3
+  t=    45.483  apid=0x001 seq=  142  EVENT_LOW          TC_REJECTED aux=UNKNOWN_SERVICE
 ```
 
 Each has a **severity**, and here is the elegant part: in PUS, the *subtype is
@@ -201,7 +197,7 @@ python3 -m pyground send REPORT_STORE_SUMMARY store_id=1
 ```
 
 ```
-  t=    20.045  apid=0x001 seq=   22  STORE_SUMMARY      store_id=1  oldest_s=0  newest_s=20  packets=79
+  t=    20.422  apid=0x001 seq=   23  STORE_SUMMARY      store_id=1  oldest_s=0  newest_s=20  packets=83
 ```
 
 Eighty-odd packets, from second 0 to second 20 (the exact number depends on
@@ -212,12 +208,12 @@ python3 -m pyground send RETRIEVE_BY_TIME store_id=1 from_s=5 to_s=7
 ```
 
 ```
-  t=    21.645  apid=0x001 seq=   29  EVENT_INFO         PLAYBACK_STARTED aux=12
-  t=    21.645  apid=0x001 seq=   31  EVENT_INFO         PLAYBACK_DONE aux=12
-  [replay] t=     5.425  apid=0x001 seq=    6  SYS_HK             uptime_s=5  tick_count=271  mode=BOOT  boot_count=1
-  [replay] t=     5.425  apid=0x002 seq=    5  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
+  t=    22.003  apid=0x001 seq=   30  EVENT_INFO         PLAYBACK_STARTED aux=12
+  t=    22.003  apid=0x001 seq=   32  EVENT_INFO         PLAYBACK_DONE aux=12
+  [replay] t=     5.223  apid=0x001 seq=    6  SYS_HK             uptime_s=5  tick_count=261  mode=BOOT  boot_count=1
+  [replay] t=     5.223  apid=0x002 seq=    5  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
   ...
-  [replay] t=     7.425  apid=0x004 seq=    7  FDIR_HK            wheel_state=MONITOR  wheels_usable=7  wheel_retries=0  wheel_resid_x=0
+  [replay] t=     7.223  apid=0x004 seq=    7  FDIR_HK            wheel_state=MONITOR  wheels_usable=7  wheel_retries=0  wheel_resid_x=0
 ```
 
 Twelve packets from fifteen seconds ago, with their **original** timestamps and

@@ -72,7 +72,7 @@ target-sil: target  ## The software-in-the-loop tests, against the board in QEMU
 
 .PHONY: target-detumble
 target-detumble: target  ## Fly the detumble scenario on the board in QEMU (about 20 minutes)
-	@FSW_TARGET=qemu $(SYS_PYTHON) -m sim.scenarios.detumble
+	@FSW_TARGET=qemu $(SYS_PYTHON) -m sim.scenarios.detumble --determinism
 
 .PHONY: budget
 budget: target  ## Write docs/BUDGET.md: memory, stack and timing, from the board's binary and a QEMU run

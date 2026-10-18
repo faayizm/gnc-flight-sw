@@ -6,7 +6,7 @@
 
 ## ❓ The question
 
-A radio signal travels 550 kilometres, arriving at the ground station
+A radio signal travels 500 kilometres or more, arriving at the ground station
 astonishingly faint — a fraction of a billionth of a watt. Along the way it
 picks up noise from the Sun, from the atmosphere, from the receiver's own
 electronics.
@@ -151,12 +151,15 @@ the command is. A damaged "set voltage to 3" could arrive looking exactly like
 "fire the thrusters".
 
 There is one more consequence, and it is subtle. When a packet fails its CRC,
-the spacecraft sends **no reply at all**:
+the spacecraft sends **no reply at all**. The reason is written next to the
+code that calls `parse_tc`, in
+[`fsw/apps/ttc/ttc_app.cpp`](../../fsw/apps/ttc/ttc_app.cpp):
 
 ```cpp
-// A packet that failed its CRC cannot be answered with a verification
-// report: its APID and sequence count are exactly the fields we would
-// have to quote back, and they are not trustworthy.
+// A packet that failed its own CRC cannot be answered with a
+// verification report: its APID and sequence count are exactly
+// the fields we would have to quote back. The event is the only
+// honest notification.
 ```
 
 Replying would mean sending a report about a command that may never have been
@@ -183,6 +186,8 @@ with GroundClient() as g:
         print(tm.summary())
 "
 ```
+
+Among the housekeeping that arrives in those two seconds, one line matters:
 
 ```
 EVENT_LOW          TC_REJECTED aux=BAD_CRC
@@ -251,8 +256,8 @@ against someone else's implementation.
 
 ## ✅ Check yourself
 
-1. Why does the spacecraft throw away a damaged message rather than trying to
-   repair it?
+1. The uplink code repairs what it can. Why does the spacecraft throw away a
+   packet whose CRC still fails after that, rather than trying to guess?
 2. Why is the CRC checked *before* the command number is read?
 3. Why does a CRC failure produce no verification report, when every other kind
    of rejection does?
@@ -267,8 +272,9 @@ every spacecraft in the world uses.
 <summary>✅ Answers</summary>
 
 1. Because it does not know what the message was *supposed* to be. A CRC says
-   "this is wrong", not "here is the fix". Guessing would risk acting on an
-   invented command.
+   "this is wrong", not "here is the fix". The repairing was the error
+   correction's job, and it has already done all it can; guessing beyond that
+   would risk acting on an invented command. COP-1 sends it again instead.
 2. Because a damaged message's command number is damaged too. Reading it first
    means potentially executing a command that was never sent.
 3. Because the report has to quote back which command it refers to — the APID

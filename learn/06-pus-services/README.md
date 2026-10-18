@@ -193,11 +193,12 @@ python3 -m pyground send SET_TIME_REPORT_RATE rate_exp=1
 ```
 
 ```
-  t=     3.122  apid=0x001 seq=    7  TIME_REPORT        rate_exp=1  time_s=3.122
-  t=     5.222  apid=0x001 seq=   10  TIME_REPORT        rate_exp=1  time_s=5.222
+  t=    22.622  apid=0x001 seq=   33  TIME_REPORT        rate_exp=1  time_s=22.62
+  t=    24.622  apid=0x001 seq=   36  TIME_REPORT        rate_exp=1  time_s=24.62
 ```
 
-About three seconds into the year 2000. Now tell it the truth. From 1
+About twenty seconds into the year 2000, or however long your spacecraft has
+been running. Now tell it the truth. From 1
 January 2000 to 3 October 2026 is 844,300,800 seconds:
 
 ```bash
@@ -205,8 +206,8 @@ python3 -m pyground send ADJUST_TIME delta_s=844300800
 ```
 
 ```
-  t=844300805.622  apid=0x001 seq=   15  EVENT_INFO         TIME_ADJUSTED aux=844300800
-  t=844300805.622  apid=0x001 seq=   16  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
+  t=844300827.182  apid=0x001 seq=   43  EVENT_INFO         TIME_ADJUSTED aux=844300800
+  t=844300827.182  apid=0x001 seq=   44  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
 ```
 
 Watch the `t=` column jump 26.8 years in one packet. From that packet on,
@@ -237,11 +238,11 @@ with GroundClient() as g:
 ```
 
 ```
-spacecraft time is 844300809.7
+spacecraft time is 844300839.6
   t= +0.02 s  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
-  t=+10.10 s  EVENT_INFO         SCHED_RELEASED aux=500
-  t=+10.10 s  TEST_REPORT
-  t=+10.10 s  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=500)
+  t=+10.01 s  EVENT_INFO         SCHED_RELEASED aux=500
+  t=+10.01 s  TEST_REPORT
+  t=+10.01 s  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=500)
 ```
 
 The first line is the spacecraft accepting the *schedule*. Ten seconds later
@@ -267,13 +268,19 @@ enum class Service : uint8_t {
     Housekeeping = 3,
     Event        = 5,
     Function     = 8,
+    Time         = 9,
+    Scheduling   = 11,
+    Monitoring   = 12,
+    Storage      = 15,
     Test         = 17,
+    EventAction  = 19,
     Parameter    = 20,
 };
 ```
 
 Then in `ttc_app.cpp`, dispatch is a single switch — each service gets one
-handler, and adding a service means adding one case:
+handler, and adding a service means adding one case. (Verification and event
+reporting have no case: the spacecraft only ever *sends* them.)
 
 ```cpp
 switch (static_cast<Service>(tc.secondary.service)) {
@@ -281,7 +288,12 @@ switch (static_cast<Service>(tc.secondary.service)) {
     case Service::Housekeeping: result = svc_housekeeping(tc); break;
     case Service::Parameter:    result = svc_parameter(tc);    break;
     case Service::Function:     result = svc_function(tc);     break;
-    default:                    result = FailureCode::UnknownService; break;
+    case Service::Time:         result = svc_time(tc);         break;
+    case Service::Scheduling:   result = svc_scheduling(tc);   break;
+    case Service::Storage:      result = svc_storage(tc);      break;
+    case Service::Monitoring:   result = svc_monitoring(tc);   break;
+    case Service::EventAction:  result = svc_event_action(tc); break;
+    default:                    result = core::FailureCode::UnknownService; break;
 }
 ```
 

@@ -117,6 +117,45 @@ def watchdog_exercise() -> None:
         pathlib.Path(f"{nvm}.reset").unlink(missing_ok=True)
 
 
+def hog_exercise() -> None:
+    """Lessons 10 and 18 have the student add a slow task to the spacecraft's
+    task list. That file is flight code, so the snippet must compile under the
+    flight warnings: an earlier version did not, and nothing noticed."""
+    hog = block("10-the-heartbeat", "cpp", '"hog"')
+    check(hog == block("18-when-things-break", "cpp", '"hog"'),
+          "10/18: both lessons give the same slow task")
+    source = ('#include "core/scheduler.hpp"\n'
+              "namespace modemgr { struct ModeManager { static void task_run(void*); }; }\n"
+              "struct Spacecraft {\n"
+              "    fsw::core::Scheduler& scheduler_;\n"
+              "    modemgr::ModeManager modes_;\n"
+              "    void boot() {\n"
+              "        const fsw::core::Status s[] = {\n" + hog + "        };\n"
+              "        (void)s;\n"
+              "    }\n"
+              "};\n")
+    cxx = os.environ.get("CXX", "c++")
+    r = subprocess.run([cxx, "-std=c++17", "-fsyntax-only", "-I", str(ROOT / "fsw"),
+                        "-Wall", "-Wextra", "-Wpedantic", "-Wconversion", "-Wsign-conversion",
+                        "-Wshadow", "-Wold-style-cast", "-Wdouble-promotion", "-Werror",
+                        "-x", "c++", "-"], input=source, capture_output=True, text=True)
+    check(r.returncode == 0, "10-the-heartbeat: the slow task compiles as flight code", r.stderr)
+
+
+def time_scale_exercise() -> None:
+    """Lesson 11's accelerated runs. The overrun counts measure the host, so
+    only what does not depend on it is checked."""
+    nvm = pathlib.Path(tempfile.gettempdir()) / f"lessons_ts_{os.getpid()}.bin"
+    for containing, lines in (("--time-scale 10 ", ["  time scale  : 10.00x",
+                                                    "shutting down after 1500 ticks (30 s)"]),
+                              ("--time-scale 100 ", ["shutting down after 15000 ticks (300 s)"])):
+        cmd = block("11-portability", "bash", containing).strip()
+        out = run_bash(f"{cmd} --nvm {nvm}", timeout=60)
+        nvm.unlink(missing_ok=True)
+        pathlib.Path(f"{nvm}.reset").unlink(missing_ok=True)
+        expect("11-portability", f"`{cmd}` runs as the lesson says", out, *lines)
+
+
 def board_exercise() -> None:
     """Lesson 11's board, if it has been built: boot it in QEMU, read its
     banner, and talk to it with the same ground tool as the laptop."""
@@ -174,8 +213,11 @@ def main() -> int:
                "16    repaired perfectly (16 bytes fixed)",
                "17    TOO DAMAGED -- and it knows it, so it says so")
 
+        # Whichever housekeeping report arrives first: that depends on where in
+        # the one-second cycle the ground connects.
         out = run_bash(block("05-ccsds-packets", "bash", "--live"))
-        check("total:" in out and "SYS_HK" in out and "07FF" not in out,
+        hk = any(f"{n}_HK: " in out for n in ("SYS", "ADCS", "EPS", "FDIR"))
+        check("total:" in out and hk and "07FF" not in out,
               "05-ccsds-packets: packet_explorer --live takes apart a real housekeeping packet", out)
 
         out = run_bash("cd gnd && " + block("06-pus-services", "bash", "SET_TIME_REPORT_RATE").strip()
@@ -219,6 +261,8 @@ def main() -> int:
         nvm.unlink(missing_ok=True)
 
     watchdog_exercise()
+    time_scale_exercise()
+    hog_exercise()
     board_exercise()
 
     print(f"\n{'FAILED: ' + str(fails) if fails else 'every lesson checked here does what it says'}")

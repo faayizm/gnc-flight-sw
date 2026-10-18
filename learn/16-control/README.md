@@ -141,8 +141,7 @@ So a real mission accepts "slow enough" rather than "stopped". And "slow
 enough" is a number the ground can change:
 
 ```yaml
-- {name: DETUMBLE_RATE_DPS, id: 4, default: 2.0, min: 0.1, max: 30.0, units: deg/s,
-   desc: Rate threshold above which detumble is commanded}
+- {name: DETUMBLE_RATE_DPS,  id: 4, type: float32, default: 2.0,  min: 0.1,  max: 30.0,  units: deg/s, desc: Rate threshold above which detumble is commanded}
 ```
 
 Read it back from the running spacecraft right now:
@@ -180,8 +179,25 @@ without:
    the gyro has a bias (Lesson 14). Now it stops at 80% of the threshold,
    0.4 °/s. The margin is there to cover the sensor's error.
 
-And the "never reaches zero" above is visible in the flight data: B-dot alone
-settles around 0.3 °/s and stays there.
+And the slow tail above is visible in the flight data. The same run, every
+ten minutes:
+
+```
+  t=    2400 s  rate=  1.645 deg/s
+  t=    3000 s  rate=  0.914 deg/s
+  t=    3600 s  rate=  0.659 deg/s
+  t=    4040 s  event MODE_CHANGED:0203
+  t=    4050 s  event MODE_CHANGED:0304
+  t=    4200 s  rate=  0.944 deg/s
+  t=    4800 s  rate=  0.062 deg/s
+```
+
+The last degree per second takes B-dot nearly twenty minutes. At 4040 s the
+mode manager hands over (`0203` is DETUMBLE to STANDBY, `0304` STANDBY to
+POINTING), and the reaction wheels take over. The rate goes *up* for a while
+after that, on purpose: the spacecraft is turning, at up to 1 °/s, to face the
+Earth. Then it settles at 0.06 °/s, which is no longer tumbling at all: it is
+the one turn per orbit that keeps the camera on the Earth.
 
 ## 💡 The second control law: pointing
 

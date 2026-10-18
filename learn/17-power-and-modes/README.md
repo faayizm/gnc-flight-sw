@@ -22,15 +22,15 @@ A satellite's whole energy budget comes from sunlight, and for roughly a third
 of every orbit there is none.
 
 ```
-   ┌───────── one orbit, about 96 minutes ─────────┐
+   ┌───────── one orbit, about 94 minutes ─────────┐
 
    ██████████████████████████░░░░░░░░░░░░░░░░░░░░░░
    |◀──── sunlight, ~60 min ────▶|◀─ eclipse, ~35 min ─▶|
         charging + running            battery only
 ```
 
-Sixteen times a day, every day, for years. The battery is charged and
-discharged about 30,000 times over a five-year mission, and every deep discharge
+Fifteen times a day, every day, for years. The battery is charged and
+discharged nearly 28,000 times over a five-year mission, and every deep discharge
 shortens its life.
 
 So the flight software is doing energy accounting continuously: how much is
@@ -83,29 +83,34 @@ So there is exactly **one** authority on what the spacecraft is currently
 doing, called the **mode**.
 
 ```
-        ┌────────┐  initialisation complete
-        │  BOOT  │──────────────┐
-        └────────┘              ▼
-                          ┌───────────┐  rates high    ┌────────────┐
+        ┌────────┐  first sensor data
+        │  BOOT  │──────────────┬──────────────────────────────┐
+        └────────┘   rate low   ▼                    rate high ▼
+                          ┌───────────┐   rate high    ┌────────────┐
                     ┌────▶│  STANDBY  │───────────────▶│  DETUMBLE  │
-                    │     └───────────┘                └────────────┘
-      rates low and │           │  attitude known            │
-      power nominal │           ▼      and power nominal     │ rates low
-                    │     ┌───────────┐                      │
-                    └─────│  POINTING │◀─────────────────────┘
+                    │     └───────────┘◀───────────────└────────────┘
+     attitude lost  │           │          rate low
+                    │           │ attitude known, position known,
+                    │           ▼ power nominal
+                    │     ┌───────────┐
+                    └─────│  POINTING │   (rate high: back to DETUMBLE)
                           └───────────┘
+
+      from ANY mode: battery critical, or no word from the ground in a day
+      from POINTING: fewer than two reaction wheels left (Lesson 18)
                                 │
-             any of: power critical, attitude lost,
-             persistent fault, ground contact timeout
                                 ▼
                           ┌───────────┐
-                          │   SAFE    │  minimum power, sun-pointing,
-                          └───────────┘  ground intervention to leave
+                          │   SAFE    │  minimum power, stop the spinning,
+                          └───────────┘  a ground command to leave
 ```
 
 Those are the five modes in
 [`dictionary/mission.yaml`](../../dictionary/mission.yaml), and `SYS_HK`
-reports the current one. With no simulator connected it stays `BOOT`, because
+reports the current one. The rules themselves are a page of plain functions,
+with this same picture at the top, in
+[`fsw/apps/modemgr/mode_logic.hpp`](../../fsw/apps/modemgr/mode_logic.hpp).
+With no simulator connected it stays `BOOT`, because
 there are no sensor readings to decide anything from.
 
 ## 💡 Safe mode: the one that saves missions
@@ -144,7 +149,7 @@ the spin rate is above 2 °/s". What happens when the rate sits at exactly
    2.01 → enter DETUMBLE
    1.99 → leave DETUMBLE
    2.01 → enter DETUMBLE
-   ... sixteen times a second, forever
+   ... ten times a second (once per sensor sample), forever
 ```
 
 Every transition costs power, raises an event, and flooding the event log with
@@ -154,18 +159,20 @@ The fix is **hysteresis**: different thresholds for entering and leaving. Which
 is exactly why the dictionary has *two* parameters, not one:
 
 ```yaml
-- {name: DETUMBLE_RATE_DPS, id: 4, default: 2.0,  units: deg/s,
-   desc: Rate threshold above which detumble is commanded}
-- {name: POINTING_RATE_DPS, id: 5, default: 0.5,  units: deg/s,
-   desc: Rate threshold below which pointing is permitted}
+- {name: DETUMBLE_RATE_DPS,  id: 4, type: float32, default: 2.0,  min: 0.1,  max: 30.0,  units: deg/s, desc: Rate threshold above which detumble is commanded}
+- {name: POINTING_RATE_DPS,  id: 5, type: float32, default: 0.5,  min: 0.01, max: 10.0,  units: deg/s, desc: Rate threshold below which pointing is permitted}
 ```
 
-Enter detumble above 2.0. Do not allow pointing until below 0.5. Between them
-is a dead band where nothing changes, and the rate has to move decisively to
-cause a transition.
+Enter detumble above 2.0 °/s. Leave it, and allow pointing, only below 0.4
+(80% of the 0.5: Lesson 16 explains the margin). Between them is a dead band
+where nothing changes, and the rate has to move decisively to cause a
+transition.
 
-The same pattern appears for power: `BATT_LOW_SOC_PCT` at 40% and
-`BATT_CRIT_SOC_PCT` at 20%.
+The same pattern appears for power, in
+[`fsw/apps/eps/power_policy.hpp`](../../fsw/apps/eps/power_policy.hpp). The
+battery is `LOW` below `BATT_LOW_SOC_PCT` (40%) and `CRITICAL` below
+`BATT_CRIT_SOC_PCT` (20%), but it has to climb 10 points *above* each
+threshold before the state steps back up.
 
 ## 💡 Ground requests are requests
 

@@ -83,7 +83,35 @@ class Spacecraft:
         pathlib.Path(f"{self.nvm}.reset").unlink(missing_ok=True)
 
     def client(self) -> GroundClient:
-        return GroundClient(port=self.port)
+        return _SpacecraftClient(self)
+
+    def why_unreachable(self) -> str:
+        """What the flight software (or QEMU) said, for a failure that would
+        otherwise leave no evidence. Stops it: the test has failed anyway."""
+        if self.process is None:
+            return "  (never started)"
+        running = self.process.poll() is None
+        if running:
+            self.process.terminate()
+        try:
+            out = self.process.communicate(timeout=5)[0] or ""
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            out = self.process.communicate()[0] or ""
+        state = "was still running" if running else f"had exited with status {self.process.returncode}"
+        return f"  the process {state}; it printed:\n" + "".join(f"    {l}\n" for l in out.splitlines()[-15:])
+
+
+class _SpacecraftClient(GroundClient):
+    def __init__(self, sat: Spacecraft):
+        super().__init__(port=sat.port)
+        self._sat = sat
+
+    def connect(self, retries: int = 20, delay: float = 0.1) -> None:
+        try:
+            super().connect(retries, delay)
+        except ConnectionError as e:
+            raise ConnectionError(f"{e}\n{self._sat.why_unreachable()}") from None
 
 
 # ---------------------------------------------------------------------------

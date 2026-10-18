@@ -90,9 +90,11 @@ You need this once, and it takes about a minute:
 git clone https://github.com/faayizm/gnc-flight-sw
 cd gnc-flight-sw
 make build
+make test
 ```
 
-If that printed `72 passed, 0 failed` at the end, you are ready.
+If the second command ends with `141 passed, 0 failed, 141 total`, you are
+ready.
 
 Then, whenever a lesson says "launch the spacecraft":
 
@@ -111,9 +113,11 @@ lessons. They need only Python — no spacecraft, no build, no installation.
 |---|---|
 | `byte_order.py` | The same number written two different ways, and why that breaks things |
 | `crc_playground.py` | Damage a message and watch the checksum catch it |
+| `fec_playground.py` | Wreck bytes and watch Reed–Solomon rebuild them, up to its limit and no further |
 | `packet_explorer.py` | A real packet taken apart byte by byte, with every field explained |
 | `orbit_sandbox.py` | How fast you have to go to stay in orbit, and what happens if you don't |
 | `spin_sandbox.py` | Why a tumbling satellite is hard to stop, and how a magnet does it |
+| `edac_playground.py` | Flip a bit in memory and watch the code name the broken bit |
 
 ## For teachers and parents
 

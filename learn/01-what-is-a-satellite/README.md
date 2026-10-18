@@ -6,7 +6,7 @@
 
 ## ❓ The question
 
-There is a machine 550 kilometres above your head, travelling at 7.6 kilometres
+There is a machine 500 kilometres above your head, travelling at 7.6 kilometres
 every second, and nobody can reach it. Ever. If something goes wrong, no one is
 coming to fix it.
 
@@ -26,7 +26,7 @@ have used:
    ───────────                    ───────────
    You can restart it             You can send a command and wait 45 minutes
    You can plug it in             It has whatever sunlight it can catch
-   You can open it up             It is welded shut and 550 km away
+   You can open it up             It is welded shut and 500 km away
    If it crashes, you notice      If it crashes, it may never speak again
    It runs for hours              It must run for years without a reboot
 ```
@@ -51,8 +51,11 @@ standard names you will meet everywhere:
 | **Structure** | Bus | The frame everything bolts to |
 | **Thermal** | — | Keeping things from freezing or cooking |
 
-This repository builds the software for **all** of them. Right now TT&C works;
-the others are being built in order.
+This repository builds the software for the spacecraft's own systems: ADCS,
+EPS, TT&C and the flight computer that runs them, including what it does when
+one of them fails. The payload here is only a power switch (Lesson 17 decides
+when to turn it off), the structure is hardware, and the software's share of
+thermal control is switching heaters on and off.
 
 ## 🌍 Why it needs to point
 
@@ -109,7 +112,7 @@ when it passes over you. It is the size of a football pitch, moving at
 
 ## 🎓 Go deeper
 
-**Orbits and how long you get.** A satellite at 550 km orbits in about 96
+**Orbits and how long you get.** A satellite at 500 km orbits in about 94
 minutes. A ground station sees it for roughly 5–10 minutes per pass, and only
 on the passes that come near enough — often 4 to 6 times a day. Run
 [`../toolbox/orbit_sandbox.py`](../toolbox/orbit_sandbox.py) to see where those
@@ -123,8 +126,8 @@ each decision this project made and what it gave up.
 
 **Real missions to read about.** The Mars Pathfinder priority-inversion bug of
 1997 — a scheduling problem that repeatedly reset a spacecraft on another
-planet, diagnosed and patched from Earth. It is the best story in this field
-and it is about a scheduler exactly like the one in Lesson 10.
+planet, diagnosed and patched from Earth. It is the best story in this field,
+and Lesson 10 explains the kind of scheduler that avoids it.
 
 ---
 
@@ -145,6 +148,7 @@ and say hello.
    quantities. Reliability is bought with speed.
 4. A charged particle passing through a memory cell or logic gate and flipping a
    bit — a 0 becomes a 1. The hardware is fine afterwards; the *data* is wrong.
-   Software has to detect it, which is why checksums are everywhere (Lesson 4).
+   Software has to detect it, which is why checksums are everywhere (Lesson 4),
+   and why the most important memory carries codes that repair it (Lesson 18).
 
 </details>

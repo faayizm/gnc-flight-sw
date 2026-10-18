@@ -203,7 +203,7 @@ jobs:
         run: make target-sil
       - name: Lesson 11 does what it says about the board
         run: python3 tests/lessons/test_lessons.py --board-only
-      - name: detumble, on the board
+      - name: detumble on the board, and the determinism check
         run: make target-detumble
       - name: the budget report regenerates without error
         run: python3 tools/budget.py --no-timing --output /tmp/BUDGET.md

@@ -50,7 +50,7 @@ python3 learn/toolbox/orbit_sandbox.py
   WHERE                       ALTITUDE       SPEED     ONE ORBIT
   --------------------------------------------------------------
   Space Station                  400km      7.67km/s        92 min
-  This project's satellite       550km      7.59km/s        96 min
+  This project's satellite       500km      7.62km/s        94 min
   Sun-synchronous imaging        800km      7.46km/s       101 min
   GPS                          20200km      3.87km/s    12.0 hours
   Geostationary (TV)           35786km      3.07km/s    23.9 hours
@@ -95,12 +95,12 @@ The sandbox shows what happens when injection speed is off:
 ```
       YOUR SPEED  RESULT
   --------------------------------------------------------------
-       6.451 km/s  falls back down -- hits the ground
-       7.210 km/s  falls back down -- hits the ground
-       7.589 km/s  a perfect circle
-       7.968 km/s  an ellipse: 550 km up to 2131 km
-       9.107 km/s  an ellipse: 550 km up to 11426 km
-      10.733 km/s  escapes Earth entirely -- never comes back
+       6.474 km/s  falls back down -- hits the ground
+       7.236 km/s  falls back down -- hits the ground
+       7.617 km/s  a perfect circle
+       7.997 km/s  an ellipse: 500 km up to 2069 km
+       9.140 km/s  an ellipse: 500 km up to 11297 km
+      10.772 km/s  escapes Earth entirely -- never comes back
 ```
 
 Too slow and you come back down. Too fast and you swing out into an ellipse.
@@ -124,8 +124,8 @@ orbit. Sixty thousand small steps later:
      SPEED    LOWEST POINT    HIGHEST POINT
   --------------------------------------------------------------
       90%         CRASHED
-     100%           550 km            550 km
-     110%           550 km           4230 km
+     100%           500 km            500 km
+     110%           500 km           4153 km
 ```
 
 Those numbers came from nothing but Newton's law and arithmetic. No orbital

@@ -51,24 +51,26 @@ Start your spacecraft, then:
 make demo
 ```
 
-Watch the successful case:
+Watch the successful case (housekeeping lines left out here):
 
 ```
 === connection test =========================================
-  VERIF_ACCEPT_OK      tc(apid=0x00A, seq=0)
-  TEST_REPORT
-  VERIF_COMPLETE_OK    tc(apid=0x00A, seq=0)
+  t=    40.362  apid=0x001 seq=  110  EVENT_INFO         LINK_CONNECTED aux=0
+  t=    40.363  apid=0x001 seq=  111  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=0)
+  t=    40.363  apid=0x001 seq=  112  TEST_REPORT
+  t=    40.363  apid=0x001 seq=  113  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
 ```
 
 Then the interesting ones:
 
 ```
 === try an illegal value ====================================
-  VERIF_ACCEPT_OK      tc(apid=0x00A, seq=4)
-  VERIF_COMPLETE_FAIL  tc(apid=0x00A, seq=4) reason=ILLEGAL_ARG
+  t=    43.783  apid=0x001 seq=  130  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=4)
+  t=    43.783  apid=0x001 seq=  131  VERIF_COMPLETE_FAIL tc(apid=0x00A, seq=4) reason=ILLEGAL_ARG
 
 === send an unknown service =================================
-  VERIF_ACCEPT_FAIL    tc(apid=0x00A, seq=99) reason=UNKNOWN_SERVICE
+  t=    45.483  apid=0x001 seq=  141  VERIF_ACCEPT_FAIL  tc(apid=0x00A, seq=99) reason=UNKNOWN_SERVICE
+  t=    45.483  apid=0x001 seq=  142  EVENT_LOW          TC_REJECTED aux=UNKNOWN_SERVICE
 ```
 
 Read the difference carefully. The first was **accepted then failed** — the
@@ -80,9 +82,9 @@ spacecraft could not even work out what was being asked.
 Look at what every report contains:
 
 ```
-  VERIF_COMPLETE_FAIL  tc(apid=0x00A, seq=4) reason=ILLEGAL_ARG
-                          └──────┬──────┘
-                     which command this is about
+  VERIF_COMPLETE_FAIL tc(apid=0x00A, seq=4) reason=ILLEGAL_ARG
+                         └──────┬──────┘
+                    which command this is about
 ```
 
 The APID and sequence count of the original command. That is the only
@@ -138,15 +140,15 @@ with GroundClient() as g:
 ```
 
 ```
-EVENT_LOW   TC_REJECTED aux=BAD_CRC
+EVENT_LOW          TC_REJECTED aux=BAD_CRC
 ```
 
 **No verification report at all.** This is the one exception, and the reasoning
 is in [`ttc_app.cpp`](../../fsw/apps/ttc/ttc_app.cpp):
 
-> A packet that failed its CRC cannot be answered with a verification report:
-> its APID and sequence count are exactly the fields we would have to quote
-> back, and they are not trustworthy.
+> A packet that failed its own CRC cannot be answered with a verification
+> report: its APID and sequence count are exactly the fields we would have to
+> quote back. The event is the only honest notification.
 
 If the packet is damaged, the *identity* of the command is damaged too. A
 report would be about a command that may never have been sent, addressed to a

@@ -109,7 +109,7 @@ Watching those converge on the simulator's true injected bias is the moment the
 filter proves it works. `make pointing` checks it at the end of the flight:
 
 ```
-  .  gyro bias learned to within 2.8 deg/h (true bias up to 75 deg/h)
+  .  gyro bias learned to within 2.9 deg/h (true bias up to 75 deg/h)
 ```
 
 (The first number can differ by a tenth between runs. The flight is
@@ -237,7 +237,7 @@ its output must not be trusted, and something has to say so.
 That is what this field is for:
 
 ```yaml
-- {name: est_state, type: uint8, enum: AdcsEstState, desc: Convergence state of the attitude estimator}
+- {name: est_state, type: uint8, enum: AdcsEstState, desc: Estimator convergence state}
 ```
 
 ```
@@ -259,13 +259,13 @@ estimate from. With one, the states go by in seconds. These lines are from
 `make pointing`:
 
 ```
-  t=      5 s  event ESTIMATOR_INIT
+  t=      0 s  event ESTIMATOR_INIT
   t=     75 s  event ESTIMATOR_CONVERGED
 ```
 
-The filter starts from TRIAD 5 seconds in, while the spacecraft is still
-tumbling at 3 °/s, too fast for the star tracker to see stars. It declares
-itself converged 70 seconds later. The mode manager
+The filter starts from TRIAD with the very first sensor sample, while the
+spacecraft is still tumbling at 3 °/s, too fast for the star tracker to see
+stars. It declares itself converged 75 seconds later. The mode manager
 refuses to enter pointing mode unless this says `CONVERGED` —
 which is the whole reason the field exists rather than the software just
 assuming its own numbers are good.

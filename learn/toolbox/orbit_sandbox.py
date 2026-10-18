@@ -69,7 +69,7 @@ def main() -> None:
         ("Sea level (impossible)", 0),
         ("A very tall mountain", 9_000),
         ("Space Station", 400_000),
-        ("This project's satellite", 550_000),
+        ("This project's satellite", 500_000),
         ("Sun-synchronous imaging", 800_000),
         ("GPS", 20_200_000),
         ("Geostationary (TV)", 35_786_000),
@@ -97,7 +97,7 @@ def main() -> None:
 
     title("What if you get the speed wrong?")
 
-    altitude = 550_000
+    altitude = 500_000
     correct = circular_speed(altitude)
     r = R_EARTH + altitude
 
@@ -187,8 +187,9 @@ def main() -> None:
     print("""
   Those numbers came from nothing but Newton's law and arithmetic,
   repeated sixty thousand times. No orbital mechanics formulas, no
-  library. That is what a simulator does -- and it is what sim/ in
-  this repository will do in Phase 2, with more forces added.
+  library. That is what a simulator does -- and it is what
+  sim/models/orbit.py in this repository does, with Earth's bulge
+  added and a better integrator (RK4).
 """)
 
     title("Why our satellite needs to know all this")
@@ -202,9 +203,8 @@ def main() -> None:
   So the flight software carries its own orbit model on board and
   propagates it forward between GPS fixes. In ADCS_HK you will find
   three fields -- pos_eci_x, pos_eci_y, pos_eci_z -- which are the
-  spacecraft's own answer to "where am I?"
-
-  In Phase 2 those fields stop being zero.
+  spacecraft's own answer to "where am I?" Connect a simulator
+  (make detumble-live) and watch them with make monitor.
 
   TRY THIS
   1. Change `altitude` and rerun. How slow can an orbit get?

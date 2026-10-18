@@ -3,7 +3,8 @@
 Seven phases. Each ends with something you can watch happen, because a phase
 that produces only internal machinery is a phase whose value cannot be checked.
 
-**All seven phases are done.**
+**All seven phases are done.** Phase 8 is proposed below and has not been
+started.
 
 ---
 
@@ -208,6 +209,74 @@ to test the claim, and the Cortex-M7's double-precision FPU suits this code.
 **Ends with:** the identical flight core, unchanged, running on an emulated
 flight processor and flying the same scenarios. `make target-sil` and `make
 target-detumble`.
+
+---
+
+## Phase 8 — A safe mode that turns to the Sun 📝 proposed
+
+The gap is written down in [ARCHITECTURE.md](ARCHITECTURE.md): **SAFE damps
+rates; it does not point at the Sun.** In SAFE the wheels are switched off
+(load shedding level 4), B-dot keeps the body turning slowly, and the arrays
+see the Sun "on average". The main array is a 0.06 m² panel on body −Z; the
+four side panels are a third of its size each. A spacecraft that drifts with
+its main panel edge-on to the Sun collects a fraction of what it could, at
+exactly the moment the battery is lowest. Real safe modes point the arrays
+at the Sun, using the fewest and simplest parts on board.
+
+**The rule that shapes the design:** SAFE must work when the things that put
+the spacecraft in SAFE have failed. So no star tracker, no attitude
+estimator, no GPS, no orbit model, and no wheels. The inputs are the coarse
+sun sensor (a body-frame sun direction), the magnetometer and the gyro; the
+only actuators are the magnetorquers.
+
+1. **Measure first.** Report what SAFE collects today: the angle between the
+   main array and the Sun, and the energy collected in SAFE, in `make power`
+   and `make fdir`. Record the baseline in
+   [POWER_AND_MODES.md](POWER_AND_MODES.md). If it turns out to be good
+   enough for this spacecraft, say so, and stop: that is a legitimate result.
+2. **The control law**, as a pure, unit-tested function
+   (`fsw/apps/adcs/sun_safe.hpp`): a wanted torque that turns the panel normal
+   **n** towards the measured sun direction **s** and damps the rate,
+   τ = −k_p (**n** × **s**) − k_d **ω**, put onto the coils with
+   **m** = (**B** × τ) / |**B**|², the mapping that already flies a dead
+   wheel's axis (Lesson 18), saturated with its direction kept. Rates too high
+   for that: B-dot first. In eclipse, with no sun to point at: damp the rate
+   and wait. Magnetic control cannot make torque along **B**, so this
+   converges over an orbit, not in minutes; the requirement will say so.
+3. **Dictionary first**: a `SUN_SAFE` controller mode in `ADCS_HK`, a
+   `sun_angle_deg` field, the gains and thresholds as parameters. The mode
+   rules do not change: SAFE is still entered autonomously and left only by
+   ground command.
+4. **FDIR for the safe mode itself**: a rejected sun sensor falls back to
+   rate damping; a rejected magnetometer leaves the coils with nothing to
+   push against (the case act 4 of `make fdir` already creates).
+5. **Prove it on simulator truth**: `make power` asserts that in SAFE the
+   main array turns to the Sun within an orbit and stays within a bound while
+   sunlit, and that the battery recovers faster than the step-1 baseline. A
+   Monte Carlo of acquisitions from random attitudes and rates, including
+   entering SAFE in eclipse. The determinism hash is unaffected (the
+   detumble never enters SAFE).
+6. **The board**: the same law on the Cortex-M7, `make target-sil`, and
+   `docs/BUDGET.md` regenerated.
+7. **The course**: Lesson 16 gains a third control law, and an
+   underactuated one; Lessons 17 and 18 change where SAFE is described; new
+   terms in the glossary; whatever goes wrong becomes a 🔍 box.
+
+**Questions to settle before starting:**
+
+- Magnetorquers only, as above (robust, slow, coarse), or keep the wheels on
+  in SAFE whenever the battery allows (fast and accurate, but it brings the
+  wheels and their FDIR back into the safe mode)?
+- With the magnetometer rejected, the coils can do nothing useful. Switch
+  them off and drift, or something else?
+- Or a different Phase 8 altogether. Candidates of similar size: ST[13]
+  large data transfer and ST[6] memory management (a software patch uplinked
+  and applied in flight); a second flight processor (LEON3/SPARC, the one
+  Phase 7 set aside).
+
+**Ends with:** `make power` showing the spacecraft, alone in SAFE with its
+wheels off, turning its main array to the Sun with nothing but coils, a
+magnetometer and six photocells.
 
 ---
 

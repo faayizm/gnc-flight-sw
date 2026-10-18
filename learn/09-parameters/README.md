@@ -82,8 +82,8 @@ python3 -m pyground send SET_PARAM param_id=1 value=5
 ```
 
 ```
-  VERIF_ACCEPT_OK      tc(apid=0x00A, seq=0)
-  VERIF_COMPLETE_FAIL  tc(apid=0x00A, seq=0) reason=ILLEGAL_ARG
+  t=    31.982  apid=0x001 seq=   94  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=0)
+  t=    31.982  apid=0x001 seq=   95  VERIF_COMPLETE_FAIL tc(apid=0x00A, seq=0) reason=ILLEGAL_ARG
 ```
 
 Refused. Now check what the value actually is:
@@ -124,11 +124,14 @@ Status set(dict::ParamId id, double value) {
     // otherwise slip through the check above.
     if (!(value == value)) { return Status::Invalid; }
 
-    values_[index] = quantise(info.type, value);
+    store(index, quantise(info.type, value));
     dirty_ = true;
     return Status::Ok;
 }
 ```
+
+(`store()` keeps the value in memory that corrects its own bit flips: Lesson 18
+explains how.)
 
 That NaN check deserves a moment. **NaN** — "not a number" — is a special
 floating-point value produced by things like 0÷0. It has a bizarre property:
@@ -151,25 +154,25 @@ memory in orbit cannot be trusted — radiation flips bits, and a reset partway
 through a write leaves a half-written block.
 
 So the stored block carries a **CRC**, exactly as in Lesson 4, and the boot
-sequence in [`fsw/main.cpp`](../../fsw/main.cpp) is deliberate:
+sequence in [`fsw/spacecraft.cpp`](../../fsw/spacecraft.cpp) is deliberate:
 
 ```cpp
-// Defaults first, unconditionally. Whatever happens next, the spacecraft is
-// already running on values known to be within their declared limits.
-params.reset_to_defaults();
-
-if (is_ok(storage.read(kParamBlock, nvm_block, sizeof nvm_block))) {
-    const Status s = params.load(nvm_block, sizeof nvm_block);
-    if (!is_ok(s)) {
-        std::fprintf(stderr, "note: stored parameters not usable (%s), "
-                             "running on compiled-in defaults\n", to_string(s));
-    }
-}
+// Defaults first, unconditionally. Whatever happens next, the spacecraft
+// is already running on values known to be within their declared limits.
+params_.reset_to_defaults();
+uint8_t b[kBlockBytes];
+const size_t n = storage_.block_size();
+// Expected on a first boot, when the block is still blank. Also what
+// happens after corruption -- and the response is the same either way:
+// keep the defaults.
+param_load_ = storage_.read(kParamBlock, b, n);
+if (core::is_ok(param_load_)) { param_load_ = params_.load(b, n); }
 ```
 
 Read that order again. **Defaults are loaded first, always.** Then the stored
 values are attempted. If they fail — bad CRC, wrong count, out of range — the
-spacecraft is *already* running on known-good numbers and simply says so.
+spacecraft is *already* running on known-good numbers, and the laptop's
+[`fsw/main.cpp`](../../fsw/main.cpp) simply says so.
 
 It never boots on a value it cannot vouch for.
 

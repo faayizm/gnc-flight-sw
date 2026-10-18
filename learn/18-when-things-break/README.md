@@ -117,14 +117,19 @@ handle. The fault stops at the boundary instead of spreading: that is
 **isolation**. Act 1 of `make fdir`:
 
 ```
-  t=  301.3 s  event SENSOR_REJECTED  aux=258
+  t=  301.5 s  event SENSOR_REJECTED  aux=258
   t=  332.3 s  event SENSOR_READMITTED  aux=1
   t=  400.3 s  event SENSOR_REJECTED  aux=1
-  t=  432.1 s  event SENSOR_READMITTED
-  t=  504.9 s  event SENSOR_REJECTED  aux=770
+  t=  432.3 s  event SENSOR_READMITTED
+  t=  504.7 s  event SENSOR_REJECTED  aux=770
   t=  569.9 s  event SENSOR_READMITTED  aux=3
-  t=  703.5 s  event SENSOR_GAP  aux=3100
+  t=  703.3 s  event SENSOR_GAP  aux=3100
 ```
+
+(The tenths of a second may differ in your run. The flight is the same every
+time, decided sample by sample, but each event is stamped by the on-board
+clock, and at 100 times real speed that clock is only as steady as the
+computer running it.)
 
 `aux=258` is `1 << 8 | 2`: sensor 1 (the gyro), fault 2 (frozen). The
 magnetometer's impossible reading (`aux=1`: sensor 0, fault 1, out of range)
@@ -169,12 +174,12 @@ What to do about it is
 ladder above made real. Acts 2 and 3 of `make fdir`:
 
 ```
-  t= 1008.5 s  event WHEEL_FAULT  aux=2
-  t= 1008.5 s  event WHEEL_POWER_CYCLE  aux=2
+  t= 1008.3 s  event WHEEL_FAULT  aux=2
+  t= 1008.3 s  event WHEEL_POWER_CYCLE  aux=2
   t= 1026.7 s  event WHEEL_RECOVERED  aux=2
-  t= 1511.5 s  event WHEEL_FAULT  aux=1
-  t= 1511.5 s  event WHEEL_POWER_CYCLE  aux=1
-  t= 1524.9 s  event WHEEL_ISOLATED  aux=1
+  t= 1511.7 s  event WHEEL_FAULT  aux=1
+  t= 1511.7 s  event WHEEL_POWER_CYCLE  aux=1
+  t= 1524.7 s  event WHEEL_ISOLATED  aux=1
 ```
 
 At t=1000 the simulator gave the Y wheel (`aux=2`, bit 1) a **latch-up**: a
@@ -266,7 +271,7 @@ make monte-carlo
 
 ```
    seed  inertia (kg m^2)          tumble  wheel  fails at  detect  isolate   peak   worst  3-axis  result
-   1000  0.1056/0.1241/0.0368      0.84   Y     1665.8    11.3     24.7    6.0    1.10     1.1  ok
+   1000  0.1056/0.1241/0.0368      0.84   Y     1665.8    11.1     24.7    6.0    1.10     1.1  ok
    1001  0.1059/0.1094/0.0421      1.75   X     2055.6     8.9     22.1   14.2    0.97     1.0  ok
    ...
    1007  0.1071/0.1272/0.0408      1.80   Z     2217.9    11.6     25.0    0.1    0.05    15.3  ok
@@ -467,7 +472,7 @@ python3 -m pyground send TEST_WATCHDOG
 Terminal 1 keeps printing its status line for five more seconds, then:
 
 ```
-make: *** [Makefile:189: run] Error 86
+make: *** [Makefile:216: run] Error 86
 ```
 
 The flight computer was reset. (On a laptop "reset" means the process ends
@@ -491,14 +496,15 @@ reset does not run any shutdown code.
 
 ## 🧪 Try it — cause a real timing fault
 
-Add a deliberately slow task to [`fsw/main.cpp`](../../fsw/main.cpp), before
-the watchdog is enabled:
+Add Lesson 10's deliberately slow task to the end of the task list in
+[`fsw/spacecraft.cpp`](../../fsw/spacecraft.cpp):
 
 ```cpp
-scheduler.add_task("hog", [](void*) {
-    volatile double x = 0;
-    for (long i = 0; i < 20000000; ++i) { x += i * 0.5; }
-}, nullptr, 1);
+    scheduler_.add_task("modes",   &modemgr::ModeManager::task_run, &modes_, 5, 3),
+    scheduler_.add_task("hog", [](void*) {
+        volatile double x = 0;
+        for (long i = 0; i < 20000000; ++i) { x += static_cast<double>(i) * 0.5; }
+    }, nullptr, 1),
 ```
 
 ```bash
@@ -506,7 +512,15 @@ make build && make run
 ```
 
 In another terminal, `make monitor`. You will see `SCHED_OVERRUN` events,
-and `sched_overruns` climbing in `SYS_HK`. The spacecraft detected its own
+and `sched_overruns` climbing in `SYS_HK`:
+
+```
+  t=     0.977  apid=0x001 seq=   18  EVENT_MEDIUM       SCHED_OVERRUN aux=55233
+  t=     1.031  apid=0x001 seq=   19  EVENT_MEDIUM       SCHED_OVERRUN aux=54837
+```
+
+`aux` is how long the late tick took, in microseconds: 55 ms, for a 20 ms
+slot. The spacecraft detected its own
 timing failure and reported it, with a severity, a count and enough detail to
 act on.
 

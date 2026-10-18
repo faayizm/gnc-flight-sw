@@ -25,9 +25,10 @@ You are going to run two programs:
   └─────────────────────┘              └─────────────────────┘
 ```
 
-The spacecraft is real flight software — the same C++ that could be
-cross-compiled and put on a satellite. The ground station is what mission
-control uses to talk to it. The messages between them are real CCSDS packets.
+The spacecraft is real flight software — the same C++ that Lesson 11
+cross-compiles for a flight processor and runs there. The ground station is
+what mission control uses to talk to it. The messages between them are real
+CCSDS packets.
 
 Nothing here is pretend except the distance.
 
@@ -39,9 +40,11 @@ Nothing here is pretend except the distance.
 git clone https://github.com/faayizm/gnc-flight-sw
 cd gnc-flight-sw
 make build
+make test
 ```
 
-You should see `72 passed, 0 failed`.
+The first compiles everything. The second runs the unit tests, and should end
+with `141 passed, 0 failed, 141 total`.
 
 **Now launch your spacecraft.** In terminal 1:
 
@@ -91,7 +94,7 @@ Watch terminal 1. `link=DOWN` becomes `link=UP`. You just made contact.
 And in terminal 2, telemetry starts flowing:
 
 ```
-  t=     0.602  apid=0x001 seq=    2  EVENT_INFO         LINK_CONNECTED aux=0
+  t=     0.502  apid=0x001 seq=    2  EVENT_INFO         LINK_CONNECTED aux=0
   t=     1.122  apid=0x001 seq=    3  SYS_HK             uptime_s=1  tick_count=56  mode=BOOT  boot_count=1
   t=     1.122  apid=0x002 seq=    1  ADCS_HK            est_state=INVALID  ctrl_mode=IDLE  q_est_0=0  q_est_1=0
   t=     1.122  apid=0x003 seq=    1  EPS_HK             power_state=UNKNOWN  batt_voltage=0  batt_current=0  batt_soc_pct=0
@@ -119,10 +122,10 @@ python3 -m pyground send TEST_CONNECTION
 ```
 uplinked TEST_CONNECTION
 
-  t=     0.596  apid=0x001 seq=    2  EVENT_INFO         LINK_CONNECTED aux=0
-  t=     0.596  apid=0x001 seq=    3  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=0)
-  t=     0.596  apid=0x001 seq=    4  TEST_REPORT
-  t=     0.596  apid=0x001 seq=    5  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
+  t=    10.002  apid=0x001 seq=   13  EVENT_INFO         LINK_CONNECTED aux=0
+  t=    10.002  apid=0x001 seq=   14  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=0)
+  t=    10.002  apid=0x001 seq=   15  TEST_REPORT
+  t=    10.002  apid=0x001 seq=   16  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
 ```
 
 (Housekeeping lines follow too. Ignore them for now.)
@@ -163,16 +166,17 @@ cd /path/to/gnc-flight-sw
 make demo
 ```
 
-Watch for these two sections:
+Watch for these two sections (shown here without the housekeeping lines in
+between):
 
 ```
 === try an illegal value ====================================
-  VERIF_ACCEPT_OK      tc(apid=0x00A, seq=4)
-  VERIF_COMPLETE_FAIL  tc(apid=0x00A, seq=4) reason=ILLEGAL_ARG
+  t=    43.783  apid=0x001 seq=  130  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=4)
+  t=    43.783  apid=0x001 seq=  131  VERIF_COMPLETE_FAIL tc(apid=0x00A, seq=4) reason=ILLEGAL_ARG
 
 === send an unknown service =================================
-  VERIF_ACCEPT_FAIL    tc(apid=0x00A, seq=99) reason=UNKNOWN_SERVICE
-  EVENT_LOW            TC_REJECTED aux=UNKNOWN_SERVICE
+  t=    45.483  apid=0x001 seq=  141  VERIF_ACCEPT_FAIL  tc(apid=0x00A, seq=99) reason=UNKNOWN_SERVICE
+  t=    45.483  apid=0x001 seq=  142  EVENT_LOW          TC_REJECTED aux=UNKNOWN_SERVICE
 ```
 
 The spacecraft refused both — and told you exactly **why**. Notice the
@@ -191,6 +195,7 @@ day leave an operator wondering for hours why nothing happened.
 | What you saw | Where it lives |
 |---|---|
 | The spacecraft starting up | [`fsw/main.cpp`](../../fsw/main.cpp) |
+| Everything the spacecraft is made of, in one place | [`fsw/spacecraft.hpp`](../../fsw/spacecraft.hpp) |
 | The 50 Hz loop | [`fsw/core/scheduler.cpp`](../../fsw/core/scheduler.cpp) |
 | Commands being checked and answered | [`fsw/apps/ttc/ttc_app.cpp`](../../fsw/apps/ttc/ttc_app.cpp) |
 | The ground station | [`gnd/pyground/client.py`](../../gnd/pyground/client.py) |

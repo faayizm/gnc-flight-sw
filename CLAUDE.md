@@ -11,17 +11,19 @@ Phases 0–7 of the roadmap are done. If the user just says "continue", work
 through this list in order, tick items off here as they are finished, and
 commit the updated list with the work:
 
-1. **Health check.** Install the board toolchain (see Practicalities), then
+1. ✅ **Health check.** Install the board toolchain (see Practicalities), then
    run `make check`, `make target` and `make target-sil`. Fix anything that
    is broken before starting anything else.
-2. **Review the whole course for accuracy.** Read Lessons 1–18, the
+2. ✅ **Review the whole course for accuracy.** Read Lessons 1–18, the
    glossary and the toolbox as a student would, in order. Fix stale facts,
    numbers and commands (refresh quoted output from fresh runs), broken
    cross-references, and anything one lesson says that a later phase made
    untrue. Report what was changed and why.
-3. **Propose a Phase 8**, for example a sun-pointing safe mode (the gap noted
+3. ✅ **Propose a Phase 8**, for example a sun-pointing safe mode (the gap noted
    in `docs/ARCHITECTURE.md`). Write the proposal into `docs/ROADMAP.md` and
-   **ask the user before building it**.
+   **ask the user before building it**. Proposed and asked: **wait for the
+   user's answer to the questions at the end of Phase 8 in the roadmap**
+   before writing any of it.
 
 ## Build and test
 
@@ -34,7 +36,7 @@ commit the updated list with the work:
 | `make monte-carlo RUNS=8` | Dispersed wheel failures, in parallel | ~1 min |
 | `make check-lessons` | Runs the lessons' own commands and checks the output they quote | ~1 min |
 | `make target`, `target-sil` | The Cortex-M7 board (FreeRTOS) cross-compiled, and the SIL tests against it in QEMU | ~1 min each |
-| `make target-detumble`, `budget` | A whole scenario on the board; `docs/BUDGET.md` regenerated | ~15 min, ~5 min |
+| `make target-detumble`, `budget` | A whole scenario on the board, with the determinism check; `docs/BUDGET.md` regenerated | ~20 min, ~5 min |
 | `make check` | Everything CI runs on the laptop build (the board has its own CI job) | ~15 min; run it in the background |
 
 CI (`.github/workflows/ci.yml`) also builds with clang and runs unit + SIL

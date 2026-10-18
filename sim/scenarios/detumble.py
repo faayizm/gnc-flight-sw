@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT / "gnd"))
 
 from pyground.client import GroundClient          # noqa: E402
 from sim.sil.bridge import Bridge                 # noqa: E402
-from sim.sil.harness import FSW, Flight           # noqa: E402
+from sim.sil.harness import BOARD_TIME_SCALE, FSW, ON_BOARD, Flight  # noqa: E402
 from sim.sil.simulation import Scenario, Simulation  # noqa: E402
 
 SCENARIO = Scenario(name="detumble", seed=1, duration_s=2.5 * 5677.0, tumble_dps=10.0)
@@ -136,7 +136,7 @@ def main() -> int:
     check(first is not None, f"truth rate falls below {TARGET_DPS} deg/s"
           + (f" (at t = {first:.0f} s, {first / 5677:.2f} orbits)" if first else ""))
     check(first is not None and first < 2.0 * 5677.0, "within two orbits")
-    check(hist[-1][1] < TARGET_DPS, f"and stays there (final {hist[-1][1]:.3f} deg/s)")
+    check(hist[-1][1] < TARGET_DPS, f"and is below it at the end (final {hist[-1][1]:.3f} deg/s)")
     check(max(r for _, r in hist[:5]) > 9.0, "the run really did start from a ~10 deg/s tumble")
     frac = sim.eclipse_samples / sim.samples
     check(0.25 < frac < 0.45, f"eclipse covers a plausible fraction of the orbit ({frac:.0%})")
@@ -152,8 +152,11 @@ def main() -> int:
     if args.determinism:
         print("determinism: same seed, second run")
         short = Scenario(name="determinism", seed=1, duration_s=600.0)
+        # The board flies no faster than BOARD_TIME_SCALE, whatever it is asked
+        # for, so there the second run goes slower instead of faster.
+        second = 0.6 * BOARD_TIME_SCALE if ON_BOARD else args.time_scale + 37.0
         d1 = run(short, args.time_scale, verbose=False)[1]
-        d2 = run(short, args.time_scale + 37.0, verbose=False)[1]
+        d2 = run(short, second, verbose=False)[1]
         check(d1 == d2, f"identical final state at different time scales ({d1})")
 
     print(f"\n{'FAILED: ' + str(len(fails)) if fails else 'all checks passed'}")

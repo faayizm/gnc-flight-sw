@@ -29,16 +29,16 @@ If task ordering varies between runs, a fault that appeared during one pass may
 never appear again on your desk. You cannot debug what you cannot reproduce,
 and you have exactly one spacecraft.
 
-There is a famous case. **Mars Pathfinder, 1997.** The rover landed
-successfully and then began resetting itself, repeatedly, on Mars. The cause
-was *priority inversion*: a low-priority task held a resource a high-priority
-task needed, a medium-priority task kept preempting the low one, and a watchdog
-timer eventually gave up and reset the spacecraft. It had been seen once during
+There is a famous case. **Mars Pathfinder, 1997.** The lander touched down
+successfully and then its computer began resetting itself, repeatedly, on
+Mars. The cause was *priority inversion*: a low-priority task held a resource
+a high-priority task needed, a medium-priority task kept preempting the low
+one, and a watchdog timer eventually gave up and reset the spacecraft. It had been seen once during
 testing, could not be reproduced, and was written off as a glitch.
 
 The fix was uploaded from Earth, to Mars, and it worked. It remains the best
 story in this field, and it is about exactly the kind of scheduler this lesson
-is about.
+avoids: several threads with priorities, sharing a resource behind a lock.
 
 ## 💡 The answer: rate groups
 
@@ -54,7 +54,7 @@ One thread. A steady tick. Each task declares how often it runs.
 ```
 
 These are the five tasks HYPERSAT really registers, in
-[`fsw/main.cpp`](../../fsw/main.cpp). Notice what is *not* a task: attitude
+[`fsw/spacecraft.cpp`](../../fsw/spacecraft.cpp). Notice what is *not* a task: attitude
 control and power management. They run when a sensor sample arrives (the
 `io` task hands each sample to them through the software bus). The section
 "A mistake this lesson's rule caught" below explains why that matters.
@@ -95,20 +95,27 @@ terminal — you watch telemetry.
 ## 🔍 In the code
 
 [`fsw/core/scheduler.hpp`](../../fsw/core/scheduler.hpp) opens with the whole
-argument, and [`fsw/main.cpp`](../../fsw/main.cpp) registers the tasks:
+argument, and [`fsw/spacecraft.cpp`](../../fsw/spacecraft.cpp) registers the
+tasks:
 
 ```cpp
-// Divider is in base ticks: 1 = 50 Hz, 5 = 10 Hz, 50 = 1 Hz.
-// Offsets stagger the slower groups so they never land on the same tick.
-scheduler.add_task("ttc_rx",  &TtcApp::task_receive,   &ttc, 1);
-scheduler.add_task("ttc_tm",  &TtcApp::task_telemetry, &ttc, 5, 1);
+// Divider is in base ticks: 1 = 50 Hz, 5 = 10 Hz, 50 = 1 Hz. Offsets
+// stagger the slower groups so they never land on the same tick.
+const core::Status s[] = {
+    scheduler_.add_task("ttc_rx",  &ttc::TtcApp::task_receive,   &ttc_, 1),
+    scheduler_.add_task("ttc_tm",  &ttc::TtcApp::task_telemetry, &ttc_, 5, 1),
+    scheduler_.add_task("ttc_dl",  &ttc::TtcApp::task_downlink,  &ttc_, 1),
+    scheduler_.add_task("io",      &io::SimIoApp::task_run,      &io_, 1),
+    scheduler_.add_task("modes",   &modemgr::ModeManager::task_run, &modes_, 5, 3),
+};
 ```
 
 Receiving commands runs at 50 Hz because command latency is the thing operators
 feel most. Generating telemetry runs at 10 Hz, which is plenty.
 
-Note there is no thread, no mutex, no lock anywhere in this codebase. There is
-nothing to deadlock.
+Note there is no second thread of flight code, no mutex, no lock. There is
+nothing to deadlock. Even on the real board (Lesson 11), where an operating
+system could run many tasks, the whole loop is its one and only task.
 
 ## 💡 The most important non-behaviour
 
@@ -218,14 +225,23 @@ flakiness is never a root cause.
 ## 🧪 Try it — make it miss a deadline
 
 Add a task that deliberately takes too long. In
-[`fsw/main.cpp`](../../fsw/main.cpp), just before the watchdog is enabled:
+[`fsw/spacecraft.cpp`](../../fsw/spacecraft.cpp), add one entry to the end of
+the list of tasks, after `modes`:
 
 ```cpp
-scheduler.add_task("hog", [](void*) {
-    volatile double x = 0;
-    for (long i = 0; i < 20000000; ++i) { x += i * 0.5; }
-}, nullptr, 1);
+    scheduler_.add_task("modes",   &modemgr::ModeManager::task_run, &modes_, 5, 3),
+    scheduler_.add_task("hog", [](void*) {
+        volatile double x = 0;
+        for (long i = 0; i < 20000000; ++i) { x += static_cast<double>(i) * 0.5; }
+    }, nullptr, 1),
 ```
+
+(The `static_cast` is not decoration. Without it, `i * 0.5` quietly turns a
+whole number into a decimal one, and the build refuses: the flight software
+compiles under Lesson 3's `-Wconversion -Werror`. Earlier versions of this
+lesson left it out, so for a long time this experiment could not be done as
+written, and nobody noticed, because nobody had tried it. `make
+check-lessons` now compiles it.)
 
 Rebuild and run:
 
@@ -234,10 +250,15 @@ make build && make run
 ```
 
 ```
-t=    3s  link=DOWN  tc=0/0  tm=0  load=100%  overruns=147
+t=    1s  link=DOWN  tc=0/0  tm=0  load=100%  overruns=50
+t=    2s  link=DOWN  tc=0/0  tm=0  load=100%  overruns=100
+t=    3s  link=DOWN  tc=0/0  tm=0  load=100%  overruns=150
 ```
 
-Load pinned at 100%, overruns climbing. Connect a monitor and you will see
+Load pinned at 100%, and every tick an overrun. Those lines also arrive
+nearly three times slower than seconds: each tick now takes about 55 ms
+instead of 20, and the spacecraft's seconds are counted in ticks. Connect a
+monitor and you will see
 `EVENT_MEDIUM  SCHED_OVERRUN` reports arriving — the spacecraft reporting its
 own timing failure to the ground, which is exactly what you would want.
 

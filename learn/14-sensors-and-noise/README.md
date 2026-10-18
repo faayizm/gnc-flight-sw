@@ -54,7 +54,7 @@ with it, and the field model you compare against is itself imperfect.
 **Sun sensor** — measures the direction to the Sun.
 
 Accurate and simple. But useless in eclipse, which is roughly a third of every
-orbit. A sensor that stops working for 30 minutes out of every 96 is not a
+orbit. A sensor that stops working for 35 minutes out of every 94 is not a
 flaw to be fixed — it is a property to be designed around.
 
 **Star tracker** — photographs the sky and matches it to a catalogue.
@@ -249,7 +249,7 @@ answers into one good one.
    you change-in-angle, but you still need to know where you started, and any
    bias in the rate accumulates into an angle error that grows without bound.
 3. Because it happens every orbit, predictably, for about a third of the time.
-   Software that treats it as a fault will declare an anomaly roughly sixteen
+   Software that treats it as a fault will declare an anomaly roughly fifteen
    times a day. It has to be a planned-for state with defined behaviour.
 4. Because then the estimator and controller are never tested. Everything works
    beautifully in simulation and fails in orbit, where truth is not available.

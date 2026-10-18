@@ -129,7 +129,7 @@ t=    2s  link=DOWN  tc=0/0  tm=0  load=0%  overruns=0
 
 Those lines are one *spacecraft* second apart, and they scroll past ten times
 faster than a clock. 1500 ticks is 30 seconds of spacecraft life, and it takes
-about 3 seconds of yours. A 96-minute orbit would take ten minutes to simulate.
+about 3 seconds of yours. A 94-minute orbit would take about ten minutes.
 
 The flight software has no idea. Every line of it is unchanged — it asked
 `IClock` for the time and believed the answer.
@@ -147,17 +147,37 @@ so (Lesson 10), which is why a test of an hour of scheduling runs instantly.
 
 ```
 shutting down after 1500 ticks (30 s)
-  overruns     : 2
-  watchdog     : longest gap 460 ms, 13 notional resets
+  telecommands : 0 accepted, 0 rejected
+  telemetry    : 0 packets
+  overruns     : 0
+  watchdog     : longest gap 25 ms, 0 notional resets
 ```
 
-Thirteen notional resets. Should you be worried?
+No missed deadlines, and the watchdog was never close to biting. Now ask for
+ten times more, the speed the flight scenarios use:
+
+```bash
+./build/fsw --time-scale 100 --verbose --max-ticks 15000
+```
+
+```
+shutting down after 15000 ticks (300 s)
+  telecommands : 0 accepted, 0 rejected
+  telemetry    : 0 packets
+  overruns     : 14
+  watchdog     : longest gap 939 ms, 32 notional resets
+```
+
+Thirty-two notional resets. Should you be worried?
 
 No — but the reason is worth understanding, because it is a real lesson about
-simulation. At 10× the host has to complete a tick every **2 milliseconds of
-real time**, and printing a line to the terminal sometimes takes longer than
-that. So the spacecraft genuinely did stall, in its own accelerated timeline,
-and the watchdog genuinely noticed.
+simulation. At 100× the host has to complete a tick every **0.2 milliseconds
+of real time**. Now and then the operating system has something else to do
+for longer than that (printing a line, running another program), and the
+flight software simply does not get the processor. So the spacecraft
+genuinely did stall, in its own accelerated timeline, and the watchdog
+genuinely noticed. (Your numbers will differ: they measure your computer,
+not the spacecraft. A busy laptop may show some even at 10×.)
 
 That is not a false alarm. It is an honest measurement of a true fact: **this
 simulation was not keeping up.** Run it at `--time-scale 1` and both numbers
@@ -174,7 +194,7 @@ which kind of question you are asking.
 Here is a nice one. On a laptop there is no hardware watchdog to reset the
 processor. The lazy answer is to stub `IWatchdog` out to do nothing.
 
-Instead, [`posix_watchdog.hpp`](../../fsw/platform/posix/posix_watchdog.hpp)
+Instead, [`posix_watchdog.cpp`](../../fsw/platform/posix/posix_watchdog.cpp)
 *measures what a real watchdog would have done*:
 
 ```cpp
@@ -194,10 +214,10 @@ void PosixWatchdog::kick() {
 }
 ```
 
-When you stop the spacecraft it reports:
+When you stop a `make run` with `Ctrl-C` it reports:
 
 ```
-  watchdog     : longest gap 20 ms, 0 notional resets
+  watchdog     : longest gap 42 ms, 0 notional resets
 ```
 
 An otherwise untestable component has become a source of evidence. If the
@@ -280,8 +300,9 @@ Memory region         Used Size  Region Size  %age Used
 
 That is the linker telling you the spacecraft's **entire** memory footprint
 before it has ever run: 87 kB of code, and 4.3 MB of data, nearly all of it the
-packet store. It can know, because nothing is allocated at run time (Lesson 10's
-rule, and the reason for it). [`docs/BUDGET.md`](../../docs/BUDGET.md) breaks it
+packet store. It can know, because nothing is allocated at run time: the rule
+`make check-layering` enforces, above.
+[`docs/BUDGET.md`](../../docs/BUDGET.md) breaks it
 down component by component, generated from the binary by `make budget`.
 
 Now boot it:
@@ -313,10 +334,10 @@ cd gnd && python3 -m pyground send TEST_CONNECTION
 ```
 uplinked TEST_CONNECTION 
 
-  t=     0.911  apid=0x001 seq=    3  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=0)
-  t=     0.911  apid=0x001 seq=    4  TEST_REPORT
-  t=     0.911  apid=0x001 seq=    5  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
-  t=     1.128  apid=0x001 seq=    6  SYS_HK             uptime_s=1  tick_count=56  mode=BOOT  boot_count=1
+  t=     0.927  apid=0x001 seq=    3  VERIF_ACCEPT_OK    tc(apid=0x00A, seq=0)
+  t=     0.928  apid=0x001 seq=    4  TEST_REPORT
+  t=     0.928  apid=0x001 seq=    5  VERIF_COMPLETE_OK  tc(apid=0x00A, seq=0)
+  t=     1.126  apid=0x001 seq=    6  SYS_HK             uptime_s=1  tick_count=56  mode=BOOT  boot_count=1
 ```
 
 The ground station cannot tell it is talking to a different computer. Nor can
@@ -438,26 +459,41 @@ Fly the same detumble on both computers. The laptop:
 
 ```
   .  truth rate falls below 0.5 deg/s (at t = 3927 s, 0.69 orbits)
-  .  and stays there (final 0.063 deg/s)
+  .  within two orbits
+  .  and is below it at the end (final 0.063 deg/s)
 determinism: same seed, second run
   .  identical final state at different time scales (06721ea6df543912)
 ```
 
-And the board, `make target-detumble`, fourteen minutes of wall clock instead
-of half a minute:
+And the board, `make target-detumble`, fourteen minutes of wall clock for the
+main flight instead of half a minute:
 
 ```
-  (857.1 s wall clock, 4813 s simulated)
+  (851.9 s wall clock, 4813 s simulated)
   .  truth rate falls below 0.5 deg/s (at t = 3927 s, 0.69 orbits)
-  .  and stays there (final 0.063 deg/s)
+  .  within two orbits
+  .  and is below it at the end (final 0.063 deg/s)
 determinism: same seed, second run
   .  identical final state at different time scales (06721ea6df543912)
 ```
 
-The same digest: the simulator's final state, every bit of it, is the same
-whichever computer flew the spacecraft. The plan for this phase predicted the
-opposite, and for good reasons. The two computers **do not compute the same
-numbers**:
+The digest comes from a separate ten-minute flight, flown twice at two
+speeds (100× and 137× on the laptop; 5× and 3× on the board, which can go no
+faster), with the simulator's final state hashed at the end. The same digest
+on both computers: that state, every bit of it, is the same whichever
+computer flew the spacecraft.
+
+> 🔍 **A check that was not checking.** When this lesson was first written,
+> the board's half of that claim was weaker than it looked. `make
+> target-detumble` did not run the determinism check at all; the lines above
+> came from running it by hand. And when it did run, both flights were held
+> to the board's top speed of 5×, so "at different time scales" was not true:
+> it compared two identical runs. Reviewing the course found it. Now the
+> board's second flight goes slower instead of faster, and `make
+> target-detumble` runs the check every time, in CI too.
+
+The plan for this phase predicted the opposite of that agreement, and for good
+reasons. The two computers **do not compute the same numbers**:
 
 - **The maths library is different.** The board uses newlib, the laptop glibc.
   A test program fed both 2,000 angles: `sin` disagreed on 70, `cos` on 66,
@@ -478,7 +514,7 @@ boundary, and from then on the two runs part company. The checks are written
 against physics, "below 0.5 °/s within two orbits", not against digests,
 precisely so that they survive that day.)
 
-One more thing in the board's run is worth a look. Ninety-two times it raised
+One more thing in the board's run is worth a look. Sixty-two times it raised
 `SCHED_OVERRUN`: QEMU, emulating every floating-point instruction in software,
 sometimes took longer than a tick. On the laptop that would be worrying. Here
 it changed nothing, because every decision is made on sensor time (Lesson 10):
