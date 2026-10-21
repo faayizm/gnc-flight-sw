@@ -144,11 +144,12 @@ struct AdcsHk {
     float dipole_cmd_z{};  // Commanded magnetorquer dipole Z [A*m^2]
     uint8_t gps_valid{};  // GPS fix used in the last second [bool]
     float att_err_deg{};  // Estimated three-axis attitude error from the target frame, yaw included [deg]
+    float sun_angle_deg{};  // Measured angle between the main solar array's normal (body -Z) and the Sun; -1 when the Sun is not seen [deg]
 
     static constexpr dict::HkSid kSid  = dict::HkSid::ADCS_HK;
     static constexpr dict::Apid  kApid = dict::Apid::ADCS;
-    static constexpr uint16_t kPayloadBytes = 122;
-    static constexpr uint16_t kPacketBytes  = 144;
+    static constexpr uint16_t kPayloadBytes = 126;
+    static constexpr uint16_t kPacketBytes  = 148;
 
     // Serialises the field block only. The ST[3,25] structure id and the
     // packet headers are written by the telemetry builder.
@@ -186,6 +187,7 @@ struct AdcsHk {
             && w.write_float32(dipole_cmd_z)
             && w.write_uint8(gps_valid)
             && w.write_float32(att_err_deg)
+            && w.write_float32(sun_angle_deg)
             ;
     }
 
@@ -223,6 +225,7 @@ struct AdcsHk {
             && r.read_float32(dipole_cmd_z)
             && r.read_uint8(gps_valid)
             && r.read_float32(att_err_deg)
+            && r.read_float32(sun_angle_deg)
             ;
     }
 };

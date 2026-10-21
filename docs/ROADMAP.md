@@ -236,16 +236,16 @@ only actuators are the magnetorquers.
    enough for this spacecraft, say so, and stop: that is a legitimate result.
    *Measured: median 83° from the Sun, 62% of the main array face-on. Not
    good enough; going ahead.*
-2. **The control law**, as a pure, unit-tested function
+2. ✅ **The control law**, as a pure, unit-tested function
    (`fsw/apps/adcs/sun_safe.hpp`): a wanted torque that turns the panel normal
    **n** towards the measured sun direction **s** and damps the rate,
-   τ = −k_p (**n** × **s**) − k_d **ω**, put onto the coils with
+   τ = k_p (**n** × **s**) − k_d **ω** (the proposal first said −k_p, which turns the array away from the Sun), put onto the coils with
    **m** = (**B** × τ) / |**B**|², the mapping that already flies a dead
    wheel's axis (Lesson 18), saturated with its direction kept. Rates too high
    for that: B-dot first. In eclipse, with no sun to point at: damp the rate
    and wait. Magnetic control cannot make torque along **B**, so this
    converges over an orbit, not in minutes; the requirement will say so.
-3. **Dictionary first**: a `SUN_SAFE` controller mode in `ADCS_HK`, a
+3. ✅ **Dictionary first**: a `SUN_SAFE` controller mode in `ADCS_HK`, a
    `sun_angle_deg` field, the gains and thresholds as parameters. The mode
    rules do not change: SAFE is still entered autonomously and left only by
    ground command.

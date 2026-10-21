@@ -66,6 +66,7 @@ enums:
       DETUMBLE: 1
       STANDBY:  2
       POINTING: 3
+      SUN_SAFE: 4   # SAFE: main array turned to the Sun on the magnetorquers alone
 
   PowerState:
     desc: Coarse battery / power bus state used by mode arbitration.
@@ -225,6 +226,7 @@ telemetry:
       - {name: dipole_cmd_z,     type: float32, units: A*m^2,   desc: Commanded magnetorquer dipole Z}
       - {name: gps_valid,        type: uint8,   units: bool,    desc: GPS fix used in the last second}
       - {name: att_err_deg,      type: float32, units: deg,     desc: "Estimated three-axis attitude error from the target frame, yaw included"}
+      - {name: sun_angle_deg,    type: float32, units: deg,     desc: "Measured angle between the main solar array's normal (body -Z) and the Sun; -1 when the Sun is not seen"}
 
   - name: EPS_HK
     sid: 3
@@ -477,6 +479,7 @@ events:
   - {name: POINTING_LOST,     id: 35, severity: HIGH,   desc: "Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus"}
   - {name: WHEEL_MOMENTUM_HIGH, id: 36, severity: MEDIUM, desc: "A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus"}
   - {name: EVENT_ACTION,      id: 37, severity: INFO,   desc: "An on-board action ran in response to an event; aux = the triggering event id"}
+  - {name: SAFE_COILS_OFF,    id: 40, severity: MEDIUM, desc: "In SAFE with no usable magnetometer: the magnetorquers are off and the spacecraft drifts until it returns"}
   - {name: EDAC_UNCORRECTABLE, id: 38, severity: HIGH, desc: "A parameter word has two flipped bits and cannot be corrected; it reads as its default until reloaded; aux = parameter id"}
   - {name: PARAMS_RELOADED,   id: 39, severity: MEDIUM, desc: "The parameter table was reloaded after an uncorrectable error; aux = 1 from non-volatile storage, 0 kept the defaults"}
   - {name: SENSOR_GAP,        id: 18, severity: MEDIUM, desc: "Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds"}
@@ -502,6 +505,8 @@ params:
   - {name: MOMENTUM_DUMP_GAIN,  id: 14, type: float32, default: 0.0005, min: 0.0, max: 0.1, units: 1/s,  desc: Magnetic momentum-unloading gain}
   - {name: BATT_CAPACITY_WH,    id: 15, type: float32, default: 30.0, min: 1.0, max: 1000.0, units: W*h, desc: Usable battery energy at 100% state of charge}
   - {name: FDIR_HK_PERIOD_MS,   id: 16, type: uint32, default: 1000, min: 100, max: 60000, units: ms,   desc: Generation period of FDIR_HK}
+  - {name: SUN_SAFE_BANDWIDTH_RADPS, id: 17, type: float32, default: 0.0015, min: 0.0002, max: 0.01, units: rad/s, desc: Natural frequency of the magnetic sun-pointing loop in SAFE}
+  - {name: SUN_SAFE_RATE_DPS,  id: 18, type: float32, default: 1.0, min: 0.1, max: 10.0, units: deg/s, desc: "In SAFE, body rate above which B-dot runs instead of sun pointing"}
 
 # -----------------------------------------------------------------------------
 # On-board monitoring, PUS ST[12]. Each monitor checks one housekeeping field

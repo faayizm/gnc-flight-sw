@@ -103,12 +103,12 @@ Core system health, scheduler timing and link statistics. Nominal generation rat
 
 ### ADCS_HK — structure id 2, APID `0x002`
 
-Attitude determination and control state. Nominal generation rate 1 Hz. Total packet size 144 bytes.
+Attitude determination and control state. Nominal generation rate 1 Hz. Total packet size 148 bytes.
 
 | Offset | Field | Type | Units | Description |
 |---:|---|---|---|---|
 | 0 | `est_state` | uint8 |  | Estimator convergence state (INVALID=0, INITIALISING=1, CONVERGING=2, CONVERGED=3) |
-| 1 | `ctrl_mode` | uint8 |  | Attitude controller mode (IDLE=0, DETUMBLE=1, STANDBY=2, POINTING=3) |
+| 1 | `ctrl_mode` | uint8 |  | Attitude controller mode (IDLE=0, DETUMBLE=1, STANDBY=2, POINTING=3, SUN_SAFE=4) |
 | 2 | `q_est_0` | float32 | - | Estimated attitude quaternion scalar part |
 | 6 | `q_est_1` | float32 | - | Estimated attitude quaternion x |
 | 10 | `q_est_2` | float32 | - | Estimated attitude quaternion y |
@@ -139,6 +139,7 @@ Attitude determination and control state. Nominal generation rate 1 Hz. Total pa
 | 113 | `dipole_cmd_z` | float32 | A*m^2 | Commanded magnetorquer dipole Z |
 | 117 | `gps_valid` | uint8 | bool | GPS fix used in the last second |
 | 118 | `att_err_deg` | float32 | deg | Estimated three-axis attitude error from the target frame, yaw included |
+| 122 | `sun_angle_deg` | float32 | deg | Measured angle between the main solar array's normal (body -Z) and the Sun; -1 when the Sun is not seen |
 
 ### EPS_HK — structure id 3, APID `0x003`
 
@@ -379,6 +380,7 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 35 | `POINTING_LOST` | HIGH | Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus |
 | 36 | `WHEEL_MOMENTUM_HIGH` | MEDIUM | A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus |
 | 37 | `EVENT_ACTION` | INFO | An on-board action ran in response to an event; aux = the triggering event id |
+| 40 | `SAFE_COILS_OFF` | MEDIUM | In SAFE with no usable magnetometer: the magnetorquers are off and the spacecraft drifts until it returns |
 | 38 | `EDAC_UNCORRECTABLE` | HIGH | A parameter word has two flipped bits and cannot be corrected; it reads as its default until reloaded; aux = parameter id |
 | 39 | `PARAMS_RELOADED` | MEDIUM | The parameter table was reloaded after an uncorrectable error; aux = 1 from non-volatile storage, 0 kept the defaults |
 | 18 | `SENSOR_GAP` | MEDIUM | Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds |
@@ -404,6 +406,8 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 14 | `MOMENTUM_DUMP_GAIN` | float32 | 0.0005 | 0.0 | 0.1 | 1/s | Magnetic momentum-unloading gain |
 | 15 | `BATT_CAPACITY_WH` | float32 | 30.0 | 1.0 | 1000.0 | W*h | Usable battery energy at 100% state of charge |
 | 16 | `FDIR_HK_PERIOD_MS` | uint32 | 1000 | 100 | 60000 | ms | Generation period of FDIR_HK |
+| 17 | `SUN_SAFE_BANDWIDTH_RADPS` | float32 | 0.0015 | 0.0002 | 0.01 | rad/s | Natural frequency of the magnetic sun-pointing loop in SAFE |
+| 18 | `SUN_SAFE_RATE_DPS` | float32 | 1.0 | 0.1 | 10.0 | deg/s | In SAFE, body rate above which B-dot runs instead of sun pointing |
 
 `ST[20,1]` requests one parameter and is answered by `ST[20,2]`, which reports the identifier followed by the value widened to a 64-bit float. `ST[20,3]` sets a parameter; the value is sent as a 64-bit float and converted to the parameter's declared type, and is rejected with `ILLEGAL_ARG` if it falls outside the declared range.
 

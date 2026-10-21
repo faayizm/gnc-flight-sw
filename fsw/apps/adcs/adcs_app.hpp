@@ -14,8 +14,12 @@
 //
 //    BOOT, STANDBY   no control. The estimator keeps running, so the
 //                    attitude is known the moment it is needed.
-//    DETUMBLE, SAFE  B-dot on the magnetorquers. In SAFE the wheels are
-//                    unpowered anyway; B-dot needs only the magnetometer.
+//    DETUMBLE        B-dot on the magnetorquers.
+//    SAFE            the wheels are unpowered. B-dot while the gyro reads
+//                    more than SUN_SAFE_RATE_DPS; below 80% of it, the main
+//                    array is turned to the Sun on the magnetorquers alone
+//                    (sun_safe.hpp), with only the sun sensor, magnetometer
+//                    and gyro: no estimator, no orbit, no star tracker.
 //    POINTING        nadir pointing on the wheels, momentum dumped by the
 //                    magnetorquers.
 //
@@ -37,6 +41,7 @@
 #include "apps/adcs/mekf.hpp"
 #include "apps/adcs/orbit_prop.hpp"
 #include "apps/adcs/pointing.hpp"
+#include "apps/adcs/sun_safe.hpp"
 #include "apps/messages.hpp"
 #include "core/bus.hpp"
 #include "core/event_log.hpp"
@@ -111,6 +116,8 @@ class AdcsApp {
     double   last_rate_dps_   = 0.0;
     Vec3     last_gyro_{};
     uint8_t  wheels_usable_   = 0x7;      // from FDIR
+    bool     sun_safe_        = false;    // in SAFE: sun pointing (true) or B-dot first
+    bool     coils_off_reported_ = false;
     uint32_t bad_innovations_ = 0;
     uint32_t samples_         = 0;
 };

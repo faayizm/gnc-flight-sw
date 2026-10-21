@@ -77,6 +77,7 @@ enum class AdcsCtrlMode : uint8_t {
     DETUMBLE = 1,
     STANDBY = 2,
     POINTING = 3,
+    SUN_SAFE = 4,
 };
 constexpr const char* to_string(AdcsCtrlMode v) {
     switch (v) {
@@ -84,6 +85,7 @@ constexpr const char* to_string(AdcsCtrlMode v) {
         case AdcsCtrlMode::DETUMBLE: return "DETUMBLE";
         case AdcsCtrlMode::STANDBY: return "STANDBY";
         case AdcsCtrlMode::POINTING: return "POINTING";
+        case AdcsCtrlMode::SUN_SAFE: return "SUN_SAFE";
     }
     return "UNKNOWN";
 }
@@ -312,6 +314,7 @@ enum class EventId : uint16_t {
     POINTING_LOST = 35,
     WHEEL_MOMENTUM_HIGH = 36,
     EVENT_ACTION = 37,
+    SAFE_COILS_OFF = 40,
     EDAC_UNCORRECTABLE = 38,
     PARAMS_RELOADED = 39,
     SENSOR_GAP = 18,
@@ -361,12 +364,13 @@ inline constexpr EventInfo kEvents[] = {
     { EventId::POINTING_LOST, Severity::HIGH, "POINTING_LOST", "Pointing error above its limit for five minutes; aux = monitor id << 8 | MonitorStatus" },
     { EventId::WHEEL_MOMENTUM_HIGH, Severity::MEDIUM, "WHEEL_MOMENTUM_HIGH", "A reaction wheel is storing more than two thirds of its capacity; aux = monitor id << 8 | MonitorStatus" },
     { EventId::EVENT_ACTION, Severity::INFO, "EVENT_ACTION", "An on-board action ran in response to an event; aux = the triggering event id" },
+    { EventId::SAFE_COILS_OFF, Severity::MEDIUM, "SAFE_COILS_OFF", "In SAFE with no usable magnetometer: the magnetorquers are off and the spacecraft drifts until it returns" },
     { EventId::EDAC_UNCORRECTABLE, Severity::HIGH, "EDAC_UNCORRECTABLE", "A parameter word has two flipped bits and cannot be corrected; it reads as its default until reloaded; aux = parameter id" },
     { EventId::PARAMS_RELOADED, Severity::MEDIUM, "PARAMS_RELOADED", "The parameter table was reloaded after an uncorrectable error; aux = 1 from non-volatile storage, 0 kept the defaults" },
     { EventId::SENSOR_GAP, Severity::MEDIUM, "SENSOR_GAP", "Sensor samples resumed after a gap in their own timestamps; aux = gap in milliseconds" },
     { EventId::SENSOR_READMITTED, Severity::INFO, "SENSOR_READMITTED", "A rejected sensor passed its checks again for long enough to be trusted; aux = SensorId" },
 };
-inline constexpr size_t kEventCount = 39;
+inline constexpr size_t kEventCount = 40;
 
 inline const EventInfo* find_event(EventId id) {
     for (size_t i = 0; i < kEventCount; ++i) {
@@ -409,6 +413,8 @@ enum class ParamId : uint16_t {
     MOMENTUM_DUMP_GAIN = 14,
     BATT_CAPACITY_WH = 15,
     FDIR_HK_PERIOD_MS = 16,
+    SUN_SAFE_BANDWIDTH_RADPS = 17,
+    SUN_SAFE_RATE_DPS = 18,
 };
 
 enum class ParamType : uint8_t { U8, I8, U16, I16, U32, I32, U64, I64, F32, F64 };
@@ -441,8 +447,10 @@ inline constexpr ParamInfo kParams[] = {
     { ParamId::MOMENTUM_DUMP_GAIN, ParamType::F32, "MOMENTUM_DUMP_GAIN", 0.0005, 0.0, 0.1, "1/s", "Magnetic momentum-unloading gain" },
     { ParamId::BATT_CAPACITY_WH, ParamType::F32, "BATT_CAPACITY_WH", 30.0, 1.0, 1000.0, "W*h", "Usable battery energy at 100% state of charge" },
     { ParamId::FDIR_HK_PERIOD_MS, ParamType::U32, "FDIR_HK_PERIOD_MS", 1000.0, 100.0, 60000.0, "ms", "Generation period of FDIR_HK" },
+    { ParamId::SUN_SAFE_BANDWIDTH_RADPS, ParamType::F32, "SUN_SAFE_BANDWIDTH_RADPS", 0.0015, 0.0002, 0.01, "rad/s", "Natural frequency of the magnetic sun-pointing loop in SAFE" },
+    { ParamId::SUN_SAFE_RATE_DPS, ParamType::F32, "SUN_SAFE_RATE_DPS", 1.0, 0.1, 10.0, "deg/s", "In SAFE, body rate above which B-dot runs instead of sun pointing" },
 };
-inline constexpr size_t kParamCount = 16;
+inline constexpr size_t kParamCount = 18;
 
 inline const ParamInfo* find_param(ParamId id) {
     for (size_t i = 0; i < kParamCount; ++i) {

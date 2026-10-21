@@ -165,9 +165,21 @@ msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
     const Vec3 omega = mekf_.initialised() ? mekf_.rate(gyro) : gyro;
     if (s.gyro_valid) { last_rate_dps_ = norm(omega) * kRadToDeg; }
 
+    // SAFE trusts nothing it does not have to: the decision between B-dot and
+    // sun pointing uses the gyro's own reading, not the estimator's.
+    const double raw_rate_dps = norm(gyro) * kRadToDeg;
+    const double sun_safe_engage = params_.get_f64(dict::ParamId::SUN_SAFE_RATE_DPS);
+    if (system_mode_ != dict::SystemMode::SAFE || !s.gyro_valid || raw_rate_dps > sun_safe_engage) {
+        sun_safe_ = false;
+    } else if (raw_rate_dps < 0.8 * sun_safe_engage) {
+        sun_safe_ = true;             // the gap between 0.8x and 1x is the hysteresis
+    }
+
     switch (system_mode_) {
-        case dict::SystemMode::DETUMBLE:
-        case dict::SystemMode::SAFE:     ctrl_mode_ = dict::AdcsCtrlMode::DETUMBLE; break;
+        case dict::SystemMode::DETUMBLE: ctrl_mode_ = dict::AdcsCtrlMode::DETUMBLE; break;
+        case dict::SystemMode::SAFE:
+            ctrl_mode_ = sun_safe_ ? dict::AdcsCtrlMode::SUN_SAFE : dict::AdcsCtrlMode::DETUMBLE;
+            break;
         case dict::SystemMode::POINTING: ctrl_mode_ = dict::AdcsCtrlMode::POINTING; break;
         case dict::SystemMode::STANDBY:  ctrl_mode_ = dict::AdcsCtrlMode::STANDBY;  break;
         case dict::SystemMode::BOOT:     ctrl_mode_ = dict::AdcsCtrlMode::IDLE;     break;
@@ -188,10 +200,21 @@ msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
     double err_rad = 0.0;
     double boresight_rad = 0.0;
 
+    bool coils_off = false;
     if (ctrl_mode_ == dict::AdcsCtrlMode::DETUMBLE) {
         out.dipole_a_m2 = bdot_m;
         out.mtq_commanded = true;
         body_torque = cross(to_d(bdot_m), to_d(s.mag_t));
+    } else if (ctrl_mode_ == dict::AdcsCtrlMode::SUN_SAFE) {
+        SunSafeConfig sc;
+        sc.bandwidth_rps = params_.get_f64(dict::ParamId::SUN_SAFE_BANDWIDTH_RADPS);
+        sc.max_dipole    = params_.get_f64(dict::ParamId::MTQ_MAX_DIPOLE);
+        const SunSafeOutput so = sun_safe(to_d(s.sun_b), s.sun_valid, gyro, to_d(s.mag_t),
+                                          s.mag_valid, sc);
+        out.dipole_a_m2 = to_f(so.dipole);
+        out.mtq_commanded = true;
+        body_torque = so.torque;
+        coils_off = so.state == SunSafeState::CoilsOff;
     } else if (ctrl_mode_ == dict::AdcsCtrlMode::POINTING && s.wheels_valid && s.gyro_valid &&
                mekf_.initialised() &&
                orbit_.valid()) {
@@ -231,6 +254,17 @@ msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
     hk_.att_sigma_deg = mekf_.initialised() ? static_cast<float>(mekf_.sigma_attitude() * kRadToDeg) : 0.0f;
     hk_.pointing_err_deg = static_cast<float>(boresight_rad * kRadToDeg);
     hk_.att_err_deg = static_cast<float>(err_rad * kRadToDeg);
+    // The array's angle to the Sun as the coarse sensor sees it, in every
+    // mode: the number that says whether the battery is being looked after.
+    hk_.sun_angle_deg = s.sun_valid
+        ? static_cast<float>(std::acos(std::fmax(-1.0, std::fmin(1.0, -static_cast<double>(s.sun_b.z)))) * kRadToDeg)
+        : -1.0f;
+    // Without a magnetometer the coils in SAFE are off: say so once, when it
+    // starts, not every sample.
+    if (coils_off && !coils_off_reported_) {
+        events_.raise(dict::EventId::SAFE_COILS_OFF);
+    }
+    coils_off_reported_ = coils_off;
     hk_.rate_norm = static_cast<float>(last_rate_dps_);
     hk_.mag_valid = s.mag_valid ? 1 : 0;
     hk_.sun_valid = s.sun_valid ? 1 : 0;
