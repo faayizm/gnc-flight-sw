@@ -229,11 +229,13 @@ estimator, no GPS, no orbit model, and no wheels. The inputs are the coarse
 sun sensor (a body-frame sun direction), the magnetometer and the gyro; the
 only actuators are the magnetorquers.
 
-1. **Measure first.** Report what SAFE collects today: the angle between the
+1. ✅ **Measure first.** Report what SAFE collects today: the angle between the
    main array and the Sun, and the energy collected in SAFE, in `make power`
    and `make fdir`. Record the baseline in
    [POWER_AND_MODES.md](POWER_AND_MODES.md). If it turns out to be good
    enough for this spacecraft, say so, and stop: that is a legitimate result.
+   *Measured: median 83° from the Sun, 62% of the main array face-on. Not
+   good enough; going ahead.*
 2. **The control law**, as a pure, unit-tested function
    (`fsw/apps/adcs/sun_safe.hpp`): a wanted torque that turns the panel normal
    **n** towards the measured sun direction **s** and damps the rate,

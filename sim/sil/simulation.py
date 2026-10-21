@@ -81,6 +81,13 @@ class Simulation:
     def rate_dps(self) -> float:
         return norm(self.body.omega) / DEG
 
+    def main_panel_sun_deg(self) -> float | None:
+        """Truth: angle between the main solar panel's normal (body -Z) and
+        the Sun, or None in eclipse. 0 is face-on, 90 edge-on."""
+        if self.eclipsed or not hasattr(self, "sun_body"):
+            return None
+        return math.degrees(math.acos(max(-1.0, min(1.0, -self.sun_body[2]))))
+
     def nadir_error_deg(self) -> float:
         """Angle between the body +Z axis and the true nadir direction."""
         z_eci = rotate(self.body.q, (0.0, 0.0, 1.0))
@@ -115,6 +122,7 @@ class Simulation:
         b_eci = magnetic_field_eci(self.orbit.r, self.t)
         b_body = rotate_inv(self.body.q, b_eci)
         sun_body = rotate_inv(self.body.q, sun_direction_eci(self.t))
+        self.sun_body = sun_body
         self.eclipsed = in_eclipse(self.orbit.r, self.t)
         sun, sun_valid = self.sun.read(sun_body, self.eclipsed)
         self.samples += 1

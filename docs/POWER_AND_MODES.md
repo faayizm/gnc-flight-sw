@@ -107,6 +107,23 @@ nothing at all came down between contacts, and every contact woke it. The
 assertions about what the spacecraft decided are made against its own
 record: the whole flight, replayed from its packet store at the end.
 
+### What SAFE collects (the Phase 8 baseline)
+
+Measured on simulator truth by `make power`, before the sun-pointing safe
+mode existed. In SAFE the wheels are off and B-dot only damps the rate:
+
+```
+  in SAFE: 8810 s, 6744 s of it sunlit; main array to the Sun: median 83 deg, worst 141 deg
+           solar energy 24.55 Wh, 62% of the main array face-on for the sunlit time
+```
+
+The main array spends SAFE nearly edge-on to the Sun. The four body panels
+recover much of the difference, so the spacecraft still collects 62% of what
+the main array alone would give face-on. Turning the main array to the Sun
+could raise that towards 100%, about 1.6 times more, at the time the battery
+is lowest. That is why Phase 8 goes ahead. (`make fdir` gives no useful
+baseline: it enters SAFE at the very end, with the magnetometer rejected.)
+
 ## Two clocks, and which one each decision uses
 
 The flight software has its own clock, and in the simulator it runs at

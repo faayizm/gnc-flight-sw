@@ -41,6 +41,7 @@ sys.path.insert(0, str(ROOT / "gnd"))
 from pyground.dictionary import ENUMS                    # noqa: E402
 from sim.sil.bridge import Bridge                        # noqa: E402
 from sim.sil.harness import FSW, Checks, Downlink, Flight  # noqa: E402
+from sim.models.power import CELL_EFFICIENCY, MPPT_EFFICIENCY, SOLAR_FLUX  # noqa: E402
 from sim.sil.simulation import Scenario, Simulation      # noqa: E402
 
 ORBIT = 5677.0
@@ -77,6 +78,9 @@ def main() -> int:
     last_contact = 0.0
     payload_on = False
     hk: dict = {}
+    # Truth while in SAFE: how well is the main array facing the Sun?
+    safe_s = safe_sunlit_s = safe_solar_j = 0.0
+    safe_angles: list[float] = []
 
     with Flight(args.time_scale) as fl:
         bridge = Bridge(fl.sim)
@@ -112,6 +116,13 @@ def main() -> int:
 
                 sys_mode = hk.get("SYS_HK", {}).get("mode")
                 power = hk.get("EPS_HK", {}).get("power_state")
+                if sys_mode == "SAFE":
+                    safe_s += SCENARIO.dt
+                    safe_solar_j += sim.power.last.get("solar", 0.0) * SCENARIO.dt
+                    angle = sim.main_panel_sun_deg()
+                    if angle is not None:
+                        safe_sunlit_s += SCENARIO.dt
+                        safe_angles.append(angle)
 
                 # ---- the operator ---------------------------------------
                 if not asked_standby_early and sim.t > 60:
@@ -171,6 +182,14 @@ def main() -> int:
             bridge.close()
 
     print(f"  ({time.time() - t0:.0f} s wall clock, {sim.t:.0f} s simulated)\n")
+    if safe_angles:
+        ideal_w = SOLAR_FLUX * 0.060 * CELL_EFFICIENCY * MPPT_EFFICIENCY   # main panel face-on
+        a = sorted(safe_angles)
+        print(f"  in SAFE: {safe_s:.0f} s, {safe_sunlit_s:.0f} s of it sunlit; main array to the Sun: "
+              f"median {a[len(a) // 2]:.0f} deg, worst {a[-1]:.0f} deg")
+        print(f"           solar energy {safe_solar_j / 3600:.2f} Wh, "
+              f"{100 * safe_solar_j / (ideal_w * safe_sunlit_s):.0f}% of the main array face-on "
+              f"for the sunlit time\n")
 
     events = [(tm.time_s, tm.fields["event_name"], tm.fields.get("aux")) for tm in playback
               if tm.name.startswith("EVENT")]
