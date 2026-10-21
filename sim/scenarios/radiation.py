@@ -98,7 +98,11 @@ def main() -> int:
                 if k % 6000 == 0:
                     print(f"  t={sim.t:7.0f} s  upsets so far {sum(sim.faults.upsets.values()):4d}"
                           f"  nadir err {sim.nadir_error_deg():6.3f} deg", flush=True)
-            for _ in range(30):                  # let the last housekeeping come down
+            # The radiation stops, and the last housekeeping comes down. Long
+            # enough for a scrub (1.6 s) and a report after it: an upset in the
+            # last second of the flight must be counted before it is compared.
+            sim.faults.radiation = None
+            for _ in range(50):
                 sim.step()
                 down.drain(sim.t, on_event=on_event)
             down.client.send("REPORT_PARAM", param_id=DUMP_GAIN_ID)

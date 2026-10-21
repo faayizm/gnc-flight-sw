@@ -12,13 +12,17 @@ spacecraft survives it on its own.
               below midpoint   -> transmitter off between contacts (level 2)
               CRITICAL         -> operational heaters shed (level 3) -- which,
                                   as it happens, removes the fault
-              CRITICAL         -> SAFE: wheels off, B-dot only (level 4)
+              CRITICAL         -> SAFE: wheels off; the coils spin the
+                                  body and turn the main array to the Sun
+                                  (level 4)
     then      sunlight recharges the battery to NOMINAL. The spacecraft stays
               in SAFE: leaving it takes a human.
     contacts  every 30 minutes the operator says hello, which keeps the
               transmitter on for 10 minutes and shows what happened. Once the
               battery is back, the operator leaves the stuck heater's rail off
-              and asks for STANDBY; the mode manager takes it to POINTING.
+              and asks for STANDBY -- refused, it is still spinning -- then
+              DETUMBLE, to take the spin out; the mode manager carries on to
+              STANDBY and POINTING by itself.
 
 Every claim is checked against simulator truth or against the spacecraft's own
 record, replayed from its packet store at the end.
@@ -49,6 +53,12 @@ FAULT_T, FAULT_W = 2500.0, 12.0
 SCENARIO = Scenario(name="power_and_modes", seed=7, duration_s=3.2 * ORBIT, tumble_dps=3.0,
                     initial_soc=0.6, stuck_heater=(FAULT_T, FAULT_W))
 CONTACT_EVERY = 1800.0
+# SAFE turns the main array to the Sun (Phase 8). The baseline, before it
+# did: median 83 deg from the Sun, 62% of the main array face-on, and the
+# battery at 43.0% an hour into SAFE (docs/POWER_AND_MODES.md).
+ACQUIRED_DEG = 20.0
+SAFE_ENERGY_FRACTION = 0.85
+SAFE_SOC_AFTER_HOUR = 0.50
 MODES = {v: k for k, v in ENUMS["SystemMode"].items()}
 REFUSALS = {v: k for k, v in ENUMS["ModeRefusal"].items()}
 POWER = {v: k for k, v in ENUMS["PowerState"].items()}
@@ -81,6 +91,8 @@ def main() -> int:
     # Truth while in SAFE: how well is the main array facing the Sun?
     safe_s = safe_sunlit_s = safe_solar_j = 0.0
     safe_angles: list[float] = []
+    safe_in_t = acquired_t = held_since = soc_hour = None
+    after_acq: list[float] = []
 
     with Flight(args.time_scale) as fl:
         bridge = Bridge(fl.sim)
@@ -117,12 +129,25 @@ def main() -> int:
                 sys_mode = hk.get("SYS_HK", {}).get("mode")
                 power = hk.get("EPS_HK", {}).get("power_state")
                 if sys_mode == "SAFE":
+                    if safe_in_t is None:
+                        safe_in_t = sim.t
+                    if soc_hour is None and sim.t - safe_in_t >= 3600.0:
+                        soc_hour = sim.power.soc
                     safe_s += SCENARIO.dt
                     safe_solar_j += sim.power.last.get("solar", 0.0) * SCENARIO.dt
                     angle = sim.main_panel_sun_deg()
                     if angle is not None:
                         safe_sunlit_s += SCENARIO.dt
                         safe_angles.append(angle)
+                        # Acquired: within 20 deg, and staying there for 300 s of sunlight.
+                        if angle < ACQUIRED_DEG:
+                            held_since = sim.t if held_since is None else held_since
+                            if acquired_t is None and sim.t - held_since >= 300.0:
+                                acquired_t = held_since
+                        else:
+                            held_since = None
+                        if acquired_t is not None:
+                            after_acq.append(angle)
 
                 # ---- the operator ---------------------------------------
                 if not asked_standby_early and sim.t > 60:
@@ -147,14 +172,15 @@ def main() -> int:
                         and sim.t - last_contact < 5):
                     down.client.send("SET_MODE", mode="POINTING")      # not from SAFE: refused
                     down.client.send("SWITCH_RAIL", rail="OPS_HEATERS", on=0)
-                    down.client.send("SET_MODE", mode="STANDBY")
+                    down.client.send("SET_MODE", mode="STANDBY")       # still spinning: refused
+                    down.client.send("SET_MODE", mode="DETUMBLE")      # take the spin out first
                     recovered = True
 
                 # ---- truth bookkeeping -------------------------------------
                 if safe_t is None and any(m.endswith("->SAFE") for _, m in truth_modes):
                     safe_t = sim.t
                     soc_at_safe = sim.power.soc
-                if recovered and standby_t is None and any(m == "SAFE->STANDBY" for _, m in truth_modes):
+                if recovered and standby_t is None and any(m == "DETUMBLE->STANDBY" for t, m in truth_modes if t > safe_t):
                     standby_t = sim.t
                 if standby_t and repointed_t is None and any(m == "STANDBY->POINTING" for _, m in truth_modes[-3:]):
                     repointed_t = sim.t
@@ -216,13 +242,17 @@ def main() -> int:
           "leaving SAFE while the battery was still low was refused: POWER")
     nominal_t = next((t for t, n, a in events if n == "POWER_STATE_CHANGED" and (a & 0xFF) ==
                       ENUMS["PowerState"]["NOMINAL"] and (a >> 8) == ENUMS["PowerState"]["LOW"]), None)
-    left_safe_t = next((t for t, m in modes if m == "SAFE->STANDBY"), None)
+    left_safe_t = next((t for t, m in modes if m == "SAFE->DETUMBLE"), None)
     held = (left_safe_t - nominal_t) if nominal_t and left_safe_t else 0
     check(held > 600, f"back at NOMINAL, it stayed in SAFE until the ground asked ({held:.0f} s later)")
     check(any(m == "POINTING" and r == "NOT_FROM_MODE" for _, m, r in refused),
           "POINTING straight from SAFE was refused: NOT_FROM_MODE")
-    check("SAFE->STANDBY" in seq and seq[-1] == "STANDBY->POINTING",
-          "on request it left SAFE for STANDBY, then returned to POINTING by itself")
+    after_pointing = [(m, r) for _, m, r in refused][
+        next((i for i, (_, m, r) in enumerate(refused) if r == "NOT_FROM_MODE"), len(refused)):]
+    check(("STANDBY", "RATES_HIGH") in after_pointing,
+          "STANDBY straight from SAFE's spin was refused: RATES_HIGH")
+    check("SAFE->DETUMBLE" in seq and seq[-2:] == ["DETUMBLE->STANDBY", "STANDBY->POINTING"],
+          "on request it left SAFE for DETUMBLE, then went on to STANDBY and POINTING by itself")
     check(final_nadir < 0.5, f"and is pointing again at the end ({final_nadir:.3f} deg nadir error)")
     check(sim.power.rails & (1 << 6) == 0,
           "the stuck heater's rail stayed off, because the operator said so")
@@ -231,6 +261,20 @@ def main() -> int:
     check(tx_off_total > 1000 and frames_while_tx_off == 0,
           f"with the transmitter shed, nothing was sent between contacts "
           f"({tx_off_total:.0f} s of silence, {frames_while_tx_off} frames heard in it)")
+    print("  in SAFE, the main array and the Sun (simulator truth):")
+    ideal_w = SOLAR_FLUX * 0.060 * CELL_EFFICIENCY * MPPT_EFFICIENCY
+    fraction = safe_solar_j / (ideal_w * safe_sunlit_s) if safe_sunlit_s else 0.0
+    check(acquired_t is not None and safe_in_t is not None and acquired_t - safe_in_t < ORBIT,
+          "the main array is turned to the Sun within an orbit of entering SAFE"
+          + (f" ({acquired_t - safe_in_t:.0f} s)" if acquired_t and safe_in_t else ""))
+    a = sorted(after_acq)
+    check(bool(a) and a[len(a) // 2] < ACQUIRED_DEG,
+          f"and kept there while sunlit (median {a[len(a) // 2]:.0f} deg after acquisition)" if a
+          else "and kept there while sunlit")
+    check(fraction > SAFE_ENERGY_FRACTION,
+          f"SAFE collects {100 * fraction:.0f}% of the main array face-on (B-dot alone: 62%)")
+    check(soc_hour is not None and soc_hour > SAFE_SOC_AFTER_HOUR,
+          f"an hour into SAFE the battery is at {100 * (soc_hour or 0):.1f}% (B-dot alone: 43.0%)")
     return check.result()
 
 

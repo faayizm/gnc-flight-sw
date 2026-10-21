@@ -69,7 +69,10 @@ The state diagram and every rule are at the top of
 - **POINTING → STANDBY** if the attitude is lost.
 - **Any mode → SAFE** on CRITICAL power, or on no word from the ground for
   `LINK_TIMEOUT_S` (a day).
-- **SAFE has no autonomous exit.**
+- **SAFE has no autonomous exit.** The ground leaves it with a request,
+  usually for DETUMBLE: SAFE spins the body at 3 °/s, and STANDBY, which runs
+  no controller, is refused above 2 °/s (`RATES_HIGH`). B-dot takes the spin
+  out and the rules above carry on to STANDBY and POINTING.
 
 Ground requests are judged against the same facts. A refusal raises
 `MODE_REFUSED` with the reason: `RATES_HIGH`, `ATTITUDE_UNKNOWN`, `POWER`,
@@ -82,7 +85,7 @@ What each mode means to the actuators:
 | BOOT, STANDBY | estimating, no control | on (STANDBY) | off |
 | DETUMBLE | B-dot | off | off |
 | POINTING | nadir pointing, momentum dumping | on | allowed |
-| SAFE | B-dot | off | off |
+| SAFE | spin about the main array, steered to the Sun, on the coils ([`sun_safe.hpp`](../fsw/apps/adcs/sun_safe.hpp)); B-dot first above 8 °/s | off | off |
 
 ## The scenario: a stuck heater
 
@@ -97,25 +100,28 @@ about.
 | 2500 s | The heater sticks. Into eclipse at 26 W of load |
 | ~4200 s | LOW: payload shed |
 | ~4700 s | Below the midpoint: transmitter off between contacts |
-| ~5500 s | CRITICAL: operational heaters shed, which happens to remove the fault. Then SAFE: wheels off, B-dot only |
+| ~5600 s | CRITICAL: operational heaters shed, which happens to remove the fault. Then SAFE: wheels off; the coils spin the body and turn the main array to the Sun |
 | next contact | Leaving SAFE while the battery is low is refused: `POWER` |
-| ~12000 s | Battery NOMINAL. The spacecraft stays in SAFE |
-| a contact later | The operator asks for POINTING (refused: `NOT_FROM_MODE`), leaves the heater rail off, and asks for STANDBY. The mode manager takes it to POINTING by itself |
+| ~9300 s | Battery NOMINAL. The spacecraft stays in SAFE |
+| a contact later | The operator asks for POINTING (refused: `NOT_FROM_MODE`), leaves the heater rail off, asks for STANDBY (refused: `RATES_HIGH`, it is spinning), then for DETUMBLE. B-dot takes the spin out, and the mode manager goes on to STANDBY and POINTING by itself, at ~11500 s |
 
-The lowest true charge is about 19.6%. While the transmitter was shed,
+The lowest true charge is about 18.6%. While the transmitter was shed,
 nothing at all came down between contacts, and every contact woke it. The
 assertions about what the spacecraft decided are made against its own
 record: the whole flight, replayed from its packet store at the end.
 
-### What SAFE collects (the Phase 8 baseline)
+### What SAFE collects
 
-Measured on simulator truth by `make power`, before the sun-pointing safe
-mode existed. In SAFE the wheels are off and B-dot only damps the rate:
+**The baseline.** Measured on simulator truth by `make power`, before the
+sun-pointing safe mode existed. In SAFE the wheels were off and B-dot only
+damped the rate:
 
 ```
   in SAFE: 8810 s, 6744 s of it sunlit; main array to the Sun: median 83 deg, worst 141 deg
            solar energy 24.55 Wh, 62% of the main array face-on for the sunlit time
 ```
+
+An hour after entering SAFE the battery was at 43.0%.
 
 The main array spends SAFE nearly edge-on to the Sun. The four body panels
 recover much of the difference, so the spacecraft still collects 62% of what
@@ -123,6 +129,26 @@ the main array alone would give face-on. Turning the main array to the Sun
 could raise that towards 100%, about 1.6 times more, at the time the battery
 is lowest. That is why Phase 8 goes ahead. (`make fdir` gives no useful
 baseline: it enters SAFE at the very end, with the magnetometer rejected.)
+
+**With the sun-pointing safe mode** (Phase 8), from the same scenario:
+
+```
+  in SAFE: 5210 s, 3158 s of it sunlit; main array to the Sun: median 7 deg, worst 87 deg
+           solar energy 18.10 Wh, 98% of the main array face-on for the sunlit time
+```
+
+```
+  .  the main array is turned to the Sun within an orbit of entering SAFE (1229 s)
+  .  and kept there while sunlit (median 3 deg after acquisition)
+  .  SAFE collects 98% of the main array face-on (B-dot alone: 62%)
+  .  an hour into SAFE the battery is at 62.7% (B-dot alone: 43.0%)
+```
+
+The battery comes back so much faster that SAFE lasts 5,210 s instead of
+8,810: NOMINAL arrives, and the operator recovers the spacecraft, an orbit
+sooner. The worst angle, 87°, is the acquisition itself. `make safe-mc` then
+enters SAFE from dispersed tumbles, attitudes and places in the orbit (some in
+eclipse), and asks the same of each.
 
 ## Two clocks, and which one each decision uses
 
@@ -149,8 +175,9 @@ Both mistakes were made first and caught by the scenarios:
 
 ## Simplifications
 
-- **SAFE damps rates; it does not point the arrays at the Sun.** See
-  [ARCHITECTURE.md](ARCHITECTURE.md).
+- **The safe mode spins about the body's minor axis**, which a real,
+  flexible spacecraft could not keep doing without the active rate loop; the
+  simulated body is rigid. See [ARCHITECTURE.md](ARCHITECTURE.md).
 - **The battery has no thermal model.** Temperature is reported but constant,
   and there is no ageing.
 - **The transmitter rail cuts the downlink, but not the simulator's own

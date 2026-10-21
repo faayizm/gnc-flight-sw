@@ -100,9 +100,9 @@ doing, called the **mode**.
       from POINTING: fewer than two reaction wheels left (Lesson 18)
                                 │
                                 ▼
-                          ┌───────────┐
-                          │   SAFE    │  minimum power, stop the spinning,
-                          └───────────┘  a ground command to leave
+                          ┌───────────┐  minimum power, solar array to
+                          │   SAFE    │  the Sun; a ground command to
+                          └───────────┘  leave, usually to DETUMBLE
 ```
 
 Those are the five modes in
@@ -118,9 +118,8 @@ there are no sensor readings to decide anything from.
 **SAFE** is the mode a spacecraft enters when it does not know what else to do.
 It has one job: survive, and stay reachable, indefinitely.
 
-- point the solar panels at the Sun and nothing else (HYPERSAT's safe mode
-  only stops the spinning, which keeps the panels seeing the Sun on average —
-  the simpler half of the job)
+- point the solar panels at the Sun and nothing else (HYPERSAT does it with
+  the magnetorquers alone, spinning slowly about the main array: Lesson 16)
 - switch off everything non-essential
 - keep the receiver on
 - transmit a minimal beacon
@@ -138,6 +137,13 @@ Why so one-sided? Because whatever drove it into safe mode is probably still
 there. A spacecraft that recovers itself, hits the same fault, recovers again,
 and loops, will exhaust its battery doing so. Many missions have been saved by
 safe mode. Some have been lost by systems that were too eager to leave it.
+
+Leaving takes more than the command. HYPERSAT's safe mode spins the body at
+3 °/s, and `STANDBY` runs no controller at all, so a request for `STANDBY`
+is refused (`RATES_HIGH`): it would leave the spacecraft spinning with
+nobody steering. The way out is `DETUMBLE`. B-dot takes the spin out, and
+the ordinary rules carry on to `STANDBY` and `POINTING` by themselves.
+`make power` does exactly that at the end.
 
 ## 💡 Hysteresis: not flapping
 

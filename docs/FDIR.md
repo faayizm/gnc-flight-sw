@@ -20,6 +20,8 @@ any one of them, go to the FDIR application.
 | Gap in sensor data | Sensor timestamps; host-clock timeout | `SENSOR_GAP`; `SENSOR_TIMEOUT`, actuators zeroed | `apps/io/sim_io_app.cpp` |
 | Estimator diverged | 10 s of large innovations | Filter discarded and restarted, `ESTIMATOR_RESET` | `apps/adcs/adcs_app.cpp` |
 | Battery running down | State of charge | Load shedding, then SAFE | `apps/eps/`, `apps/modemgr/` |
+| In SAFE: no sun (eclipse, or the sun sensor refused) | Sun sensor validity | Rate loop only; the spin holds the array where it was | `apps/adcs/sun_safe.hpp` |
+| In SAFE: magnetometer refused | Magnetometer validity | Coils off, drift, `SAFE_COILS_OFF` | `apps/adcs/sun_safe.hpp`, `adcs_app.cpp` |
 | Reaction wheel not delivering torque | Momentum bookkeeping, 5 s windows | The wheel ladder, below | `apps/fdir/wheel_check.hpp`, `wheel_ladder.hpp` |
 | A housekeeping value out of limits | ST[12] monitors | Event, and an ST[19] action if one is defined | `apps/fdir/monitoring.hpp`, `apps/ttc/ttc_app.cpp` |
 | Bit flip in the parameter table | EDAC on read; scrubber | Corrected; if uncorrectable, default then reload from storage | `core/edac.hpp`, `core/param_store.hpp`, `apps/fdir/fdir_app.cpp` |

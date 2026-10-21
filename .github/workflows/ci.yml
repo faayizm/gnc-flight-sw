@@ -177,6 +177,8 @@ jobs:
         run: make radiation
       - name: monte carlo (8 dispersed wheel failures)
         run: make monte-carlo RUNS=8
+      - name: safe mode monte carlo (8 entries into SAFE, from a tumble, some in eclipse)
+        run: make safe-mc RUNS=8
 
   # ---------------------------------------------------------------------------
   # The board. The same flight core, cross-compiled for a Cortex-M7 under

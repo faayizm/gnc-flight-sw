@@ -24,8 +24,10 @@ ground to help:
      of the ladder can help now. The on-board pointing monitor (PUS ST[12])
      sees the error stay high for five minutes, its event triggers the
      event-action (PUS ST[19]), and the spacecraft commands itself into SAFE.
-     SAFE switches the transmitter off, so the ground learns all this the
-     way it really would: at the next pass, from the spacecraft's own record.
+     SAFE cannot use its coils either without a magnetometer: it switches
+     them off and reports SAFE_COILS_OFF. SAFE also switches the transmitter
+     off, so the ground learns all this the way it really would: at the next
+     pass, from the spacecraft's own record.
 
 Every assertion is against the simulator's truth, or the telemetry that came
 down -- never against what the flight software believes about itself.
@@ -203,7 +205,10 @@ def main() -> int:
     reason = next((a for _, n, a in record if n == "SAFE_MODE_ENTERED"), None)
     check(reason == 0, "through the same path as a ground command (SAFE reason GROUND: the "
           "action IS a telecommand)")
-    check(sim.rate_dps < 1.0, f"and in SAFE the spacecraft is calm (rate {sim.rate_dps:.2f} deg/s)")
+    check("SAFE_COILS_OFF" in names[names.index("SAFE_MODE_ENTERED"):] if "SAFE_MODE_ENTERED" in names
+          else False, "in SAFE, with the magnetometer refused, the coils are switched off and say so")
+    check(sim.rate_dps < 4.0, f"and in SAFE the spacecraft is not tumbling (rate {sim.rate_dps:.2f} deg/s; "
+          "SAFE spins it at 3)")
     return check.result()
 
 

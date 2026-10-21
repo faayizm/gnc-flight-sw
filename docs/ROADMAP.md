@@ -1,10 +1,10 @@
 # Roadmap
 
-Seven phases. Each ends with something you can watch happen, because a phase
+Eight phases. Each ends with something you can watch happen, because a phase
 that produces only internal machinery is a phase whose value cannot be checked.
 
-**All seven phases are done.** Phase 8 is proposed below and has not been
-started.
+**All eight phases are done.** Phases 0–7 were the original plan; Phase 8 was
+proposed afterwards and agreed with the user.
 
 ---
 
@@ -212,7 +212,7 @@ target-detumble`.
 
 ---
 
-## Phase 8 — A safe mode that turns to the Sun 🚧 in progress
+## Phase 8 — A safe mode that turns to the Sun ✅ done
 
 The gap is written down in [ARCHITECTURE.md](ARCHITECTURE.md): **SAFE damps
 rates; it does not point at the Sun.** In SAFE the wheels are switched off
@@ -245,22 +245,38 @@ only actuators are the magnetorquers.
    for that: B-dot first. In eclipse, with no sun to point at: damp the rate
    and wait. Magnetic control cannot make torque along **B**, so this
    converges over an orbit, not in minutes; the requirement will say so.
+   *Built, then rebuilt in step 5. That spring-and-damper law held the Sun
+   from calm pointing but acquired it from a tumble in only 2 runs of 8:
+   gravity gradient is as strong as the spring the coils can afford. The law
+   that flies spins the body at 3°/s about **n** and leans on the spin's
+   momentum towards the Sun, τ = −I ω_r (**ω** − Ω**n**) + h ω_p (**s** −
+   (**s**·**n**)**n**): a gyroscope turns its axis at right angles to the
+   push, so the push is along the part of **s** across **n**, not along
+   **n** × **s**.*
 3. ✅ **Dictionary first**: a `SUN_SAFE` controller mode in `ADCS_HK`, a
    `sun_angle_deg` field, the gains and thresholds as parameters. The mode
    rules do not change: SAFE is still entered autonomously and left only by
    ground command.
-4. **FDIR for the safe mode itself**: a rejected sun sensor falls back to
+4. ✅ **FDIR for the safe mode itself**: a rejected sun sensor falls back to
    rate damping; a rejected magnetometer leaves the coils with nothing to
    push against (the case act 4 of `make fdir` already creates).
-5. **Prove it on simulator truth**: `make power` asserts that in SAFE the
+   *Done by the law itself: no sun, and only the rate loop runs; no
+   magnetometer, and the coils are switched off with `SAFE_COILS_OFF`, which
+   act 4 of `make fdir` now finds in the replayed record.*
+5. ✅ **Prove it on simulator truth**: `make power` asserts that in SAFE the
    main array turns to the Sun within an orbit and stays within a bound while
    sunlit, and that the battery recovers faster than the step-1 baseline. A
    Monte Carlo of acquisitions from random attitudes and rates, including
    entering SAFE in eclipse. The determinism hash is unaffected (the
    detumble never enters SAFE).
-6. **The board**: the same law on the Cortex-M7, `make target-sil`, and
-   `docs/BUDGET.md` regenerated.
-7. **The course**: Lesson 16 gains a third control law, and an
+   *`make power`: acquired 1229 s after entering SAFE, median 3° after,
+   98% of face-on (was 62%), 62.7% an hour in (was 43.0%). `make safe-mc`:
+   8 of 8, and 32 of 32 on other seeds. Leaving SAFE now goes through
+   DETUMBLE, because STANDBY is refused while the body spins.*
+6. ✅ **The board**: the same law on the Cortex-M7, `make target-sil`, and
+   `docs/BUDGET.md` regenerated. *89 kB of code (was 87); the worst tick is
+   still 8% of its 20 ms.*
+7. ✅ **The course**: Lesson 16 gains a third control law, and an
    underactuated one; Lessons 17 and 18 change where SAFE is described; new
    terms in the glossary; whatever goes wrong becomes a 🔍 box.
 

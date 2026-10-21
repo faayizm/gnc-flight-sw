@@ -59,7 +59,7 @@ HYPERSAT flight software up.
   base rate   : 50 Hz
   time scale  : 1.00x
   tasks       : 5 registered
-  parameters  : 16
+  parameters  : 19
   boot        : #1, after POWER_ON
 t=    1s  link=DOWN  tc=0/0  tm=0  load=0%  overruns=0
 t=    2s  link=DOWN  tc=0/0  tm=0  load=0%  overruns=0

@@ -135,6 +135,10 @@ TEST(modes, ground_requests_are_judged) {
     CHECK(modemgr::judge_request(M::STANDBY, M::BOOT, f, l) == dict::ModeRefusal::INVALID);
     f.power = PS::LOW;
     CHECK(modemgr::judge_request(M::SAFE, M::STANDBY, f, l) == dict::ModeRefusal::POWER);
+    CHECK(modemgr::judge_request(M::SAFE, M::DETUMBLE, f, l) == dict::ModeRefusal::POWER);
+    f = calm(); f.rate_dps = 3.0;                   // SAFE's own spin
+    CHECK(modemgr::judge_request(M::SAFE, M::STANDBY, f, l) == dict::ModeRefusal::RATES_HIGH);
+    CHECK(modemgr::judge_request(M::SAFE, M::DETUMBLE, f, l) == dict::ModeRefusal::NONE);
     f = calm(); f.rate_dps = 3.0;
     CHECK(modemgr::judge_request(M::DETUMBLE, M::STANDBY, f, l) == dict::ModeRefusal::RATES_HIGH);
     f = calm(); f.attitude_ok = false;

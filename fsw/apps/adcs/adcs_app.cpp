@@ -207,8 +207,9 @@ msg::ActuatorCommand AdcsApp::step(const msg::SensorFrame& s) {
         body_torque = cross(to_d(bdot_m), to_d(s.mag_t));
     } else if (ctrl_mode_ == dict::AdcsCtrlMode::SUN_SAFE) {
         SunSafeConfig sc;
-        sc.bandwidth_rps = params_.get_f64(dict::ParamId::SUN_SAFE_BANDWIDTH_RADPS);
-        sc.max_dipole    = params_.get_f64(dict::ParamId::MTQ_MAX_DIPOLE);
+        sc.precession_rps = params_.get_f64(dict::ParamId::SUN_SAFE_BANDWIDTH_RADPS);
+        sc.spin_rps       = params_.get_f64(dict::ParamId::SUN_SAFE_SPIN_DPS) / kRadToDeg;
+        sc.max_dipole     = params_.get_f64(dict::ParamId::MTQ_MAX_DIPOLE);
         const SunSafeOutput so = sun_safe(to_d(s.sun_b), s.sun_valid, gyro, to_d(s.mag_t),
                                           s.mag_valid, sc);
         out.dipole_a_m2 = to_f(so.dipole);

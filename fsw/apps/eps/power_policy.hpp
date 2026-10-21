@@ -26,8 +26,8 @@
 //
 //  Never shed: the computer, the receiver and the survival heaters. Without
 //  the receiver nobody can help; a frozen battery is a dead battery. The
-//  attitude sensors and magnetorquers stay on too: SAFE mode's B-dot needs
-//  them and they draw little.
+//  attitude sensors and magnetorquers stay on too: SAFE mode's sun pointing
+//  needs them and they draw little.
 // ============================================================================
 #pragma once
 

@@ -406,8 +406,9 @@ The message subtype carries the severity: 1 informative, 2 low, 3 medium, 4 high
 | 14 | `MOMENTUM_DUMP_GAIN` | float32 | 0.0005 | 0.0 | 0.1 | 1/s | Magnetic momentum-unloading gain |
 | 15 | `BATT_CAPACITY_WH` | float32 | 30.0 | 1.0 | 1000.0 | W*h | Usable battery energy at 100% state of charge |
 | 16 | `FDIR_HK_PERIOD_MS` | uint32 | 1000 | 100 | 60000 | ms | Generation period of FDIR_HK |
-| 17 | `SUN_SAFE_BANDWIDTH_RADPS` | float32 | 0.0015 | 0.0002 | 0.01 | rad/s | Natural frequency of the magnetic sun-pointing loop in SAFE |
-| 18 | `SUN_SAFE_RATE_DPS` | float32 | 1.0 | 0.1 | 10.0 | deg/s | In SAFE, body rate above which B-dot runs instead of sun pointing |
+| 17 | `SUN_SAFE_BANDWIDTH_RADPS` | float32 | 0.003 | 0.0005 | 0.01 | rad/s | In SAFE, how fast the spin axis is steered to the Sun |
+| 18 | `SUN_SAFE_RATE_DPS` | float32 | 8.0 | 1.0 | 30.0 | deg/s | In SAFE, body rate above which B-dot runs instead of sun pointing |
+| 19 | `SUN_SAFE_SPIN_DPS` | float32 | 3.0 | 0.5 | 6.0 | deg/s | In SAFE, spin rate about the main array's normal |
 
 `ST[20,1]` requests one parameter and is answered by `ST[20,2]`, which reports the identifier followed by the value widened to a 64-bit float. `ST[20,3]` sets a parameter; the value is sent as a 64-bit float and converted to the parameter's declared type, and is rejected with `ILLEGAL_ARG` if it falls outside the declared range.
 

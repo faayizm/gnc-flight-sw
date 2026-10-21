@@ -19,7 +19,7 @@ Yes: decide in advance which numbers might need to change, and make those
 adjustable from the ground. They are called **parameters**, and on a real
 mission they are often the *only* way behaviour gets changed after launch.
 
-This spacecraft has sixteen, declared in
+This spacecraft has nineteen, declared in
 [`dictionary/mission.yaml`](../../dictionary/mission.yaml):
 
 | ID | Name | Default | Range | Units | What it controls |
@@ -40,6 +40,9 @@ This spacecraft has sixteen, declared in
 | 14 | `MOMENTUM_DUMP_GAIN` | 0.0005 | 0–0.1 | 1/s | Magnetic momentum-unloading gain |
 | 15 | `BATT_CAPACITY_WH` | 30 | 1–1000 | W*h | Usable battery energy at 100% state of charge |
 | 16 | `FDIR_HK_PERIOD_MS` | 1000 | 100–60000 | ms | Generation period of FDIR_HK |
+| 17 | `SUN_SAFE_BANDWIDTH_RADPS` | 0.003 | 0.0005–0.01 | rad/s | In SAFE, how fast the spin axis is steered to the Sun |
+| 18 | `SUN_SAFE_RATE_DPS` | 8 | 1–30 | deg/s | In SAFE, body rate above which B-dot runs instead of sun pointing |
+| 19 | `SUN_SAFE_SPIN_DPS` | 3 | 0.5–6 | deg/s | In SAFE, spin rate about the main array's normal |
 
 Notice every one has a **declared range**. That is the heart of this lesson.
 

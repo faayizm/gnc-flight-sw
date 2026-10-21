@@ -2,10 +2,11 @@
 
 🔧 **Builder** · 🎓 Engineer · about 30 minutes
 
-> **Built.** Both control laws in this lesson fly: B-dot in `make detumble`,
-> quaternion-feedback pointing on reaction wheels in `make pointing`. The
-> sandbox is the simple version; this lesson then shows what the real one had
-> to add, and why.
+> **Built.** All three control laws in this lesson fly: B-dot in `make
+> detumble`, quaternion-feedback pointing on reaction wheels in `make
+> pointing`, and the safe mode's sun pointing on magnetorquers alone in `make
+> power` and `make safe-mc`. The sandbox is the simple version; this lesson
+> then shows what the real ones had to add, and why.
 
 ---
 
@@ -266,6 +267,152 @@ And when a wheel dies? The magnetorquers take over its axis as well, more
 slowly, and the two healthy wheels cancel what the coils do to theirs. Lesson
 18 kills a wheel on purpose and watches the spacecraft keep pointing.
 
+## 💡 The third control law: safe mode, on coils alone
+
+When the spacecraft goes to SAFE (Lesson 17), it is because something is
+wrong, and it may be the thing this law would like to use. So the safe mode
+uses the fewest, simplest parts on board: no star tracker, no attitude
+estimate, no orbit, and no reaction wheels. It has the coarse sun sensor
+(which way is the Sun, in body axes), the magnetometer and the gyro, and it
+pushes with the magnetorquers. Its one job: turn the main solar array, on
+body −Z, to face the Sun, and keep it there.
+
+That is a hard control problem, because the magnetorquers are
+**underactuated**. They make torque m × B, and a cross product is always at
+right angles to B: at any moment there is one direction, along the field,
+in which they cannot push at all. Three axes to control, two pushes
+available. What saves it is that the field turns as the orbit goes round, so
+the missing direction keeps changing. A torque that cannot be made now can be
+made in ten minutes. This law works over an orbit, not in seconds.
+
+The obvious first attempt is the pointing law of the last section, made
+gentle: a spring that pulls the array normal **n** towards the Sun **s**, and
+a damper on the rate.
+
+```
+   τ = k_p (n × s) − k_d ω        then        m = (B × τ) / |B|²
+```
+
+n × s points along the axis the array must turn about to reach the Sun. The
+second formula is how the coils make the part of τ they can: the same
+mapping that flies a dead wheel's axis in Lesson 18.
+
+> 🔍 **The sign.** The plan for this law, written before any code, said
+> τ = −k_p (n × s). That would have turned the array *away* from the Sun,
+> with complete conviction, every time. Working one case by hand caught it:
+> array on −Z, Sun along +X, n × s = (0, −1, 0), and a push about −Y does
+> turn −Z towards +X. A unit test now pins the sign, because a sign error in
+> a safe mode is found by the spacecraft that needed it.
+
+> 🔍 **Too eager, and the coils pump.** The first gains came from a
+> bandwidth of 0.005 rad/s, gentle by the standards of the wheel controller.
+> In a unit test with a turning field, the spacecraft did not settle: its
+> rate *grew*. A coil can only push across the field, and the field turns
+> about twice an orbit (about 0.002 rad/s). A loop faster than that keeps
+> asking for torque in directions that will not exist by the time the motion
+> responds, and what it does make can feed energy into the motion instead of
+> removing it. A sweep found 0.0015 rad/s, slower than the field, settling
+> within 3°.
+
+That law flew. Entered from calm pointing, in `make power`, it held the
+array a median 13° from the Sun. Then the Monte Carlo entered SAFE from
+random tumbles, random attitudes and random places in the orbit, and the
+spacecraft found the Sun in **2 runs out of 8**.
+
+> 🔍 **Gravity gradient.** Gravity pulls slightly harder on the end of the
+> spacecraft nearer the Earth, and that twists a long body towards the
+> vertical: about 10⁻⁷ N·m here. Nothing else in this course has needed to
+> care about a force that small. But a law slow enough not to pump has a
+> spring of about the same strength, 2.6 × 10⁻⁷ N·m per radian, and gravity
+> gradient changes direction twice an orbit, faster than such a slow loop
+> can answer. In a toy simulation of the same law, 24 random entries into
+> SAFE found the Sun 22 times with gravity gradient switched off, and 3
+> times with it on. No choice of
+> gains in a sweep of the obvious ones did better than 8 in 24. The law was
+> not mistuned: it was the wrong shape.
+
+**The fix is to spin.** A spinning body has angular momentum, and angular
+momentum stays fixed in space unless a torque works on it for a long time:
+**gyroscopic stiffness**, the reason a spinning top stands up. The Sun is
+fixed in space too, near enough. So the safe mode spins the spacecraft at
+3 °/s about the array's normal, and then steers the spin's axis to the Sun.
+
+Steering a spin is not like turning a body that is still. Push sideways on a
+spinning wheel's axle and the axle moves at right angles to the push: it
+**precesses**. So the torque must not be along n × s. It must be along the
+part of **s** across **n**, which then moves the axis, and the array with it,
+towards the Sun:
+
+```
+   τ = − I ω_r (ω − Ω n)  +  h ω_p (s − (s·n) n)        h = I_n Ω
+```
+
+The first term holds the body rate at Ω = 3 °/s about n, and damps
+everything else: a tumble, and the wobble of the spin's axis (**nutation**).
+The second leans on the momentum h, towards the Sun, at about ω_p =
+0.003 rad/s. In eclipse only the first term runs, and the spin carries the
+array through the shadow still pointing where the Sun was. Read it in
+[`fsw/apps/adcs/sun_safe.hpp`](../../fsw/apps/adcs/sun_safe.hpp), with the
+tests that pin it:
+
+```bash
+./build/tests/fsw_tests 2>&1 | grep -A6 "\[sun_safe\]"
+```
+
+```
+[sun_safe]
+  .  the_wanted_torque_leans_the_spin_towards_the_sun
+  .  the_coils_never_claim_torque_along_the_field
+  .  in_eclipse_it_only_holds_the_spin
+  .  without_a_magnetometer_the_coils_are_off
+  .  saturation_keeps_the_dipole_direction
+  .  a_tumbling_body_under_gravity_gradient_acquires_the_sun
+```
+
+The same toy, spun, acquired 96 runs in 96. In the full simulator, `make
+power` puts the spacecraft in SAFE with a flat battery:
+
+```
+  .  the main array is turned to the Sun within an orbit of entering SAFE (1229 s)
+  .  and kept there while sunlit (median 3 deg after acquisition)
+  .  SAFE collects 98% of the main array face-on (B-dot alone: 62%)
+  .  an hour into SAFE the battery is at 62.7% (B-dot alone: 43.0%)
+```
+
+`make safe-mc` enters SAFE eight times, from tumbles up to 3 °/s, from any
+attitude, anywhere in the orbit, half of them in eclipse:
+
+```
+   seed  inertia (kg m^2)          tumble  starts in   acquired   median  result
+   3000  0.1028/0.1155/0.0382      2.01   sunlight      4377 s    2.1 deg  ok
+   3001  0.0958/0.1187/0.0388      0.88   sunlight      1347 s    2.4 deg  ok
+   3002  0.0939/0.1232/0.0392      0.37   sunlight      2913 s    1.7 deg  ok
+   3003  0.1011/0.1255/0.0414      1.79   eclipse       1353 s    2.0 deg  ok
+   3004  0.0999/0.1130/0.0366      2.84   eclipse       3366 s    2.5 deg  ok
+   3005  0.1046/0.1275/0.0387      0.81   sunlight      1858 s    2.4 deg  ok
+   3006  0.1042/0.1249/0.0424      2.84   eclipse       7782 s    2.8 deg  ok
+   3007  0.1034/0.1171/0.0439      1.42   eclipse       2181 s    1.5 deg  ok
+
+  8 of 8 runs met every requirement
+  acquisition  median 2547 s, worst 7782 s (requirement 8516 s)
+```
+
+Seed 3006 is the slow one: it enters SAFE tumbling at 2.8 °/s in eclipse,
+and needs most of its allowance. The requirement it is held to is the one a
+safe mode must keep from anywhere: acquire within an orbit and a half, then
+stay within 20°.
+
+**One honest limit.** The array's normal is this body's *minor* axis, the
+one with the least inertia. A rigid body can spin stably about its major or
+its minor axis (Lesson 13's tennis racket flips only about the middle one).
+But a real spacecraft is not rigid. Flexing panels and sloshing fluid turn a
+little of the spin's energy into heat, and a body that loses energy ends up
+spinning about its **major** axis, whatever it started on. Explorer 1, the
+first American satellite, did exactly that in 1958, soon after launch.
+Here the rate loop pushes it back all the time, and the simulated body is
+rigid, so nothing in this repository tests that. A spacecraft designed for
+this safe mode would put the array normal on its major axis.
+
 ## 🧪 Try it — tune a controller
 
 Open [`../toolbox/spin_sandbox.py`](../toolbox/spin_sandbox.py) and change
@@ -317,6 +464,8 @@ missions use that as free passive stabilisation.
 3. B-dot needs no attitude estimate at all. Why does that matter so much
    immediately after separation?
 4. In the detumble plot, why is the start roughly straight and the end curved?
+5. The safe mode wants to turn its spin axis towards the Sun. Why does it
+   push along the part of **s** across **n**, and not along **n** × **s**?
 
 ---
 
@@ -340,5 +489,9 @@ to do when the battery is running down.
 4. The start is saturated: the coil is at its limit, delivering constant torque,
    so the rate falls linearly. Once the demand drops below the limit the
    controller enters its linear region and the decay becomes exponential.
+5. Because the body is spinning. A torque on a spinning body changes its
+   angular momentum in the direction of the torque, so the spin axis moves
+   *along* the push: precession. Pushing along **n** × **s** would move the
+   axis sideways, at right angles to the way to the Sun.
 
 </details>

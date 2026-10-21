@@ -32,6 +32,7 @@ class Scenario:
     tumble_dps: float = 10.0
     altitude_m: float = 500e3
     inclination_deg: float = 51.6
+    true_anomaly_deg: float = 0.0           # where in the orbit the flight starts
     inertia: Vec = (0.10, 0.12, 0.04)       # kg*m^2, roughly a 6U CubeSat
     dt: float = 0.1                          # sensor sample period
     gps_outages: list = field(default_factory=list)    # [(start, end), ...] seconds
@@ -52,7 +53,7 @@ class Simulation:
         q: Quat = q_normalize(tuple(rng.gauss(0, 1) for _ in range(4)))  # type: ignore[arg-type]
 
         self.body = RigidBody(sc.inertia, q, omega)  # type: ignore[arg-type]
-        self.orbit = Orbit(sc.altitude_m, sc.inclination_deg)
+        self.orbit = Orbit(sc.altitude_m, sc.inclination_deg, true_anomaly_deg=sc.true_anomaly_deg)
         self.mag = Magnetometer(rng)
         self.gyro = Gyro(rng)
         self.sun = SunSensor(rng)

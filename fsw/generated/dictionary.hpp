@@ -415,6 +415,7 @@ enum class ParamId : uint16_t {
     FDIR_HK_PERIOD_MS = 16,
     SUN_SAFE_BANDWIDTH_RADPS = 17,
     SUN_SAFE_RATE_DPS = 18,
+    SUN_SAFE_SPIN_DPS = 19,
 };
 
 enum class ParamType : uint8_t { U8, I8, U16, I16, U32, I32, U64, I64, F32, F64 };
@@ -447,10 +448,11 @@ inline constexpr ParamInfo kParams[] = {
     { ParamId::MOMENTUM_DUMP_GAIN, ParamType::F32, "MOMENTUM_DUMP_GAIN", 0.0005, 0.0, 0.1, "1/s", "Magnetic momentum-unloading gain" },
     { ParamId::BATT_CAPACITY_WH, ParamType::F32, "BATT_CAPACITY_WH", 30.0, 1.0, 1000.0, "W*h", "Usable battery energy at 100% state of charge" },
     { ParamId::FDIR_HK_PERIOD_MS, ParamType::U32, "FDIR_HK_PERIOD_MS", 1000.0, 100.0, 60000.0, "ms", "Generation period of FDIR_HK" },
-    { ParamId::SUN_SAFE_BANDWIDTH_RADPS, ParamType::F32, "SUN_SAFE_BANDWIDTH_RADPS", 0.0015, 0.0002, 0.01, "rad/s", "Natural frequency of the magnetic sun-pointing loop in SAFE" },
-    { ParamId::SUN_SAFE_RATE_DPS, ParamType::F32, "SUN_SAFE_RATE_DPS", 1.0, 0.1, 10.0, "deg/s", "In SAFE, body rate above which B-dot runs instead of sun pointing" },
+    { ParamId::SUN_SAFE_BANDWIDTH_RADPS, ParamType::F32, "SUN_SAFE_BANDWIDTH_RADPS", 0.003, 0.0005, 0.01, "rad/s", "In SAFE, how fast the spin axis is steered to the Sun" },
+    { ParamId::SUN_SAFE_RATE_DPS, ParamType::F32, "SUN_SAFE_RATE_DPS", 8.0, 1.0, 30.0, "deg/s", "In SAFE, body rate above which B-dot runs instead of sun pointing" },
+    { ParamId::SUN_SAFE_SPIN_DPS, ParamType::F32, "SUN_SAFE_SPIN_DPS", 3.0, 0.5, 6.0, "deg/s", "In SAFE, spin rate about the main array's normal" },
 };
-inline constexpr size_t kParamCount = 18;
+inline constexpr size_t kParamCount = 19;
 
 inline const ParamInfo* find_param(ParamId id) {
     for (size_t i = 0; i < kParamCount; ++i) {

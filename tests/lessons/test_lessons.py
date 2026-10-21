@@ -244,6 +244,10 @@ def main() -> int:
         expect("09-parameters", "an out-of-range value is refused", out, "reason=ILLEGAL_ARG")
 
         # ---- Part 3 -------------------------------------------------------
+        out = run_bash(block("16-control", "bash", "sun_safe"))
+        expect("16-control", "the safe mode's law is pinned by its tests", out,
+               "  .  the_wanted_torque_leans_the_spin_towards_the_sun",
+               "  .  a_tumbling_body_under_gravity_gradient_acquires_the_sun")
         out = run_bash("cd gnd && " + block("17-power-and-modes", "bash", "mode=POINTING").split("\n", 1)[1])
         expect("17-power-and-modes", "POINTING from BOOT is refused with a reason", out,
                "EVENT_LOW          MODE_REFUSED aux=1028")

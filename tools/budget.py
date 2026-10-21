@@ -387,7 +387,8 @@ def main() -> int:
             "",
             *timing_table(timing),
             "",
-            f"{timing['ticks']:,} ticks, {timing['overruns']} overruns. The worst cases did not",
+            f"{timing['ticks']:,} ticks, {timing['overruns']} overrun{'' if timing['overruns'] == 1 else 's'}."
+            " The worst cases did not",
             "necessarily happen in the same tick, so their sum is a pessimistic bound on one",
             "tick's work. The scheduler measured on the spacecraft's clock, which ran",
             f"{TIME_SCALE:g} times faster than the board's; the table divides that back out.",

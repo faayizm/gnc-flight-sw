@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import statistics
 import sys
 import time
 
@@ -170,8 +171,15 @@ def main() -> int:
     hk_times = [tm.time_s for tm in playback if tm.name == "SYS_HK"]
     slow = [b - a for a, b in zip(hk_times, hk_times[1:])
             if los1 + 700 < a < los1 + 4700]
-    check(slow and all(9.0 < g < 11.0 for g in slow),
-          f"housekeeping really slowed to 10 s while the first command was in force ({len(slow)} gaps checked)")
+    # The period is counted in scheduler ticks and stamped with the clock. At
+    # 100x a tick is 0.2 ms of host time, and when the host stalls the
+    # scheduler drops late ticks rather than bunching them (core/scheduler.cpp),
+    # so a stall can only make a gap longer: 12 s, never 8. The period itself
+    # is the median; nothing faster and nothing missing (a missing packet would
+    # leave a 20 s gap) is checked on every gap.
+    check(slow and 9.5 < statistics.median(slow) < 10.5 and all(9.0 < g < 15.0 for g in slow),
+          f"housekeeping really slowed to 10 s while the first command was in force ({len(slow)} gaps checked, "
+          f"median {statistics.median(slow) if slow else 0:.2f} s)")
 
     seqs = [tm.sequence_count for tm in playback if tm.apid == 0x001]
     gaps = sum(1 for a, b in zip(seqs, seqs[1:]) if (b - a) & 0x3FFF != 1)

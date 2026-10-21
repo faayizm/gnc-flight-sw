@@ -184,11 +184,15 @@ EDAC with scrubbing, and the mode and the wheel-isolation mask are under TMR
 (see [FDIR.md](FDIR.md)). Every application's working state is unprotected,
 as it would be on a processor without EDAC memory.
 
-**SAFE mode damps rates; it does not point at the Sun.** In SAFE the wheels
-are unpowered and B-dot holds the body slowly turning. The arrays see the Sun
-on average, which is enough to recharge here. A proper sun-pointing safe
-mode, on magnetorquers and coarse sun sensors, is the more robust answer and
-has not been built.
+**SAFE points at the Sun on a rigid body.** In SAFE the wheels are unpowered;
+the magnetorquers spin the body at 3°/s about the main array's normal and
+steer the spin axis to the Sun (`fsw/apps/adcs/sun_safe.hpp`, Phase 8). That
+axis is the body's minor axis of inertia. A real spacecraft loses energy in
+flexing panels and sloshing fluid, and a body spinning about its minor axis
+that loses energy turns over to spin about its major axis; here only the
+active rate loop stops that. The simulator's body is rigid, so nothing here
+tests it. A spacecraft built for this safe mode would put the array normal on
+the major axis.
 
 ## Where this goes
 

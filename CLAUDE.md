@@ -7,7 +7,7 @@ state of work in progress and what to do next.
 
 ## Next up
 
-Phases 0–7 of the roadmap are done. If the user just says "continue", work
+Phases 0–8 of the roadmap are done. If the user just says "continue", work
 through this list in order, tick items off here as they are finished, and
 commit the updated list with the work:
 
@@ -21,19 +21,25 @@ commit the updated list with the work:
    untrue. Report what was changed and why.
 3. ✅ **Propose a Phase 8**: a sun-pointing safe mode. The user agreed, and
    answered its questions (recorded in `docs/ROADMAP.md`, Phase 8).
-4. **Build Phase 8**, step by step as the roadmap lists them, ticking each step
-   there as it is done: measure first, then the control law, the dictionary,
-   FDIR, proof on simulator truth, the board, the course.
+4. ✅ **Build Phase 8**, step by step as the roadmap lists them, ticking each
+   step there as it is done: measure first, then the control law, the
+   dictionary, FDIR, proof on simulator truth, the board, the course.
+5. **Ask the user what comes next.** Nothing further is agreed. Candidates
+   from the roadmap's notes: on-board software patching (PUS ST[13]/ST[6]),
+   a second processor, or a flexible-body model to test the safe mode's
+   minor-axis spin against energy loss (docs/ARCHITECTURE.md).
+   Propose, then wait for an answer before building anything.
 
 ## Build and test
 
 | Command | What | Time |
 |---|---|---|
-| `make build` / `make test` | Compile; 141+ unit tests | ~1 min |
+| `make build` / `make test` | Compile; 147+ unit tests | ~1 min |
 | `make sil` | End-to-end tests against the real binary | ~30 s |
 | `make detumble` | Includes the determinism check: hash must stay `06721ea6df543912` unless physics or control deliberately changed | ~1 min |
 | `make pointing`, `store-forward`, `power`, `fdir`, `radiation` | Flight scenarios, asserted on simulator truth | ~1 min each |
 | `make monte-carlo RUNS=8` | Dispersed wheel failures, in parallel | ~1 min |
+| `make safe-mc RUNS=8` | Entries into SAFE from dispersed tumbles, attitudes and places in orbit | ~3 min |
 | `make check-lessons` | Runs the lessons' own commands and checks the output they quote | ~1 min |
 | `make target`, `target-sil` | The Cortex-M7 board (FreeRTOS) cross-compiled, and the SIL tests against it in QEMU | ~1 min each |
 | `make target-detumble`, `budget` | A whole scenario on the board, with the determinism check; `docs/BUDGET.md` regenerated | ~20 min, ~5 min |

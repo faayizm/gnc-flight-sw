@@ -16,8 +16,9 @@
 //                    attitude is known the moment it is needed.
 //    DETUMBLE        B-dot on the magnetorquers.
 //    SAFE            the wheels are unpowered. B-dot while the gyro reads
-//                    more than SUN_SAFE_RATE_DPS; below 80% of it, the main
-//                    array is turned to the Sun on the magnetorquers alone
+//                    more than SUN_SAFE_RATE_DPS; below 80% of it, the body
+//                    is spun about the main array's normal and the spin
+//                    axis steered to the Sun on the magnetorquers alone
 //                    (sun_safe.hpp), with only the sun sensor, magnetometer
 //                    and gyro: no estimator, no orbit, no star tracker.
 //    POINTING        nadir pointing on the wheels, momentum dumped by the

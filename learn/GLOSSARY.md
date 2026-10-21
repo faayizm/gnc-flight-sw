@@ -89,16 +89,23 @@ Lesson numbers point to where each idea is taught properly.
 | **Detumble** | Stopping the spin a spacecraft has after separation. Lesson 16 |
 | **Euler angles** | Pitch, roll, yaw. Intuitive, and they suffer gimbal lock. Lesson 13 |
 | **Gimbal lock** | An orientation where two rotation axes align and a degree of freedom is lost. Lesson 13 |
+| **Gravity gradient** | The pull of gravity is slightly stronger on the end of a spacecraft nearer Earth, which twists a long body towards the vertical. About 1e-7 N·m here: tiny, and as strong as the safe mode's coils can push. Lesson 16 |
+| **Gyroscopic stiffness** | A spinning body's resistance to being turned: its angular momentum stays fixed in space unless a torque acts for a long time. Why the safe mode spins. Lesson 16 |
 | **Intermediate axis theorem** | A body spun about its middle principal axis cannot keep spinning about it: the tennis racket flip. Lesson 13 |
 | **Magnetorquer** | An electromagnet that pushes against Earth's magnetic field. No fuel, no moving parts. Lesson 16 |
+| **Major and minor axis** | The principal axes with the largest and smallest moment of inertia. A spin about either is stable for a rigid body; a body that loses energy ends up spinning about its major axis. Lesson 16 |
 | **MEKF** | Multiplicative Extended Kalman Filter. The standard attitude estimator. Lesson 15 |
 | **Moment of inertia** | How hard something is to spin. Rotation's version of mass. A matrix, not a number |
 | **Momentum dumping** | Using magnetorquers to slow a saturated reaction wheel. Lesson 16 |
+| **Nutation** | The wobble of a spinning body's axis around its angular momentum, like a spinning top that has been knocked. Lesson 16 |
+| **Precession** | A spinning body's axis turning when it is pushed: at right angles to the push, not along it. Lesson 16 |
 | **Quaternion** | Four numbers describing a rotation without gimbal lock. Lesson 13 |
 | **Reaction wheel** | A heavy motorised wheel; spin it one way, the spacecraft turns the other. Lesson 16 |
 | **Saturation** | A reaction wheel at its maximum speed, unable to absorb more. Lesson 16 |
 | **Star tracker** | Photographs the sky and matches it to a catalogue. The most accurate attitude sensor. Lesson 14 |
+| **Sun-pointing safe mode** | A safe mode that turns the solar array to the Sun with the fewest, simplest parts. Here: a sun sensor, a magnetometer, a gyro and the magnetorquers, spinning the body about the array's normal. Lessons 16, 17 |
 | **TRIAD** | Attitude from two measured direction vectors. Simple, no tuning, no history. Lesson 15 |
+| **Underactuated** | Fewer independent pushes than directions to control. A magnetorquer cannot push along the field, so at any moment it controls only two axes. Lesson 16 |
 
 ## Sensors and estimation
 
@@ -128,7 +135,7 @@ Lesson numbers point to where each idea is taught properly.
 | **Load shedding** | Switching off loads in order of importance as the battery runs down. Lesson 17 |
 | **Mode** | The one answer to "what is the spacecraft doing right now?": BOOT, SAFE, DETUMBLE, STANDBY or POINTING here. Decided in one place, the mode manager. Lesson 17 |
 | **Rail** | One switched power line from the battery to a group of equipment: the payload, the transmitter, the heaters. Load shedding switches rails off. Lesson 17 |
-| **Safe mode** | The mode a spacecraft enters when it does not know what else to do: minimum power, stay calm, keep listening. Entering is automatic; leaving needs a ground command. Lessons 17, 18 |
+| **Safe mode** | The mode a spacecraft enters when it does not know what else to do: minimum power, solar array to the Sun, keep listening. Entering is automatic; leaving needs a ground command. Lessons 17, 18 |
 | **State of charge** | How full the battery is, as a percentage. `batt_soc_pct` in `EPS_HK`. Lesson 17 |
 
 ## Software and reliability

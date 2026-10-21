@@ -505,8 +505,9 @@ params:
   - {name: MOMENTUM_DUMP_GAIN,  id: 14, type: float32, default: 0.0005, min: 0.0, max: 0.1, units: 1/s,  desc: Magnetic momentum-unloading gain}
   - {name: BATT_CAPACITY_WH,    id: 15, type: float32, default: 30.0, min: 1.0, max: 1000.0, units: W*h, desc: Usable battery energy at 100% state of charge}
   - {name: FDIR_HK_PERIOD_MS,   id: 16, type: uint32, default: 1000, min: 100, max: 60000, units: ms,   desc: Generation period of FDIR_HK}
-  - {name: SUN_SAFE_BANDWIDTH_RADPS, id: 17, type: float32, default: 0.0015, min: 0.0002, max: 0.01, units: rad/s, desc: Natural frequency of the magnetic sun-pointing loop in SAFE}
-  - {name: SUN_SAFE_RATE_DPS,  id: 18, type: float32, default: 1.0, min: 0.1, max: 10.0, units: deg/s, desc: "In SAFE, body rate above which B-dot runs instead of sun pointing"}
+  - {name: SUN_SAFE_BANDWIDTH_RADPS, id: 17, type: float32, default: 0.003, min: 0.0005, max: 0.01, units: rad/s, desc: "In SAFE, how fast the spin axis is steered to the Sun"}
+  - {name: SUN_SAFE_RATE_DPS,  id: 18, type: float32, default: 8.0, min: 1.0, max: 30.0, units: deg/s, desc: "In SAFE, body rate above which B-dot runs instead of sun pointing"}
+  - {name: SUN_SAFE_SPIN_DPS,  id: 19, type: float32, default: 3.0, min: 0.5, max: 6.0, units: deg/s, desc: "In SAFE, spin rate about the main array's normal"}
 
 # -----------------------------------------------------------------------------
 # On-board monitoring, PUS ST[12]. Each monitor checks one housekeeping field

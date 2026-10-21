@@ -15,7 +15,10 @@
 //                          └───────────┘
 //
 //     from any mode: power CRITICAL, or no word from the ground for
-//     LINK_TIMEOUT_S  ──▶  SAFE.   Leaving SAFE takes a ground command.
+//     LINK_TIMEOUT_S  ──▶  SAFE.   Leaving SAFE takes a ground command, and
+//     the battery back at NOMINAL. SAFE spins the body about its main array
+//     (adcs/sun_safe.hpp), so the way out is usually DETUMBLE: B-dot takes
+//     the spin out, and the rules above carry on to STANDBY and POINTING.
 //
 //     from POINTING: fewer than two reaction wheels in service ──▶ SAFE.
 //     FDIR has already climbed every rung below this one (fdir/wheel_ladder.hpp);
@@ -28,7 +31,8 @@
 //  GROUND REQUESTS (ST[8,1]) are requests. Each is checked against the same
 //  facts the autonomous rules use, and refused with a reason if it does not
 //  make sense: no pointing without a converged attitude, no leaving SAFE
-//  while the battery is still low, no BOOT ever.
+//  while the battery is still low, no STANDBY (which runs no controller)
+//  while spinning, no BOOT ever.
 // ============================================================================
 #pragma once
 
@@ -100,7 +104,7 @@ inline dict::ModeRefusal judge_request(dict::SystemMode from, dict::SystemMode t
         case M::BOOT:
             return R::INVALID;
         case M::DETUMBLE:
-            if (from == M::SAFE && f.power == dict::PowerState::CRITICAL) { return R::POWER; }
+            if (from == M::SAFE && f.power != dict::PowerState::NOMINAL) { return R::POWER; }
             return R::NONE;
         case M::STANDBY:
             if (from == M::SAFE && f.power != dict::PowerState::NOMINAL) { return R::POWER; }

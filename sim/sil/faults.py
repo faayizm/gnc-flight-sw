@@ -49,13 +49,16 @@ import math
 import random
 from dataclasses import dataclass
 
+from gnd.pyground.dictionary import PARAMS
+
 SENSORS = ("mag", "gyro", "sun", "star", "gps")
 WHEELS = {"wheel_x": 0, "wheel_y": 1, "wheel_z": 2}
 
 # The flight computer's protected memories, as (bridge target id, size in
 # bits). Sizes weight where random upsets land: a big memory is a big target.
-# The parameter table is 16 words of 72 bits; each TMR value is 3 x 8 bits.
-MEMORY = {"params": (0, 16 * 72), "mode": (1, 24), "wheel_isolation": (2, 24)}
+# The parameter table is one 72-bit word per parameter; each TMR value is
+# 3 x 8 bits.
+MEMORY = {"params": (0, len(PARAMS) * 72), "mode": (1, 24), "wheel_isolation": (2, 24)}
 
 # The South Atlantic Anomaly, roughly: where the inner radiation belt dips
 # lowest, and where most upsets in low orbit happen.
@@ -125,6 +128,7 @@ class Injector:
         self.radiation = radiation
         self.upsets: dict[str, int] = {name: 0 for name in MEMORY}
         self.upsets_in_saa = 0
+        self.upset_log: list[tuple[float, str, int]] = []   # (time, memory, bit)
         self.fired: set[int] = set()
         self.held: dict[str, object] = {}     # sensor -> value captured when frozen
         self.latched: dict[int, bool] = {}    # fault index -> latch still holding
@@ -182,6 +186,7 @@ class Injector:
             if f.kind == "upset" and t >= f.start and i not in self.fired:
                 self.fired.add(i)
                 self.upsets[f.target] += 1
+                self.upset_log.append((t, f.target, f.bit))
                 return MEMORY[f.target][0], f.bit
         if self.radiation is None:
             return 0xFF, 0
@@ -195,6 +200,7 @@ class Injector:
             if pick < bits:
                 self.upsets[name] += 1
                 self.upsets_in_saa += saa
+                self.upset_log.append((t, name, pick))
                 return target, pick
             pick -= bits
         return 0xFF, 0

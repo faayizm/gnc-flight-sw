@@ -5,7 +5,7 @@ principles, together with the simulation and ground tooling needed to actually
 fly it. Written to be read: every design decision that matters is explained in
 the file where it is made, including the ones that were rejected and why.
 
-**Status: Phase 5 of 7 complete.** The flight software flies against a
+**Status: Phases 0–8 complete.** The flight software flies against a
 simulator that holds the truth.
 - It detumbles with B-dot and holds the Earth's centre within 0.2° using a
   Kalman filter and reaction wheels (`make pointing`;
@@ -13,11 +13,17 @@ simulator that holds the truth.
 - It talks to the ground over a real CCSDS link through a noisy channel with
   pass windows (`make store-forward`; [docs/LINK.md](docs/LINK.md)).
 - It manages its own power and modes, shedding load and putting itself into
-  SAFE when the battery runs low (`make power`;
-  [docs/POWER_AND_MODES.md](docs/POWER_AND_MODES.md)).
+  SAFE when the battery runs low, where it spins up and turns its main solar
+  array to the Sun with nothing but magnetorquers (`make power`,
+  `make safe-mc`; [docs/POWER_AND_MODES.md](docs/POWER_AND_MODES.md)).
+- It survives lying sensors, a latched-up and a dead reaction wheel, and an
+  orbit of radiation upsets (`make fdir`, `make radiation`, `make
+  monte-carlo`; [docs/FDIR.md](docs/FDIR.md)).
+- The same flight code runs on a Cortex-M7 under FreeRTOS, in QEMU (`make
+  target-sil`; [docs/BUDGET.md](docs/BUDGET.md)).
 
-Fault detection and recovery come next. The roadmap in
-[docs/ROADMAP.md](docs/ROADMAP.md) says exactly what exists and what does not.
+The roadmap in [docs/ROADMAP.md](docs/ROADMAP.md) says exactly what exists
+and what does not.
 
 ```
                  ┌──────────────────────────────────────┐
@@ -157,11 +163,11 @@ is built around, and it is the one most worth copying into your own work.
 | Software bus | Working — synchronous pub/sub, statically bounded |
 | Parameter store | Working — range checks, CRC on non-volatile storage, safe fallback |
 | Ground segment | Working — Python client and CLI; OpenC3 COSMOS config generated |
-| ADCS | **Working.** Detumble, MEKF estimation, nadir pointing, momentum dumping |
+| ADCS | **Working.** Detumble, MEKF estimation, nadir pointing, momentum dumping, a spinning sun-pointing safe mode on coils alone |
 | EPS and mode manager | **Working.** Load shedding, autonomous modes, SAFE |
 | FDIR | **Working.** Sensor screening, a wheel recovery ladder, PUS ST[12] monitoring and ST[19] event-action (`make fdir`) |
 | Radiation and watchdog | **Working.** EDAC with scrubbing, TMR, simulated upsets (`make radiation`); a watchdog that really resets |
-| Monte Carlo | **Working.** Dispersed wheel-failure campaigns in CI (`make monte-carlo`) |
+| Monte Carlo | **Working.** Dispersed wheel failures and entries into SAFE, in CI (`make monte-carlo`, `make safe-mc`) |
 | Orbit and attitude simulator | **Working** (`sim/`, `make detumble`, `make pointing`) |
 | TM/TC transfer frames, RS, COP-1 | **Working** — with a radio channel model (`make store-forward`) |
 

@@ -292,14 +292,14 @@ make target
 
 ```
 Memory region         Used Size  Region Size  %age Used
-            CODE:       87056 B         4 MB      2.08%
+            CODE:       89128 B         4 MB      2.12%
              RAM:        8280 B      4032 KB      0.20%
           NOINIT:           0 B        64 KB      0.00%
-           PSRAM:     4326880 B        16 MB     25.79%
+           PSRAM:     4326928 B        16 MB     25.79%
 ```
 
 That is the linker telling you the spacecraft's **entire** memory footprint
-before it has ever run: 87 kB of code, and 4.3 MB of data, nearly all of it the
+before it has ever run: 89 kB of code, and 4.3 MB of data, nearly all of it the
 packet store. It can know, because nothing is allocated at run time: the rule
 `make check-layering` enforces, above.
 [`docs/BUDGET.md`](../../docs/BUDGET.md) breaks it
@@ -318,7 +318,7 @@ HYPERSAT flight software up (Cortex-M7, FreeRTOS V11.1.0).
   base rate   : 50 Hz
   time scale  : 1.00x
   tasks       : 5 registered
-  parameters  : 16
+  parameters  : 19
   boot        : #1, after POWER_ON
   watchdog    : 1000 ms, 0 resets so far
 ```

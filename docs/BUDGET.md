@@ -11,8 +11,8 @@ the linker knows the whole memory footprint before the program ever runs.
 
 ## Memory
 
-Code and constants: **86,968 bytes** (of 4 MiB SSRAM1, standing in for flash).
-Initialised data: **88 bytes**. Zeroed data: **4,326,880 bytes**
+Code and constants: **89,040 bytes** (of 4 MiB SSRAM1, standing in for flash).
+Initialised data: **88 bytes**. Zeroed data: **4,326,928 bytes**
 (in the 16 MiB PSRAM). The board's "non-volatile" storage is a further 8 KiB of
 RAM that survives a reset, outside all of these.
 
@@ -24,13 +24,13 @@ under `targets/mps2-an500`. The next table divides it up.
 
 | Component | Code + constants | Initialised data | Zeroed data |
 |---|---:|---:|---:|
-| `fsw/apps/ttc` | 22,432 | 0 | 0 |
-| `fsw/apps/adcs` | 15,844 | 0 | 0 |
+| `fsw/apps/ttc` | 22,452 | 0 | 0 |
+| `fsw/apps/adcs` | 17,368 | 0 | 0 |
 | `fsw/apps/io` | 6,060 | 0 | 0 |
 | `maths library (libm)` | 6,008 | 0 | 0 |
-| `fsw/apps/fdir` | 5,700 | 0 | 0 |
-| `fsw/spacecraft` | 4,424 | 0 | 0 |
-| `targets/mps2-an500` | 2,988 | 0 | 4,326,100 |
+| `fsw/apps/fdir` | 5,708 | 0 | 0 |
+| `fsw/spacecraft` | 4,540 | 0 | 0 |
+| `targets/mps2-an500` | 2,988 | 0 | 4,326,148 |
 | `fsw/apps/modemgr` | 2,964 | 0 | 0 |
 | `fsw/apps/eps` | 2,844 | 0 | 0 |
 | `FreeRTOS kernel` | 2,752 | 4 | 769 |
@@ -39,8 +39,8 @@ under `targets/mps2-an500`. The next table divides it up.
 | `fsw/core` | 1,848 | 0 | 0 |
 | `fsw/platform/freertos` | 1,132 | 0 | 0 |
 | `C++ runtime (libstdc++)` | 10 | 0 | 0 |
-| string literals, merged across components; alignment | 8,230 | 4 | 11 |
-| **total** | **86,968** | **88** | **4,326,880** |
+| string literals, merged across components; alignment | 8,634 | 4 | 11 |
+| **total** | **89,040** | **88** | **4,326,928** |
 
 ### Inside the spacecraft object
 
@@ -57,10 +57,10 @@ housekeeping, two orbits out of contact with margin (`ttc_app.hpp`).
 | 704 | `fsw::core::Scheduler` |
 | 588 | `fsw::core::Bus` |
 | 376 | `fsw::fdir::FdirApp` |
-| 272 | `fsw::core::ParamStore` |
+| 320 | `fsw::core::ParamStore` |
 | 96 | `fsw::eps::EpsApp` |
 | 72 | `fsw::modemgr::ModeManager` |
-| **4,251,876** | **sum of the members** (rows under 64 bytes not shown) |
+| **4,251,924** | **sum of the members** (rows under 64 bytes not shown) |
 
 | Bytes | Inside `ttc::TtcApp` (1 KiB and over) |
 |---:|---|
@@ -76,25 +76,25 @@ housekeeping, two orbits out of contact with margin (`ttc_app.hpp`).
 
 | Bytes | Code | | Bytes | Data |
 |---:|---|---|---:|---|
-| 2,336 | `ttc::TtcApp::send_hk()` | | 4,251,888 | `g_spacecraft` |
-| 2,272 | `io::SimIoApp::run()` | | 32,768 | `g_flight_stack` |
-| 1,904 | `adcs::AdcsApp::run_estimator()` | | 20,528 | `g_ttc_link` |
-| 1,828 | `fdir::FdirApp::step()` | | 20,528 | `g_sim_link` |
-| 1,820 | `adcs::AdcsApp::step()` | | 640 | `dict::kParams` |
+| 2,660 | `adcs::AdcsApp::step()` | | 4,251,936 | `g_spacecraft` |
+| 2,352 | `ttc::TtcApp::send_hk()` | | 32,768 | `g_flight_stack` |
+| 2,272 | `io::SimIoApp::run()` | | 20,528 | `g_ttc_link` |
+| 1,904 | `adcs::AdcsApp::run_estimator()` | | 20,528 | `g_sim_link` |
+| 1,828 | `fdir::FdirApp::step()` | | 760 | `dict::kParams` |
 | 1,816 | `io::SensorScreen::screen()` | | 512 | `uxIdleTaskStack.2` |
-| 1,780 | `eps::EpsApp::step(msg::SensorFrame const&) [clone .part.0]` | | 468 | `dict::kEvents` |
+| 1,780 | `eps::EpsApp::step(msg::SensorFrame const&) [clone .part.0]` | | 480 | `dict::kEvents` |
 | 1,656 | `__kernel_rem_pio2` | | 400 | `cmd::kCommands` |
 | 1,530 | `adcs::nadir_control()` | | 280 | `tlm::kMonitors` |
 | 1,488 | `adcs::Mekf::update()` | | 256 | `parse_options()::line` |
 | 1,408 | `flight_task()` | | 136 | `core::edac_detail::kLayout` |
-| 1,344 | `Spacecraft::Spacecraft()` | | 88 | `eps::soc_from_ocv(double)::kV` |
+| 1,336 | `Spacecraft::Spacecraft()` | | 88 | `eps::soc_from_ocv(double)::kV` |
 
 ## Stack
 
 The flight task has a 32 KiB stack (`kFlightStackWords` in
 `targets/mps2-an500/main.cpp`); interrupts use the separate 8 KiB main stack.
 
-**Measured: 3,816 bytes** of the flight task's 32 KiB were ever used during the
+**Measured: 3,840 bytes** of the flight task's 32 KiB were ever used during the
 timing run below (FreeRTOS fills a task's stack with a known pattern and finds the
 deepest byte overwritten): 12 %.
 
@@ -114,12 +114,12 @@ static call graph cannot follow. The measurement above is the evidence instead.
 | 536 | `void Spacecraft::save_params_if_dirty()` | static |
 | 536 | `uint16_t Spacecraft::count_boot()` | static |
 | 528 | `bool Spacecraft::reload_params()` | static |
-| 408 | `msg::ActuatorCommand adcs::AdcsApp::step()` | static |
+| 432 | `msg::ActuatorCommand adcs::AdcsApp::step()` | static |
 | 400 | `void io::SimIoApp::run()` | static |
 
 ## Timing
 
-The board flew the first 1,739 s of the nadir-pointing scenario in QEMU
+The board flew the first 2,339 s of the nadir-pointing scenario in QEMU
 (detumble, the estimator converging, and fine pointing from t = 964 s) with
 `-icount shift=2`: every instruction advances the board's clock by exactly
 4 ns, as if a processor retired 250 million instructions a second, one
@@ -134,17 +134,17 @@ a substitute for a logic analyser on a real board.
 | Task | Rate | Runs | Worst case (µs) | Mean (µs) | Worst case, instructions |
 |---|---|---:|---:|---:|---:|
 | `ttc_rx` | 50 Hz | 60,000 | 13 | 1.0 | 3,250 |
-| `ttc_tm` | 10 Hz | 12,000 | 162 | 30.9 | 40,500 |
-| `ttc_dl` | 50 Hz | 60,000 | 1,049 | 35.8 | 262,250 |
-| `io` | 50 Hz | 60,000 | 351 | 77.6 | 87,750 |
-| `modes` | 10 Hz | 12,000 | 16 | 12.2 | 4,000 |
-| **all five in one tick** | | | **1,591** | | of a 20,000 µs tick: **8 %** |
+| `ttc_tm` | 10 Hz | 12,000 | 167 | 31.2 | 41,750 |
+| `ttc_dl` | 50 Hz | 60,000 | 1,050 | 35.1 | 262,500 |
+| `io` | 50 Hz | 60,000 | 358 | 106.5 | 89,500 |
+| `modes` | 10 Hz | 12,000 | 17 | 12.2 | 4,250 |
+| **all five in one tick** | | | **1,605** | | of a 20,000 µs tick: **8 %** |
 
 60,000 ticks, 0 overruns. The worst cases did not
 necessarily happen in the same tick, so their sum is a pessimistic bound on one
 tick's work. The scheduler measured on the spacecraft's clock, which ran
 10 times faster than the board's; the table divides that back out.
 
-The run took 288 s of wall-clock time. QEMU's instruction count is
+The run took 274 s of wall-clock time. QEMU's instruction count is
 deterministic; when each sensor frame arrives from the simulator is not, so a
 second run gives slightly different numbers.

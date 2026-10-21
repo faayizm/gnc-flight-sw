@@ -58,7 +58,7 @@ Never jump straight to the drastic option. Climb:
    3. RECONFIGURE  stop using the broken part, carry on without it
                    degraded, but still working
 
-   4. SAFE MODE    stop the mission, keep the spacecraft calm,
+   4. SAFE MODE    stop the mission, turn the solar array to the Sun,
                    wait for a human. The mission pauses; the spacecraft lives
 
    5. RESET        the watchdog fires; start again from scratch
@@ -249,12 +249,16 @@ ground could not.
 
 Act 4 of `make fdir` needs both. With the X wheel already dead, the
 magnetometer fails too, and the magnetorquers that replaced the wheel are
-blind. Nothing below the top of the ladder can help. SAFE switches the
-transmitter off, so the ground learns what happened the way it really would:
-at the next pass, from the spacecraft's own record (Lesson 8):
+blind. Nothing below the top of the ladder can help. SAFE cannot use the
+coils either: its sun-pointing law (Lesson 16) needs the magnetometer to know
+which way to push, and a dipole aimed at a field nobody is measuring is a
+guess. So it switches them off, says so (`SAFE_COILS_OFF`), and drifts until
+the magnetometer comes back. SAFE also switches the transmitter off, so the
+ground learns what happened the way it really would: at the next pass, from
+the spacecraft's own record (Lesson 8):
 
 ```
-  replayed: POINTING_LOST, EVENT_ACTION, MODE_CHANGED, SAFE_MODE_ENTERED, LOAD_SHED, SENSOR_READMITTED
+  replayed: POINTING_LOST, EVENT_ACTION, MODE_CHANGED, SAFE_MODE_ENTERED, SAFE_COILS_OFF, LOAD_SHED, SENSOR_READMITTED
 ```
 
 ## 🔍 What the Monte Carlo found
@@ -433,8 +437,8 @@ one copy, so the vote is always right, and it repairs the odd one out.
 than real ones, and ten times more again in the Anomaly:
 
 ```
-  upsets delivered: 331 (234 in the SAA) -- parameter table 312, mode 9, wheel isolation 10
-  on board: 310 corrected by EDAC, 1 uncorrectable, 19 repaired by TMR voting
+  upsets delivered: 325 (231 in the SAA) -- parameter table 310, mode 7, wheel isolation 8
+  on board: 308 corrected by EDAC, 1 uncorrectable, 15 repaired by TMR voting
 ```
 
 Seven in ten of the upsets happened in the Anomaly, which covers a small
@@ -447,6 +451,16 @@ holds the value the ground set:
   .  so MOMENTUM_DUMP_GAIN is still the ground's 0.0006, not the default 0.0005
   .  and pointing never noticed any of it (worst 0.059 deg, from 600 s after pointing engaged)
 ```
+
+> 🔍 **One upset short.** When the safe mode added three parameters, the
+> table grew from 16 words to 19, the random upsets landed differently, and
+> the count stopped adding up: 311 delivered, 308 corrected plus the
+> deliberate pair. Nothing on board was wrong. The last upset had arrived
+> 0.4 s before the end of the flight, and the scrubber, which passes every
+> 1.6 s, had not reached it yet when the last housekeeping was sent. The
+> test was comparing two counts taken at different moments. Now the
+> radiation stops before the end, and the flight carries on long enough for
+> one more scrub and one more report.
 
 ## 🧪 Try it — make the watchdog bite
 

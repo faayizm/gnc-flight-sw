@@ -135,8 +135,9 @@ PARAMS = {
     14: ('MOMENTUM_DUMP_GAIN', 'float32', 0.0005, 0.0, 0.1, '1/s', 'Magnetic momentum-unloading gain'),
     15: ('BATT_CAPACITY_WH', 'float32', 30.0, 1.0, 1000.0, 'W*h', 'Usable battery energy at 100% state of charge'),
     16: ('FDIR_HK_PERIOD_MS', 'uint32', 1000, 100, 60000, 'ms', 'Generation period of FDIR_HK'),
-    17: ('SUN_SAFE_BANDWIDTH_RADPS', 'float32', 0.0015, 0.0002, 0.01, 'rad/s', 'Natural frequency of the magnetic sun-pointing loop in SAFE'),
-    18: ('SUN_SAFE_RATE_DPS', 'float32', 1.0, 0.1, 10.0, 'deg/s', 'In SAFE, body rate above which B-dot runs instead of sun pointing'),
+    17: ('SUN_SAFE_BANDWIDTH_RADPS', 'float32', 0.003, 0.0005, 0.01, 'rad/s', 'In SAFE, how fast the spin axis is steered to the Sun'),
+    18: ('SUN_SAFE_RATE_DPS', 'float32', 8.0, 1.0, 30.0, 'deg/s', 'In SAFE, body rate above which B-dot runs instead of sun pointing'),
+    19: ('SUN_SAFE_SPIN_DPS', 'float32', 3.0, 0.5, 6.0, 'deg/s', "In SAFE, spin rate about the main array's normal"),
 }
 
 # id -> (name, packet, field, low, high, repetitions, event)

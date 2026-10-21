@@ -139,6 +139,10 @@ RUNS ?= 8
 monte-carlo: build  ## Fly the wheel-failure recovery RUNS times (default 8), every uncertainty dispersed
 	@$(SYS_PYTHON) -m sim.scenarios.monte_carlo --runs $(RUNS)
 
+.PHONY: safe-mc
+safe-mc: build  ## Enter SAFE RUNS times (default 8) from a dispersed tumble, attitude and place in orbit
+	@$(SYS_PYTHON) -m sim.scenarios.safe_mode_mc --runs $(RUNS)
+
 .PHONY: detumble-live
 detumble-live: build  ## Fly a detumble for a viewer on the TT&C port (COSMOS DETUMBLE screen)
 	@$(SYS_PYTHON) -m sim.scenarios.detumble --live --ttc-port $(TTC_PORT)
@@ -205,7 +209,7 @@ learn:  ## Where to start learning
 	@echo ""
 
 .PHONY: check
-check: check-gen build test test-gnd test-sim sil detumble pointing store-forward power fdir radiation monte-carlo check-layering check-links check-toolbox check-lessons  ## Everything CI runs
+check: check-gen build test test-gnd test-sim sil detumble pointing store-forward power fdir radiation monte-carlo safe-mc check-layering check-links check-toolbox check-lessons  ## Everything CI runs
 	@echo ""
 	@echo "all checks passed"
 
