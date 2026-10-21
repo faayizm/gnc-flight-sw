@@ -212,7 +212,7 @@ target-detumble`.
 
 ---
 
-## Phase 8 — A safe mode that turns to the Sun 📝 proposed
+## Phase 8 — A safe mode that turns to the Sun 🚧 in progress
 
 The gap is written down in [ARCHITECTURE.md](ARCHITECTURE.md): **SAFE damps
 rates; it does not point at the Sun.** In SAFE the wheels are switched off
@@ -262,17 +262,13 @@ only actuators are the magnetorquers.
    underactuated one; Lessons 17 and 18 change where SAFE is described; new
    terms in the glossary; whatever goes wrong becomes a 🔍 box.
 
-**Questions to settle before starting:**
+**Settled with the user (2026-10-21):**
 
-- Magnetorquers only, as above (robust, slow, coarse), or keep the wheels on
-  in SAFE whenever the battery allows (fast and accurate, but it brings the
-  wheels and their FDIR back into the safe mode)?
-- With the magnetometer rejected, the coils can do nothing useful. Switch
-  them off and drift, or something else?
-- Or a different Phase 8 altogether. Candidates of similar size: ST[13]
-  large data transfer and ST[6] memory management (a software patch uplinked
-  and applied in flight); a second flight processor (LEON3/SPARC, the one
-  Phase 7 set aside).
+- **This** Phase 8, not ST[13]/ST[6] patching and not a second processor.
+- **Magnetorquers only** in SAFE. The wheels stay off, and so stay out of the
+  safe mode's failure cases.
+- **With the magnetometer rejected:** switch the coils off, drift, and raise
+  an event; wait for the magnetometer to come back or for the ground.
 
 **Ends with:** `make power` showing the spacecraft, alone in SAFE with its
 wheels off, turning its main array to the Sun with nothing but coils, a

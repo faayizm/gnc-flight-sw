@@ -19,11 +19,11 @@ commit the updated list with the work:
    numbers and commands (refresh quoted output from fresh runs), broken
    cross-references, and anything one lesson says that a later phase made
    untrue. Report what was changed and why.
-3. ✅ **Propose a Phase 8**, for example a sun-pointing safe mode (the gap noted
-   in `docs/ARCHITECTURE.md`). Write the proposal into `docs/ROADMAP.md` and
-   **ask the user before building it**. Proposed and asked: **wait for the
-   user's answer to the questions at the end of Phase 8 in the roadmap**
-   before writing any of it.
+3. ✅ **Propose a Phase 8**: a sun-pointing safe mode. The user agreed, and
+   answered its questions (recorded in `docs/ROADMAP.md`, Phase 8).
+4. **Build Phase 8**, step by step as the roadmap lists them, ticking each step
+   there as it is done: measure first, then the control law, the dictionary,
+   FDIR, proof on simulator truth, the board, the course.
 
 ## Build and test
 
